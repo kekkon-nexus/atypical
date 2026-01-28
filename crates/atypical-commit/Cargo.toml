@@ -1,0 +1,6 @@
+[package]
+name = "atypical-commit"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
