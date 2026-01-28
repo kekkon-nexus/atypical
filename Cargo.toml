@@ -2,7 +2,9 @@
 name = "atypical"
 version = "0.1.0"
 edition = "2024"
-description = ""
+description = "(Non)-standard enforcing DX"
+repository = "https://github.com/kekkon-nexus/atypical"
+license = "MIT OR Apache-2.0"
 
 [workspace]
 members = ["crates/*"]
