@@ -1,14 +1,42 @@
 use bitflag_attr::bitflag;
 use chumsky::prelude::*;
 
-/// The modifier of a prefix.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Modifier {
+/// The position of the modifier.
+///
+/// See [Modifier].
+#[bitflag(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
+pub enum ModifierPosition {
+    /// Appears directly after the keyword and before enclosures.
+    Before = 1 << 0,
+    /// Appears after enclosures.
+    /// This is the Conventional Commits style.
+    After = 1 << 1,
+}
+
+impl Default for ModifierPosition {
+    fn default() -> Self {
+        Self::all()
+    }
+}
+
+/// The kind of the modifier.
+///
+/// See [Modifier].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModifierKind {
     /// The symbol `?`.
     Question,
-    /// The symbol `!`, with the number of exclamation marks.
+    /// The symbol `!`, with the count of exclamation marks.
     /// Also known as the "breaking change" in Conventional Commits.
     Exclamation(usize),
+}
+
+/// The modifier of a prefix.
+pub struct Modifier {
+    // Should be guaranteed to be XOR-compatible.
+    pub position: ModifierPosition,
+    pub kind: ModifierKind,
 }
 
 /// The kind of an enclosure delimiters.
@@ -33,6 +61,7 @@ impl Default for Delimiter {
 /// An enclosure of content within delimiters.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enclosure<'i> {
+    // Should be guaranteed to be XOR-compatible.
     pub delimiter: Delimiter,
     pub content: &'i str,
 }
@@ -43,7 +72,7 @@ pub struct Prefix<'i> {
     /// Also known as the "type" in Conventional Commits.
     pub keyword: &'i str,
     /// Also known is the "breaking change" in Conventional Commits.
-    pub modifier: Option<Modifier>,
+    pub modifier: Option<ModifierKind>,
     /// Also known as the "scope" in Conventional Commits.
     pub enclosures: Vec<Enclosure<'i>>,
 }
@@ -57,26 +86,10 @@ pub type Body<'i> = &'i str;
 /// The trailers of a commit message. Contains a sequence of (key, text) pairs.
 pub type Trailers<'i> = Vec<(&'i str, &'i str)>;
 
-/// The location of the modifier symbol.
-///
-/// See [Modifier].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum ModifierLocation {
-    /// Appears directly after the keyword and before enclosures.
-    Before,
-    /// Appears after enclosures.
-    /// This is the Conventional Commits style.
-    After,
-    /// Appears either before or after enclosures.
-    /// It may only appear once.
-    #[default]
-    Either,
-}
-
 /// The context of the parser.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ExtraContext {
-    pub modifier_location: ModifierLocation,
+    pub modifier_position: ModifierPosition,
 }
 
 /// The parser extras.
