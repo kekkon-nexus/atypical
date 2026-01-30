@@ -77,3 +77,46 @@ pub struct ExtraContext {
 ///
 /// See [extra::ParserExtra].
 pub type Extra = extra::Context<ExtraContext>;
+
+pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+    fn dry<'i>(
+        start: char,
+        end: char,
+        delimiter: Delimiter,
+    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+        none_of(format!("{}{}", start, end))
+            .repeated()
+            .to_slice()
+            .delimited_by(just(start), just(end))
+            .map(move |content| Enclosure { delimiter, content })
+    }
+
+    choice((
+        dry('(', ')', Delimiter::Round),
+        dry('[', ']', Delimiter::Square),
+    ))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_enclosure() {
+        assert_eq!(
+            enclosure().parse("(example)").into_result(),
+            Ok(Enclosure {
+                delimiter: Delimiter::Round,
+                content: "example",
+            })
+        );
+
+        assert_eq!(
+            enclosure().parse("[(\t]").into_result(),
+            Ok(Enclosure {
+                delimiter: Delimiter::Square,
+                content: "(\t",
+            })
+        );
+    }
+}
