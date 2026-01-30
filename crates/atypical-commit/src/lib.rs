@@ -84,6 +84,8 @@ pub struct ExtraContext {
 /// See [extra::ParserExtra].
 pub type Extra = extra::Context<ExtraContext>;
 
+/// Parses an enclosure.
+/// For contextual parsing, use [fn@enclosure_with_ctx].
 pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
     fn dry<'i>(
         start: char,
@@ -105,6 +107,8 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context
     ))
 }
 
+/// Parses an enclosure with a given delimiter context.
+/// For generic parsing, use [fn@enclosure].
 pub fn enclosure_with_ctx<'i>(
     delimiter: Delimiter,
 ) -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
