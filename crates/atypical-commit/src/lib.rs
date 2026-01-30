@@ -1,4 +1,6 @@
-use chumsky::extra::State;
+use std::collections::HashSet;
+
+use chumsky::prelude::*;
 
 /// The modifier of a prefix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -65,13 +67,13 @@ pub enum ModifierLocation {
     Either,
 }
 
-/// The state of the parser.
+/// The context of the parser.
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct ExtraState {
+pub struct ExtraContext {
     pub modifier_location: ModifierLocation,
 }
 
 /// The parser extras.
 ///
-/// See [chumsky::extra::ParserExtra].
-pub type Extra = State<ExtraState>;
+/// See [extra::ParserExtra].
+pub type Extra = extra::Context<ExtraContext>;
