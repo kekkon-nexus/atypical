@@ -11,7 +11,7 @@ pub enum Modifier {
     Exclamation(usize),
 }
 
-/// The kind of the enclosure delimiters.
+/// The kind of an enclosure delimiters.
 ///
 /// See [Enclosure].
 #[bitflag(u8)]
