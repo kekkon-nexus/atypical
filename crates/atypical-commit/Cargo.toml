@@ -8,3 +8,8 @@ license.workspace = true
 categories.workspace = true
 
 [dependencies]
+chumsky = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["chumsky/std", "chumsky/stacker"]
