@@ -9,6 +9,7 @@ categories.workspace = true
 
 [dependencies]
 chumsky = { workspace = true }
+bitflag-attr = { workspace = true }
 
 [features]
 default = ["std"]

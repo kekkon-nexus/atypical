@@ -30,7 +30,28 @@ dependencies = [
 name = "atypical-commit"
 version = "0.1.0"
 dependencies = [
+ "bitflag-attr",
  "chumsky",
+]
+
+[[package]]
+name = "bitflag-attr"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e14a6783c9eb99ed428b4707d61e91782236ad234616bd70b4360f0e2988363a"
+dependencies = [
+ "bitflags-attr-macros",
+]
+
+[[package]]
+name = "bitflags-attr-macros"
+version = "0.13.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c849ea68e125e003ca4101434368da536f640e636e6aa85fdb653e6bf75faec5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

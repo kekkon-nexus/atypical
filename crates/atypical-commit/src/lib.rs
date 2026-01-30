@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-
+use bitflag_attr::bitflag;
 use chumsky::prelude::*;
 
 /// The modifier of a prefix.
@@ -15,13 +14,20 @@ pub enum Modifier {
 /// The kind of the enclosure delimiters.
 ///
 /// See [Enclosure].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[bitflag(u8)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum Delimiter {
     /// The delimiters `(` and `)`.
     /// Is used for the "scope" in Conventional Commits.
-    Round,
+    Round = 1 << 0,
     /// The delimiters `[` and `]`.
-    Square,
+    Square = 1 << 1,
+}
+
+impl Default for Delimiter {
+    fn default() -> Self {
+        Self::all()
+    }
 }
 
 /// An enclosure of content within delimiters.
@@ -78,16 +84,18 @@ pub struct ExtraContext {
 /// See [extra::ParserExtra].
 pub type Extra = extra::Context<ExtraContext>;
 
-pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
     fn dry<'i>(
         start: char,
         end: char,
         delimiter: Delimiter,
-    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+    ) -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
         none_of(format!("{}{}", start, end))
             .repeated()
             .to_slice()
             .delimited_by(just(start), just(end))
+            .contextual()
+            .configure(move |_, ctx: &Delimiter| ctx.contains(delimiter))
             .map(move |content| Enclosure { delimiter, content })
     }
 
@@ -95,6 +103,12 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
         dry('(', ')', Delimiter::Round),
         dry('[', ']', Delimiter::Square),
     ))
+}
+
+pub fn enclosure_with_ctx<'i>(
+    delimiter: Delimiter,
+) -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
+    enclosure().with_ctx(delimiter)
 }
 
 #[cfg(test)]
@@ -117,6 +131,25 @@ mod tests {
                 delimiter: Delimiter::Square,
                 content: "(\t",
             })
+        );
+    }
+
+    #[test]
+    fn test_enclosure_with_ctx() {
+        assert_eq!(
+            enclosure_with_ctx(Delimiter::Round)
+                .parse("(example)")
+                .into_result(),
+            Ok(Enclosure {
+                delimiter: Delimiter::Round,
+                content: "example",
+            })
+        );
+
+        assert!(
+            enclosure_with_ctx(Delimiter::Square)
+                .parse("(fail)")
+                .has_errors()
         );
     }
 }

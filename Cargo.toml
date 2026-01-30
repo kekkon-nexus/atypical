@@ -18,3 +18,4 @@ members = ["crates/*"]
 
 [workspace.dependencies]
 chumsky = { version = "0.12", default-features = false }
+bitflag-attr = { version = "0.13" }
