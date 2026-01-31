@@ -3,6 +3,9 @@ use chumsky::prelude::*;
 
 /// The position of the modifier.
 ///
+/// It is an enum flag and can be used as a bitmask.
+/// [Self::default] allows all positions.
+///
 /// See [struct@Modifier].
 #[bitflag(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -15,6 +18,7 @@ pub enum ModifierPosition {
 }
 
 impl Default for ModifierPosition {
+    /// Allows all positions.
     fn default() -> Self {
         Self::all()
     }
@@ -41,6 +45,9 @@ pub struct Modifier {
 
 /// The kind of an enclosure delimiters.
 ///
+/// It is an enum flag and can be used as a bitmask.
+/// [Self::default] allows all delimiters.
+///
 /// See [struct@Enclosure].
 #[bitflag(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
@@ -53,6 +60,7 @@ pub enum Delimiter {
 }
 
 impl Default for Delimiter {
+    /// Allows all delimiters.
     fn default() -> Self {
         Self::all()
     }
@@ -99,6 +107,18 @@ pub struct ExtraContext {
 /// See [extra::ParserExtra].
 pub type Extra = extra::Context<ExtraContext>;
 
+/// Parses a modifier.
+pub fn modifier<'i>() -> impl Parser<'i, &'i str, ModifierKind> {
+    choice((
+        just('?').to(ModifierKind::Question),
+        just('!')
+            .repeated()
+            .at_least(1)
+            .to_slice()
+            .map(|v: &str| ModifierKind::Exclamation(v.len())),
+    ))
+}
+
 /// Parses an enclosure.
 /// For contextual parsing, use [fn@enclosure_with_ctx].
 pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
@@ -123,6 +143,7 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context
 }
 
 /// Parses an enclosure with a given delimiter context.
+/// Accepts a parameter of allowed delimiters.
 /// For generic parsing, use [fn@enclosure].
 pub fn enclosure_with_ctx<'i>(
     delimiter: Delimiter,
@@ -133,6 +154,21 @@ pub fn enclosure_with_ctx<'i>(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_modifier() {
+        assert_eq!(
+            modifier().parse("?").into_result(),
+            Ok(ModifierKind::Question)
+        );
+
+        assert_eq!(
+            modifier().parse("!!").into_result(),
+            Ok(ModifierKind::Exclamation(2))
+        );
+
+        assert!(modifier().parse("??").has_errors());
+    }
 
     #[test]
     fn test_enclosure() {
