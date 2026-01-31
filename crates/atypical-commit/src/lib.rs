@@ -37,6 +37,7 @@ pub enum ModifierKind {
 }
 
 /// The modifier of a prefix.
+#[derive(Debug, Clone, PartialEq)]
 pub struct Modifier {
     // Should be guaranteed to be XOR-compatible.
     pub position: ModifierPosition,
