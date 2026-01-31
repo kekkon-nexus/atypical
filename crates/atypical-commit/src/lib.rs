@@ -86,10 +86,12 @@ pub type Body<'i> = &'i str;
 /// The trailers of a commit message. Contains a sequence of (key, text) pairs.
 pub type Trailers<'i> = Vec<(&'i str, &'i str)>;
 
-/// The context of the parser.
+/// The general context of the parser.
+// The default should allow all flags.
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct ExtraContext {
-    pub modifier_position: ModifierPosition,
+    pub allowed_modifier_position: ModifierPosition,
+    pub allowed_enclosure_delimiter: Delimiter,
 }
 
 /// The parser extras.
