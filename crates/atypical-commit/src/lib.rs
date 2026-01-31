@@ -3,7 +3,7 @@ use chumsky::prelude::*;
 
 /// The position of the modifier.
 ///
-/// See [Modifier].
+/// See [struct@Modifier].
 #[bitflag(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum ModifierPosition {
@@ -22,7 +22,7 @@ impl Default for ModifierPosition {
 
 /// The kind of the modifier.
 ///
-/// See [Modifier].
+/// See [struct@Modifier].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModifierKind {
     /// The symbol `?`.
@@ -41,7 +41,7 @@ pub struct Modifier {
 
 /// The kind of an enclosure delimiters.
 ///
-/// See [Enclosure].
+/// See [struct@Enclosure].
 #[bitflag(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub enum Delimiter {
