@@ -1,33 +1,21 @@
-use bitflag_attr::bitflag;
 use chumsky::prelude::*;
+use flagset::{FlagSet, flags};
 
-/// The position of the modifier.
-///
-/// It is an enum flag and can be used as a bitmask.
-/// [`Self::default`] allows all positions.
-///
-/// See [`struct@Modifier`].
-#[doc(alias("modifier", "importance", "position", "location"))]
-#[bitflag(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub enum ModifierPosition {
-    /// Appears directly after the keyword and before enclosures.
-    Before = 1 << 0,
-    /// Appears after enclosures.
-    /// This is the Conventional Commits style.
-    After = 1 << 1,
-}
-
-impl Default for ModifierPosition {
-    /// Allows all positions.
-    fn default() -> Self {
-        Self::all()
+flags! {
+    /// The position of the modifier.
+    ///
+    /// It implements [`FlagSet`] and can be used as a bitmask.
+    #[doc(alias("modifier", "importance", "position", "location"))]
+    pub enum ModifierPosition: u8 {
+        /// Appears directly after the keyword and before enclosures.
+        Before,
+        /// Appears after enclosures.
+        /// This is the Conventional Commits style.
+        After,
     }
 }
 
 /// The kind of the modifier.
-///
-/// See [`struct@Modifier`].
 #[doc(alias("modifier", "importance", "kind", "type"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModifierKind {
@@ -47,29 +35,19 @@ pub struct Modifier {
     pub kind: ModifierKind,
 }
 
-/// The kind of an enclosure delimiters.
-///
-/// It is an enum flag and can be used as a bitmask.
-/// [`Self::default`] allows all delimiters.
-///
-/// See [`struct@Enclosure`].
-#[doc(alias("scope"))]
-#[bitflag(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash)]
-pub enum Delimiter {
-    /// The delimiters `(` and `)`.
-    /// Is used for the "scope" in Conventional Commits.
-    #[doc(alias("parenthesis"))]
-    Round = 1 << 0,
-    /// The delimiters `[` and `]`.
-    #[doc(alias("bracket"))]
-    Square = 1 << 1,
-}
-
-impl Default for Delimiter {
-    /// Allows all delimiters.
-    fn default() -> Self {
-        Self::all()
+flags! {
+    /// The kind of an enclosure delimiters.
+    ///
+    /// It implements [`FlagSet`] and can be used as a bitmask.
+    #[doc(alias("scope"))]
+    pub enum Delimiter: u8 {
+        /// The delimiters `(` and `)`.
+        /// Is used for the "scope" in Conventional Commits.
+        #[doc(alias("parenthesis"))]
+        Round,
+        /// The delimiters `[` and `]`.
+        #[doc(alias("bracket"))]
+        Square,
     }
 }
 
@@ -89,7 +67,7 @@ pub struct Prefix<'i> {
     /// Also known as the "type" in Conventional Commits.
     pub keyword: &'i str,
     /// Also known is the "breaking change" in Conventional Commits.
-    pub modifier: Option<ModifierKind>,
+    pub modifier: Option<Modifier>,
     /// Also known as the "scope" in Conventional Commits.
     pub enclosures: Vec<Enclosure<'i>>,
 }
@@ -105,17 +83,40 @@ pub type Body<'i> = &'i str;
 pub type Trailers<'i> = Vec<(&'i str, &'i str)>;
 
 /// The general context of the parser.
-// The default should allow all flags.
 #[doc(alias("config", "settings"))]
-#[derive(Debug, Clone, PartialEq, Default)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ExtraContext {
-    pub allowed_modifier_position: ModifierPosition,
-    pub allowed_enclosure_delimiter: Delimiter,
+    pub allowed_modifier_positions: FlagSet<ModifierPosition>,
+    pub allowed_enclosure_delimiters: FlagSet<Delimiter>,
 }
 
-/// The parser extras.
-///
-/// See [extra::ParserExtra].
+impl Default for ExtraContext {
+    /// By default, all flags are allowed.
+    fn default() -> Self {
+        Self {
+            allowed_modifier_positions: FlagSet::full(),
+            allowed_enclosure_delimiters: FlagSet::full(),
+        }
+    }
+}
+
+impl ExtraContext {
+    pub fn with_modifier_positions(positions: impl Into<FlagSet<ModifierPosition>>) -> Self {
+        Self {
+            allowed_modifier_positions: positions.into(),
+            ..Default::default()
+        }
+    }
+
+    pub fn with_enclosure_delimiters(delimiters: impl Into<FlagSet<Delimiter>>) -> Self {
+        Self {
+            allowed_enclosure_delimiters: delimiters.into(),
+            ..Default::default()
+        }
+    }
+}
+
+/// Implements [`extra::ParserExtra`].
 #[doc(alias("config", "settings"))]
 pub type Extra = extra::Context<ExtraContext>;
 
@@ -124,17 +125,8 @@ pub type Extra = extra::Context<ExtraContext>;
 /// # Examples
 ///
 /// ```
-/// assert_eq!(
-///     modifier().parse("?").into_result(),
-///     Ok(ModifierKind::Question)
-/// );
-///
-/// assert_eq!(
-///     modifier().parse("!!").into_result(),
-///     Ok(ModifierKind::Exclamation(2))
-/// );
 /// ```
-pub fn modifier<'i>() -> impl Parser<'i, &'i str, ModifierKind> {
+pub fn modifier<'i>() -> impl Parser<'i, &'i str, ModifierKind, Extra> {
     choice((
         just('?').to(ModifierKind::Question),
         just('!')
@@ -152,33 +144,19 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, ModifierKind> {
 /// # Examples
 ///
 /// ```
-/// assert_eq!(
-///     enclosure().parse("(example)").into_result(),
-///     Ok(Enclosure {
-///         delimiter: Delimiter::Round,
-///         content: "example",
-///    })
-/// );
-///
-/// assert_eq!(
-///     enclosure().parse("[(\t]").into_result(),
-///     Ok(Enclosure {
-///         delimiter: Delimiter::Square,
-///         content: "(\t",
-///     })
-/// );
-pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
+/// ```
+pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
     fn dry<'i>(
         start: char,
         end: char,
         delimiter: Delimiter,
-    ) -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
-        none_of(format!("{}{}", start, end))
+    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+        none_of::<'i, _, _, Extra>([start, end])
             .repeated()
             .to_slice()
             .delimited_by(just(start), just(end))
             .contextual()
-            .configure(move |_, ctx: &Delimiter| ctx.contains(delimiter))
+            .configure(move |_, ctx| ctx.allowed_enclosure_delimiters.contains(delimiter))
             .map(move |content| Enclosure { delimiter, content })
     }
 
@@ -196,26 +174,9 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context
 /// # Examples
 ///
 /// ```
-/// assert_eq!(
-///     enclosure_with_ctx(Delimiter::Round)
-///         .parse("(example)")
-///         .into_result(),
-///     Ok(Enclosure {
-///         delimiter: Delimiter::Round,
-///         content: "example",
-///     })
-/// );
-///
-/// assert!(
-///     enclosure_with_ctx(Delimiter::Square)
-///         .parse("(fail)")
-///         .has_errors()
-/// );
 /// ```
-pub fn enclosure_with_ctx<'i>(
-    delimiter: Delimiter,
-) -> impl Parser<'i, &'i str, Enclosure<'i>, extra::Context<Delimiter>> {
-    enclosure().with_ctx(delimiter)
+pub fn enclosure_with_ctx<'i>(ctx: ExtraContext) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+    Parser::<'i, &'i str, Enclosure<'i>, Extra>::with_ctx(enclosure(), ctx)
 }
 
 #[cfg(test)]
@@ -243,7 +204,7 @@ mod tests {
             enclosure().parse("(example)").into_result(),
             Ok(Enclosure {
                 delimiter: Delimiter::Round,
-                content: "example",
+                content: "example"
             })
         );
 
@@ -251,7 +212,7 @@ mod tests {
             enclosure().parse("[(\t]").into_result(),
             Ok(Enclosure {
                 delimiter: Delimiter::Square,
-                content: "(\t",
+                content: "(\t"
             })
         );
     }
@@ -259,17 +220,17 @@ mod tests {
     #[test]
     fn test_enclosure_with_ctx() {
         assert_eq!(
-            enclosure_with_ctx(Delimiter::Round)
+            enclosure_with_ctx(ExtraContext::with_enclosure_delimiters(Delimiter::Round))
                 .parse("(example)")
                 .into_result(),
             Ok(Enclosure {
                 delimiter: Delimiter::Round,
-                content: "example",
+                content: "example"
             })
         );
 
         assert!(
-            enclosure_with_ctx(Delimiter::Square)
+            enclosure_with_ctx(ExtraContext::with_enclosure_delimiters(Delimiter::Square))
                 .parse("(fail)")
                 .has_errors()
         );
