@@ -1,13 +1,11 @@
-use chumsky::{
-    DefaultExpected, error, label::LabelError, prelude::*, util::MaybeRef,
-};
+use chumsky::prelude::*;
 use flagset::{FlagSet, flags};
 
 flags! {
     /// The position of the modifier.
     ///
     /// It implements [`FlagSet`] and can be used as a bitmask.
-    #[doc(alias("modifier", "importance", "position", "location"))]
+    #[doc(alias("Modifier", "Importance", "Position", "Location"))]
     pub enum ModifierPosition: u8 {
         /// Appears directly after the keyword and before enclosures.
         Before,
@@ -18,7 +16,7 @@ flags! {
 }
 
 /// The kind of the modifier.
-#[doc(alias("modifier", "importance", "kind", "type"))]
+#[doc(alias("Modifier", "Importance", "Kind", "Type"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ModifierKind {
     /// The symbol `?`.
@@ -29,7 +27,7 @@ pub enum ModifierKind {
 }
 
 /// The modifier of a prefix.
-#[doc(alias("modifier", "importance"))]
+#[doc(alias("Importance"))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Modifier {
     // Should be guaranteed to be XOR-compatible.
@@ -41,20 +39,20 @@ flags! {
     /// The kind of an enclosure delimiters.
     ///
     /// It implements [`FlagSet`] and can be used as a bitmask.
-    #[doc(alias("scope"))]
+    #[doc(alias("Scope"))]
     pub enum Delimiter: u8 {
         /// The delimiters `(` and `)`.
         /// Is used for the "scope" in Conventional Commits.
-        #[doc(alias("parenthesis"))]
+        #[doc(alias("Parenthesis"))]
         Round,
         /// The delimiters `[` and `]`.
-        #[doc(alias("bracket"))]
+        #[doc(alias("Bracket"))]
         Square,
     }
 }
 
 /// An enclosure of content within delimiters.
-#[doc(alias("scope"))]
+#[doc(alias("Scope"))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Enclosure<'i> {
     // Should be guaranteed to be XOR-compatible.
@@ -63,7 +61,7 @@ pub struct Enclosure<'i> {
 }
 
 /// The prefix of a commit message header.
-#[doc(alias("type", "verb"))]
+#[doc(alias("Type", "Verb"))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prefix<'i> {
     /// Also known as the "type" in Conventional Commits.
@@ -81,11 +79,11 @@ pub type Header<'i> = (Prefix<'i>, &'i str);
 pub type Body<'i> = &'i str;
 
 /// The trailers of a commit message. Contains a sequence of (key, text) pairs.
-#[doc(alias("footer"))]
+#[doc(alias("Footer"))]
 pub type Trailers<'i> = Vec<(&'i str, &'i str)>;
 
 /// The general context of the parser.
-#[doc(alias("config", "settings"))]
+#[doc(alias("Config", "Settings"))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct ExtraContext {
     pub allowed_modifier_positions: FlagSet<ModifierPosition>,
@@ -125,7 +123,7 @@ impl ExtraContext {
 }
 
 /// Implements [`extra::ParserExtra`].
-#[doc(alias("config", "settings"))]
+#[doc(alias("Config", "Settings"))]
 pub type Extra = extra::Context<ExtraContext>;
 
 /// Parses a [`ModifierKind`].
@@ -153,6 +151,7 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, ModifierKind, Extra> {
 ///
 /// ```
 /// ```
+#[doc(alias("scope"))]
 pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
     fn dry<'i>(
         start: char,
@@ -185,6 +184,7 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
 ///
 /// ```
 /// ```
+#[doc(alias("scope"))]
 pub fn enclosure_with_ctx<'i>(
     ctx: ExtraContext,
 ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
