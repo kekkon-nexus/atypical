@@ -1,4 +1,6 @@
-use chumsky::prelude::*;
+use chumsky::{
+    DefaultExpected, error, label::LabelError, prelude::*, util::MaybeRef,
+};
 use flagset::{FlagSet, flags};
 
 flags! {
@@ -101,17 +103,23 @@ impl Default for ExtraContext {
 }
 
 impl ExtraContext {
-    pub fn with_modifier_positions(positions: impl Into<FlagSet<ModifierPosition>>) -> Self {
+    pub fn with_modifier_positions(
+        &self,
+        positions: impl Into<FlagSet<ModifierPosition>>,
+    ) -> Self {
         Self {
             allowed_modifier_positions: positions.into(),
-            ..Default::default()
+            ..*self
         }
     }
 
-    pub fn with_enclosure_delimiters(delimiters: impl Into<FlagSet<Delimiter>>) -> Self {
+    pub fn with_enclosure_delimiters(
+        &self,
+        delimiters: impl Into<FlagSet<Delimiter>>,
+    ) -> Self {
         Self {
             allowed_enclosure_delimiters: delimiters.into(),
-            ..Default::default()
+            ..*self
         }
     }
 }
@@ -156,7 +164,9 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
             .to_slice()
             .delimited_by(just(start), just(end))
             .contextual()
-            .configure(move |_, ctx| ctx.allowed_enclosure_delimiters.contains(delimiter))
+            .configure(move |_, ctx| {
+                ctx.allowed_enclosure_delimiters.contains(delimiter)
+            })
             .map(move |content| Enclosure { delimiter, content })
     }
 
@@ -175,8 +185,62 @@ pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
 ///
 /// ```
 /// ```
-pub fn enclosure_with_ctx<'i>(ctx: ExtraContext) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
+pub fn enclosure_with_ctx<'i>(
+    ctx: ExtraContext,
+) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
     Parser::<'i, &'i str, Enclosure<'i>, Extra>::with_ctx(enclosure(), ctx)
+}
+
+pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra> {
+    let keyword = any()
+        .filter(|c: &char| c.is_ascii_alphabetic())
+        .repeated()
+        .at_least(1)
+        .to_slice()
+        .labelled("keyword");
+
+    let before_modifier = modifier()
+        .contextual()
+        .configure(|_, ctx: &ExtraContext| {
+            ctx.allowed_modifier_positions
+                .contains(ModifierPosition::Before)
+        })
+        .map(|kind| Modifier {
+            position: ModifierPosition::Before,
+            kind,
+        })
+        .or_not()
+        .labelled("modifier");
+
+    let enclosures = enclosure().labelled("enclosure").repeated().collect();
+
+    let after_modifier = modifier()
+        .contextual()
+        .configure(|_, ctx| {
+            ctx.allowed_modifier_positions
+                .contains(ModifierPosition::After)
+        })
+        .map(|kind| Modifier {
+            position: ModifierPosition::After,
+            kind,
+        })
+        .or_not()
+        .labelled("modifier");
+
+    group((keyword, before_modifier, enclosures, after_modifier)).map(
+        |(keyword, before_modifier, enclosures, after_modifier)| Prefix {
+            keyword,
+            modifier: after_modifier.or(before_modifier),
+            enclosures,
+        },
+    )
+}
+
+pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra> {
+    let summary = any().filter(|c: &char| *c != '\n').repeated().to_slice();
+
+    group((prefix(), just(':').then_ignore(just(' ')), summary))
+        .map(|(prefix, _, summary)| (prefix, summary))
 }
 
 #[cfg(test)]
@@ -220,9 +284,12 @@ mod tests {
     #[test]
     fn test_enclosure_with_ctx() {
         assert_eq!(
-            enclosure_with_ctx(ExtraContext::with_enclosure_delimiters(Delimiter::Round))
-                .parse("(example)")
-                .into_result(),
+            enclosure_with_ctx(
+                ExtraContext::default()
+                    .with_enclosure_delimiters(Delimiter::Round)
+            )
+            .parse("(example)")
+            .into_result(),
             Ok(Enclosure {
                 delimiter: Delimiter::Round,
                 content: "example"
@@ -230,9 +297,12 @@ mod tests {
         );
 
         assert!(
-            enclosure_with_ctx(ExtraContext::with_enclosure_delimiters(Delimiter::Square))
-                .parse("(fail)")
-                .has_errors()
+            enclosure_with_ctx(
+                ExtraContext::default()
+                    .with_enclosure_delimiters(Delimiter::Square)
+            )
+            .parse("(fail)")
+            .has_errors()
         );
     }
 }
