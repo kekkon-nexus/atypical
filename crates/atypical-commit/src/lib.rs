@@ -305,4 +305,193 @@ mod tests {
             .has_errors()
         );
     }
+
+    #[test]
+    fn test_header_simple() {
+        assert_eq!(
+            header().parse("fix: resolve issue").into_result(),
+            Ok((
+                Prefix {
+                    keyword: "fix",
+                    modifier: None,
+                    enclosures: vec![]
+                },
+                "resolve issue"
+            ))
+        );
+    }
+
+    #[test]
+    fn test_header_modifier() {
+        assert_eq!(
+            header().parse("add!: breaking change").into_result(),
+            Ok((
+                Prefix {
+                    keyword: "add",
+                    modifier: Some(Modifier {
+                        position: ModifierPosition::Before,
+                        kind: ModifierKind::Exclamation(1)
+                    }),
+                    enclosures: vec![]
+                },
+                "breaking change"
+            ))
+        );
+
+        assert_eq!(
+            header().parse("fix?: maybe breaking").into_result(),
+            Ok((
+                Prefix {
+                    keyword: "fix",
+                    modifier: Some(Modifier {
+                        position: ModifierPosition::Before,
+                        kind: ModifierKind::Question
+                    }),
+                    enclosures: vec![]
+                },
+                "maybe breaking"
+            ))
+        );
+
+        assert_eq!(
+            header().parse("ref!!: mass refactor").into_result(),
+            Ok((
+                Prefix {
+                    keyword: "ref",
+                    modifier: Some(Modifier {
+                        position: ModifierPosition::Before,
+                        kind: ModifierKind::Exclamation(2)
+                    }),
+                    enclosures: vec![]
+                },
+                "mass refactor"
+            ))
+        );
+    }
+
+    #[test]
+    fn test_header_enclosure() {
+        assert_eq!(
+            header()
+                .parse("add(lib): new library feature")
+                .into_result(),
+            Ok((
+                Prefix {
+                    keyword: "add",
+                    modifier: None,
+                    enclosures: vec![Enclosure {
+                        delimiter: Delimiter::Round,
+                        content: "lib"
+                    }]
+                },
+                "new library feature"
+            ))
+        );
+
+        assert_eq!(
+            header()
+                .parse("fix[eff]: faster algorithm")
+                .into_result(),
+            Ok((
+                Prefix {
+                    keyword: "fix",
+                    modifier: None,
+                    enclosures: vec![Enclosure {
+                        delimiter: Delimiter::Square,
+                        content: "eff"
+                    }]
+                },
+                "faster algorithm"
+            ))
+        );
+
+        assert_eq!(
+            header()
+                .parse("ref(build)[cmp]: build compatibility")
+                .into_result(),
+            Ok((
+                Prefix {
+                    keyword: "ref",
+                    modifier: None,
+                    enclosures: vec![
+                        Enclosure {
+                            delimiter: Delimiter::Round,
+                            content: "build"
+                        },
+                        Enclosure {
+                            delimiter: Delimiter::Square,
+                            content: "cmp"
+                        }
+                    ]
+                },
+                "build compatibility"
+            ))
+        );
+    }
+
+    #[test]
+    fn test_header_modifier_enclosure() {
+        assert_eq!(
+            header()
+                .parse("fix(lib)!: update library API")
+                .into_result(),
+            Ok((
+                Prefix {
+                    keyword: "fix",
+                    modifier: Some(Modifier {
+                        position: ModifierPosition::After,
+                        kind: ModifierKind::Exclamation(1)
+                    }),
+                    enclosures: vec![Enclosure {
+                        delimiter: Delimiter::Round,
+                        content: "lib"
+                    }]
+                },
+                "update library API"
+            ))
+        );
+
+        assert_eq!(
+            header()
+                .parse("fix?(ci)[exp]: try new CI configuration")
+                .into_result(),
+            Ok((
+                Prefix {
+                    keyword: "fix",
+                    modifier: Some(Modifier {
+                        position: ModifierPosition::Before,
+                        kind: ModifierKind::Question
+                    }),
+                    enclosures: vec![Enclosure {
+                        delimiter: Delimiter::Round,
+                        content: "ci"
+                    }, Enclosure {
+                        delimiter: Delimiter::Square,
+                        content: "exp"
+                    }]
+                },
+                "try new CI configuration"
+            ))
+        );
+
+        assert_eq!(
+            header()
+                .parse("rem!!(build): remove current build system")
+                .into_result(),
+            Ok((
+                Prefix {
+                    keyword: "rem",
+                    modifier: Some(Modifier {
+                        position: ModifierPosition::Before,
+                        kind: ModifierKind::Exclamation(2)
+                    }),
+                    enclosures: vec![Enclosure {
+                        delimiter: Delimiter::Round,
+                        content: "build"
+                    }]
+                },
+                "remove current build system"
+            ))
+        );
+    }
 }
