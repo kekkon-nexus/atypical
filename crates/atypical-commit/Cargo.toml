@@ -9,8 +9,7 @@ categories.workspace = true
 
 [dependencies]
 chumsky = { workspace = true }
-flagset = { workspace = true }
 
 [features]
 default = ["std"]
-std = ["chumsky/std", "chumsky/stacker", "flagset/std"]
+std = ["chumsky/std", "chumsky/stacker"]
