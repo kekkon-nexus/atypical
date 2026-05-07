@@ -1,246 +1,295 @@
+// Syntax to follow:
+// <keyword>[<modifier>][<open_delim><enclosure><close_delim>]...[<modifier>]: <description>
+
 use chumsky::prelude::*;
-use flagset::{FlagSet, flags};
 
-flags! {
-    /// The position of the modifier.
-    ///
-    /// It implements [`FlagSet`] and can be used as a bitmask.
-    #[doc(alias("Modifier", "Importance", "Position", "Location"))]
-    pub enum ModifierPosition: u8 {
-        /// Appears directly after the keyword and before enclosures.
-        Before,
-        /// Appears after enclosures.
-        /// This is the Conventional Commits style.
-        After,
-    }
-}
+pub type DelimitedBy = [char; 2];
 
-/// The kind of the modifier.
-#[doc(alias("Modifier", "Importance", "Kind", "Type"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ModifierKind {
-    /// The symbol `?`.
-    Question,
-    /// The symbol `!`, with the count of exclamation marks.
-    /// Also known as the "breaking change" in Conventional Commits.
-    Exclamation(usize),
-}
-
-/// The modifier of a prefix.
-#[doc(alias("Importance"))]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Modifier {
-    // Should be guaranteed to be XOR-compatible.
-    pub position: ModifierPosition,
-    pub kind: ModifierKind,
-}
-
-flags! {
-    /// The kind of an enclosure delimiters.
-    ///
-    /// It implements [`FlagSet`] and can be used as a bitmask.
-    #[doc(alias("Scope"))]
-    pub enum Delimiter: u8 {
-        /// The delimiters `(` and `)`.
-        /// Is used for the "scope" in Conventional Commits.
-        #[doc(alias("Parenthesis"))]
-        Round,
-        /// The delimiters `[` and `]`.
-        #[doc(alias("Bracket"))]
-        Square,
-    }
-}
-
-/// An enclosure of content within delimiters.
-#[doc(alias("Scope"))]
-#[derive(Debug, Clone, PartialEq)]
-pub struct Enclosure<'i> {
-    // Should be guaranteed to be XOR-compatible.
-    pub delimiter: Delimiter,
-    pub content: &'i str,
-}
-
-/// The prefix of a commit message header.
 #[doc(alias("Type", "Verb"))]
+pub type Keyword<'i> = &'i str;
+
+#[doc(alias("Importance", "BreakingChange"))]
+pub type Modifier<'i> = &'i str;
+
+#[doc(alias("Scope"))]
+pub type Enclosure<'i> = (&'i str, DelimitedBy);
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prefix<'i> {
-    /// Also known as the "type" in Conventional Commits.
-    pub keyword: &'i str,
-    /// Also known is the "breaking change" in Conventional Commits.
-    pub modifier: Option<Modifier>,
-    /// Also known as the "scope" in Conventional Commits.
+    pub keyword: Keyword<'i>,
+    pub modifier: Option<Modifier<'i>>,
     pub enclosures: Vec<Enclosure<'i>>,
 }
 
-/// The header of a commit message. Contains a pair of (prefix, summary).
-pub type Header<'i> = (Prefix<'i>, &'i str);
+#[derive(Debug, Clone, PartialEq)]
+pub enum Sequence {
+    Pre,
+    Post,
+}
 
-/// The body of a commit message. Contains the raw text.
-pub type Body<'i> = &'i str;
+trait TokenParser<'i, I, O>
+where
+    I: chumsky::input::Input<'i, Token = char, Span = SimpleSpan>,
+{
+    fn parser(&self) -> impl Parser<'i, I, O, Extra<'i>> + 'i;
+}
 
-/// The trailers of a commit message. Contains a sequence of (key, text) pairs.
-#[doc(alias("Footer"))]
-pub type Trailers<'i> = Vec<(&'i str, &'i str)>;
+impl<'i> TokenParser<'i, &'i str, &'i str> for &'i str {
+    #[inline]
+    #[doc(hidden)]
+    fn parser(&self) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + 'i {
+        just(*self)
+    }
+}
 
-/// The general context of the parser.
+pub type KeywordToken<'i> = Keyword<'i>;
+
+pub type ModifierToken<'i> = Modifier<'i>;
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum EnclosureToken<'i> {
+    Flexible(DelimitedBy),
+    Strict(DelimitedBy, Vec<&'i str>),
+}
+
+impl<'i> EnclosureToken<'i> {
+    #[inline]
+    pub fn delimiters(&self) -> DelimitedBy {
+        match self {
+            EnclosureToken::Flexible(delimiters) => *delimiters,
+            EnclosureToken::Strict(delimiters, _) => *delimiters,
+        }
+    }
+}
+
+impl<'i> TokenParser<'i, &'i str, Enclosure<'i>> for EnclosureToken<'i> {
+    fn parser(
+        &self,
+    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra<'i>> + 'i {
+        match *self {
+            EnclosureToken::Flexible([start, end]) => {
+                none_of::<'i, _, _, Extra>([start, end])
+                    .repeated()
+                    .to_slice()
+                    .delimited_by(just(start), just(end))
+                    .map(move |s| (s, [start, end]))
+                    .boxed()
+            }
+            EnclosureToken::Strict([start, end], ref allowed) => {
+                let allowed =
+                    allowed.iter().map(|&s| just(s)).collect::<Vec<_>>();
+
+                choice(allowed)
+                    .to_slice()
+                    .delimited_by(just(start), just(end))
+                    .map(move |s| (s, [start, end]))
+                    .boxed()
+            }
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Tokens<'i> {
+    pub keywords: Vec<KeywordToken<'i>>,
+    pub modifiers: Vec<ModifierToken<'i>>,
+    pub enclosures: Vec<EnclosureToken<'i>>,
+    pub separator: char,
+
+    pub modifier_sequence: Sequence,
+}
+
+pub struct Positional {
+    pub modifier_sequence: Sequence,
+}
+
+impl Tokens<'_> {
+    pub fn preset_standard() -> Self {
+        Self {
+            keywords: vec!["add", "rem", "ref", "fix", "undo", "release"],
+            modifiers: vec!["?", "!", "!!"],
+            enclosures: vec![
+                EnclosureToken::Strict(
+                    ['(', ')'],
+                    vec!["exe", "lib", "test", "build", "doc", "ci", "cd"],
+                ),
+                EnclosureToken::Strict(
+                    ['[', ']'],
+                    vec![
+                        "int", "pre", "eff", "rel", "cmp", "mnt", "tmp", "exp",
+                        "sec", "upg", "ux", "pol", "sty",
+                    ],
+                ),
+            ],
+            separator: ':',
+            modifier_sequence: Sequence::Pre,
+        }
+    }
+}
+
+impl Default for Tokens<'_> {
+    fn default() -> Self {
+        Self::preset_standard()
+    }
+}
+
+pub type ExtraError<'i> = Rich<'i, char>;
+
+pub type ExtraState<'i> = ();
+
 #[doc(alias("Config", "Settings"))]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExtraContext {
-    pub allowed_modifier_positions: FlagSet<ModifierPosition>,
-    pub allowed_enclosure_delimiters: FlagSet<Delimiter>,
+pub struct ExtraContext<'i> {
+    pub tokens: Tokens<'i>,
 }
 
-impl Default for ExtraContext {
-    /// By default, all flags are allowed.
+impl<'i> ExtraContext<'i> {
+    pub fn new(tokens: &Tokens<'i>) -> Self {
+        fn sort(v: &mut Vec<&str>) {
+            v.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+        }
+
+        let mut tokens = tokens.clone();
+
+        sort(&mut tokens.keywords);
+        sort(&mut tokens.modifiers);
+
+        Self { tokens }
+    }
+}
+
+impl<'i> Default for ExtraContext<'i> {
     fn default() -> Self {
-        Self {
-            allowed_modifier_positions: FlagSet::full(),
-            allowed_enclosure_delimiters: FlagSet::full(),
-        }
+        Self::new(&Tokens::default())
     }
 }
 
-impl ExtraContext {
-    pub fn with_modifier_positions(
-        &self,
-        positions: impl Into<FlagSet<ModifierPosition>>,
-    ) -> Self {
-        Self {
-            allowed_modifier_positions: positions.into(),
-            ..*self
-        }
-    }
-
-    pub fn with_enclosure_delimiters(
-        &self,
-        delimiters: impl Into<FlagSet<Delimiter>>,
-    ) -> Self {
-        Self {
-            allowed_enclosure_delimiters: delimiters.into(),
-            ..*self
-        }
+impl<'i> From<Tokens<'i>> for ExtraContext<'i> {
+    fn from(val: Tokens<'i>) -> Self {
+        ExtraContext::new(&val)
     }
 }
 
-/// Implements [`extra::ParserExtra`].
 #[doc(alias("Config", "Settings"))]
-pub type Extra = extra::Context<ExtraContext>;
+pub type Extra<'i> =
+    extra::Full<ExtraError<'i>, ExtraState<'i>, ExtraContext<'i>>;
 
-/// Parses a [`ModifierKind`].
-///
-/// # Examples
-///
-/// ```
-/// ```
-pub fn modifier<'i>() -> impl Parser<'i, &'i str, ModifierKind, Extra> {
-    choice((
-        just('?').to(ModifierKind::Question),
-        just('!')
-            .repeated()
-            .at_least(1)
-            .to_slice()
-            .map(|v: &str| ModifierKind::Exclamation(v.len())),
-    ))
+pub fn keyword<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
+    use chumsky::input::InputRef;
+
+    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+        let parsers: Vec<_> = i
+            .ctx()
+            .tokens
+            .keywords
+            .iter()
+            .map(TokenParser::parser)
+            .collect();
+
+        i.parse(choice(parsers))
+    })
+    .labelled("keyword")
 }
 
-/// Parses an [`Enclosure`].
-///
-/// For contextual parsing, use [`fn@enclosure_with_ctx`].
-///
-/// # Examples
-///
-/// ```
-/// ```
-#[doc(alias("scope"))]
-pub fn enclosure<'i>() -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
-    fn dry<'i>(
-        start: char,
-        end: char,
-        delimiter: Delimiter,
-    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
-        none_of::<'i, _, _, Extra>([start, end])
-            .repeated()
-            .to_slice()
-            .delimited_by(just(start), just(end))
-            .contextual()
-            .configure(move |_, ctx| {
-                ctx.allowed_enclosure_delimiters.contains(delimiter)
-            })
-            .map(move |content| Enclosure { delimiter, content })
-    }
+pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
+    use chumsky::input::InputRef;
 
-    choice((
-        dry('(', ')', Delimiter::Round),
-        dry('[', ']', Delimiter::Square),
-    ))
+    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+        let parsers = i
+            .ctx()
+            .tokens
+            .modifiers
+            .iter()
+            .map(TokenParser::parser)
+            .collect::<Vec<_>>();
+
+        i.parse(choice(parsers))
+    })
+    .labelled("modifier")
 }
 
-/// Parses an [`Enclosure`] with a given delimiter context.
-/// Accepts a parameter of allowed [delimiters](Delimiter).
-///
-/// For generic parsing, use [`fn@enclosure`].
-///
-/// # Examples
-///
-/// ```
-/// ```
-#[doc(alias("scope"))]
-pub fn enclosure_with_ctx<'i>(
-    ctx: ExtraContext,
-) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra> {
-    Parser::<'i, &'i str, Enclosure<'i>, Extra>::with_ctx(enclosure(), ctx)
+pub fn enclosures<'i>()
+-> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
+    use chumsky::input::InputRef;
+
+    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+        let ctx = i.ctx();
+        let delimiters = ctx.tokens.enclosures.clone();
+        let mut index = 0;
+        let mut results = Vec::new();
+
+        loop {
+            if index >= delimiters.len() {
+                break;
+            }
+
+            let next = i.peek();
+            let is_open = delimiters[index..]
+                .iter()
+                .any(|enclosure| Some(enclosure.delimiters()[0]) == next);
+
+            if !is_open {
+                break;
+            }
+
+            let parsers = delimiters[index..]
+                .iter()
+                .map(TokenParser::parser)
+                .collect::<Vec<_>>();
+
+            let (content, delimited_by) = i.parse(choice(parsers))?;
+            let position = delimiters
+                .iter()
+                .position(|enclosure| enclosure.delimiters() == delimited_by)
+                .unwrap();
+            index += position + 1;
+            results.push((content, delimited_by));
+        }
+
+        Ok(results)
+    })
+    .labelled("enclosures")
 }
 
-pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra> {
-    let keyword = any()
-        .filter(|c: &char| c.is_ascii_alphabetic())
-        .repeated()
-        .at_least(1)
-        .to_slice()
-        .labelled("keyword");
+pub fn separator<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
+    use chumsky::input::InputRef;
 
-    let before_modifier = modifier()
-        .contextual()
-        .configure(|_, ctx: &ExtraContext| {
-            ctx.allowed_modifier_positions
-                .contains(ModifierPosition::Before)
-        })
-        .map(|kind| Modifier {
-            position: ModifierPosition::Before,
-            kind,
-        })
-        .or_not()
-        .labelled("modifier");
+    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+        let ctx = i.ctx();
 
-    let enclosures = enclosure().labelled("enclosure").repeated().collect();
+        i.parse(just(ctx.tokens.separator))
+    })
+    .labelled("separator")
+}
 
-    let after_modifier = modifier()
+pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
+    let keyword = keyword();
+
+    let modifier_pre = modifier()
         .contextual()
         .configure(|_, ctx| {
-            ctx.allowed_modifier_positions
-                .contains(ModifierPosition::After)
+            matches!(ctx.tokens.modifier_sequence, Sequence::Pre)
         })
-        .map(|kind| Modifier {
-            position: ModifierPosition::After,
-            kind,
-        })
-        .or_not()
-        .labelled("modifier");
+        .or_not();
 
-    group((keyword, before_modifier, enclosures, after_modifier)).map(
-        |(keyword, before_modifier, enclosures, after_modifier)| Prefix {
+    let enclosures = enclosures();
+
+    let modifier_post = modifier()
+        .contextual()
+        .configure(|_, ctx| {
+            matches!(ctx.tokens.modifier_sequence, Sequence::Post)
+        })
+        .or_not();
+
+    let separator = separator();
+
+    group((keyword, modifier_pre, enclosures, modifier_post, separator)).map(
+        |(keyword, modifier_pre, enclosures, modifier_post, _)| Prefix {
             keyword,
-            modifier: after_modifier.or(before_modifier),
+            modifier: modifier_pre.or(modifier_post),
             enclosures,
         },
     )
-}
-
-pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra> {
-    let summary = any().filter(|c: &char| *c != '\n').repeated().to_slice();
-
-    group((prefix(), just(':').then_ignore(just(' ')), summary))
-        .map(|(prefix, _, summary)| (prefix, summary))
 }
 
 #[cfg(test)]
@@ -248,250 +297,108 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_keyword() {
+        fn parser_standard<'i>()
+        -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
+            keyword().with_ctx(Tokens::preset_standard().into())
+        }
+
+        assert!(parser_standard().parse("").has_errors());
+
+        assert_eq!(parser_standard().parse("add").into_result(), Ok("add"));
+        assert_eq!(parser_standard().parse("rem").into_result(), Ok("rem"));
+        assert!(parser_standard().parse("feat").has_errors());
+    }
+
+    #[test]
     fn test_modifier() {
-        assert_eq!(
-            modifier().parse("?").into_result(),
-            Ok(ModifierKind::Question)
-        );
+        fn parser_standard<'i>()
+        -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
+            modifier().with_ctx(Tokens::preset_standard().into())
+        }
 
-        assert_eq!(
-            modifier().parse("!!").into_result(),
-            Ok(ModifierKind::Exclamation(2))
-        );
+        assert!(parser_standard().parse("").has_errors());
 
-        assert!(modifier().parse("??").has_errors());
+        assert_eq!(parser_standard().parse("?").into_result(), Ok("?"));
+        assert_eq!(parser_standard().parse("!!").into_result(), Ok("!!"));
+        assert!(parser_standard().parse("??").has_errors());
     }
 
     #[test]
-    fn test_enclosure() {
+    fn test_enclosures() {
+        fn parser_standard<'i>()
+        -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
+            enclosures().with_ctx(Tokens::preset_standard().into())
+        }
+
+        assert_eq!(parser_standard().parse("").into_result(), Ok(vec![]));
+
         assert_eq!(
-            enclosure().parse("(example)").into_result(),
-            Ok(Enclosure {
-                delimiter: Delimiter::Round,
-                content: "example"
+            parser_standard().parse("(lib)").into_result(),
+            Ok(vec![("lib", ['(', ')'])])
+        );
+        assert_eq!(
+            parser_standard().parse("[pre]").into_result(),
+            Ok(vec![("pre", ['[', ']'])])
+        );
+        assert_eq!(
+            parser_standard().parse("(exe)[int]").into_result(),
+            Ok(vec![("exe", ['(', ')']), ("int", ['[', ']'])])
+        );
+        assert!(parser_standard().parse("(").has_errors());
+        assert!(parser_standard().parse("(unsupported)").has_errors());
+        assert!(parser_standard().parse("{unsupported}").has_errors());
+        assert!(parser_standard().parse("[pre](lib)").has_errors());
+        assert!(parser_standard().parse("(exe)(lib)").has_errors());
+    }
+
+    #[test]
+    fn test_separator() {
+        fn parser_standard<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
+            separator().with_ctx(Tokens::preset_standard().into())
+        }
+
+        assert!(parser_standard().parse("").has_errors());
+
+        assert_eq!(parser_standard().parse(":").into_result(), Ok(':'));
+        assert!(parser_standard().parse(";").has_errors());
+    }
+
+    #[test]
+    fn test_prefix() {
+        fn parser_standard<'i>()
+        -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
+            prefix().with_ctx(Tokens::preset_standard().into())
+        }
+
+        assert!(parser_standard().parse("").has_errors());
+
+        assert_eq!(
+            parser_standard().parse("add:").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: None,
+                enclosures: vec![]
             })
         );
-
         assert_eq!(
-            enclosure().parse("[(\t]").into_result(),
-            Ok(Enclosure {
-                delimiter: Delimiter::Square,
-                content: "(\t"
+            parser_standard().parse("rem?(lib):").into_result(),
+            Ok(Prefix {
+                keyword: "rem",
+                modifier: Some("?"),
+                enclosures: vec![("lib", ['(', ')'])]
             })
         );
-    }
-
-    #[test]
-    fn test_enclosure_with_ctx() {
         assert_eq!(
-            enclosure_with_ctx(
-                ExtraContext::default()
-                    .with_enclosure_delimiters(Delimiter::Round)
-            )
-            .parse("(example)")
-            .into_result(),
-            Ok(Enclosure {
-                delimiter: Delimiter::Round,
-                content: "example"
+            parser_standard().parse("ref!![eff]:").into_result(),
+            Ok(Prefix {
+                keyword: "ref",
+                modifier: Some("!!"),
+                enclosures: vec![("eff", ['[', ']'])]
             })
         );
-
-        assert!(
-            enclosure_with_ctx(
-                ExtraContext::default()
-                    .with_enclosure_delimiters(Delimiter::Square)
-            )
-            .parse("(fail)")
-            .has_errors()
-        );
-    }
-
-    #[test]
-    fn test_header_simple() {
-        assert_eq!(
-            header().parse("fix: resolve issue").into_result(),
-            Ok((
-                Prefix {
-                    keyword: "fix",
-                    modifier: None,
-                    enclosures: vec![]
-                },
-                "resolve issue"
-            ))
-        );
-    }
-
-    #[test]
-    fn test_header_modifier() {
-        assert_eq!(
-            header().parse("add!: breaking change").into_result(),
-            Ok((
-                Prefix {
-                    keyword: "add",
-                    modifier: Some(Modifier {
-                        position: ModifierPosition::Before,
-                        kind: ModifierKind::Exclamation(1)
-                    }),
-                    enclosures: vec![]
-                },
-                "breaking change"
-            ))
-        );
-
-        assert_eq!(
-            header().parse("fix?: maybe breaking").into_result(),
-            Ok((
-                Prefix {
-                    keyword: "fix",
-                    modifier: Some(Modifier {
-                        position: ModifierPosition::Before,
-                        kind: ModifierKind::Question
-                    }),
-                    enclosures: vec![]
-                },
-                "maybe breaking"
-            ))
-        );
-
-        assert_eq!(
-            header().parse("ref!!: mass refactor").into_result(),
-            Ok((
-                Prefix {
-                    keyword: "ref",
-                    modifier: Some(Modifier {
-                        position: ModifierPosition::Before,
-                        kind: ModifierKind::Exclamation(2)
-                    }),
-                    enclosures: vec![]
-                },
-                "mass refactor"
-            ))
-        );
-    }
-
-    #[test]
-    fn test_header_enclosure() {
-        assert_eq!(
-            header()
-                .parse("add(lib): new library feature")
-                .into_result(),
-            Ok((
-                Prefix {
-                    keyword: "add",
-                    modifier: None,
-                    enclosures: vec![Enclosure {
-                        delimiter: Delimiter::Round,
-                        content: "lib"
-                    }]
-                },
-                "new library feature"
-            ))
-        );
-
-        assert_eq!(
-            header()
-                .parse("fix[eff]: faster algorithm")
-                .into_result(),
-            Ok((
-                Prefix {
-                    keyword: "fix",
-                    modifier: None,
-                    enclosures: vec![Enclosure {
-                        delimiter: Delimiter::Square,
-                        content: "eff"
-                    }]
-                },
-                "faster algorithm"
-            ))
-        );
-
-        assert_eq!(
-            header()
-                .parse("ref(build)[cmp]: build compatibility")
-                .into_result(),
-            Ok((
-                Prefix {
-                    keyword: "ref",
-                    modifier: None,
-                    enclosures: vec![
-                        Enclosure {
-                            delimiter: Delimiter::Round,
-                            content: "build"
-                        },
-                        Enclosure {
-                            delimiter: Delimiter::Square,
-                            content: "cmp"
-                        }
-                    ]
-                },
-                "build compatibility"
-            ))
-        );
-    }
-
-    #[test]
-    fn test_header_modifier_enclosure() {
-        assert_eq!(
-            header()
-                .parse("fix(lib)!: update library API")
-                .into_result(),
-            Ok((
-                Prefix {
-                    keyword: "fix",
-                    modifier: Some(Modifier {
-                        position: ModifierPosition::After,
-                        kind: ModifierKind::Exclamation(1)
-                    }),
-                    enclosures: vec![Enclosure {
-                        delimiter: Delimiter::Round,
-                        content: "lib"
-                    }]
-                },
-                "update library API"
-            ))
-        );
-
-        assert_eq!(
-            header()
-                .parse("fix?(ci)[exp]: try new CI configuration")
-                .into_result(),
-            Ok((
-                Prefix {
-                    keyword: "fix",
-                    modifier: Some(Modifier {
-                        position: ModifierPosition::Before,
-                        kind: ModifierKind::Question
-                    }),
-                    enclosures: vec![Enclosure {
-                        delimiter: Delimiter::Round,
-                        content: "ci"
-                    }, Enclosure {
-                        delimiter: Delimiter::Square,
-                        content: "exp"
-                    }]
-                },
-                "try new CI configuration"
-            ))
-        );
-
-        assert_eq!(
-            header()
-                .parse("rem!!(build): remove current build system")
-                .into_result(),
-            Ok((
-                Prefix {
-                    keyword: "rem",
-                    modifier: Some(Modifier {
-                        position: ModifierPosition::Before,
-                        kind: ModifierKind::Exclamation(2)
-                    }),
-                    enclosures: vec![Enclosure {
-                        delimiter: Delimiter::Round,
-                        content: "build"
-                    }]
-                },
-                "remove current build system"
-            ))
-        );
+        assert!(parser_standard().parse("add").has_errors());
+        assert!(parser_standard().parse("feat:").has_errors());
+        assert!(parser_standard().parse("add(exe)!:").has_errors());
     }
 }
