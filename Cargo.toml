@@ -17,4 +17,4 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.dependencies]
-chumsky = { version = "0.12", default-features = false }
+chumsky = { version = "0.13", default-features = false }
