@@ -7,9 +7,27 @@ repository.workspace = true
 license.workspace = true
 categories.workspace = true
 
+[[bin]]
+name = "commit-lint"
+path = "src/main.rs"
+
 [dependencies]
+anyhow = { workspace = true }
+ariadne = { workspace = true }
 chumsky = { workspace = true }
+clap = { workspace = true }
+clap-stdin = { workspace = true }
 
 [features]
-default = ["std"]
-std = ["chumsky/std", "chumsky/stacker"]
+default = ["std", "cli", "color"]
+
+std = ["anyhow/std", "chumsky/std", "chumsky/stacker", "clap/std"]
+
+cli = [
+  "clap/error-context",
+  "clap/derive",
+  "clap/help",
+  "clap/suggestions",
+  "clap/usage",
+]
+color = ["ariadne/auto-color", "clap/color"]

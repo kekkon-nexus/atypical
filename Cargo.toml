@@ -17,4 +17,8 @@ resolver = "3"
 members = ["crates/*"]
 
 [workspace.dependencies]
+anyhow = { version = "1.0", default-features = false }
+ariadne = { version = "0.6", default-features = false }
 chumsky = { version = "0.13", default-features = false }
+clap = { version = "4.6", default-features = false }
+clap-stdin ={ version = "0.8", default-features = false }
