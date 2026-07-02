@@ -27,7 +27,7 @@ fn main() -> Result<()> {
         println!("Input: {}", input);
 
         use chumsky::Parser;
-        let result = atypical_commit::prefix().parse(&input);
+        let result = atypical_commit::prefix().lazy().parse(&input);
 
         if result.has_errors() {
             let mut report =
@@ -38,10 +38,9 @@ fn main() -> Result<()> {
             let mut colors = ColorGenerator::new();
 
             for error in result.errors() {
-                report = report
-                .with_label(
+                report = report.with_label(
                     Label::new((&filename, error.span().into_range()))
-                        .with_message("Invalid commit message")
+                        .with_message(error.to_string())
                         .with_color(colors.next()),
                 );
             }

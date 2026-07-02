@@ -27,21 +27,6 @@ pub enum Sequence {
     Post,
 }
 
-trait TokenParser<'i, I, O>
-where
-    I: chumsky::input::Input<'i, Token = char, Span = SimpleSpan>,
-{
-    fn parser(&self) -> impl Parser<'i, I, O, Extra<'i>> + 'i;
-}
-
-impl<'i> TokenParser<'i, &'i str, &'i str> for &'i str {
-    #[inline]
-    #[doc(hidden)]
-    fn parser(&self) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + 'i {
-        just(*self)
-    }
-}
-
 pub type KeywordToken<'i> = Keyword<'i>;
 
 pub type ModifierToken<'i> = Modifier<'i>;
@@ -58,33 +43,6 @@ impl<'i> EnclosureToken<'i> {
         match self {
             EnclosureToken::Flexible(delimiters) => *delimiters,
             EnclosureToken::Strict(delimiters, _) => *delimiters,
-        }
-    }
-}
-
-impl<'i> TokenParser<'i, &'i str, Enclosure<'i>> for EnclosureToken<'i> {
-    fn parser(
-        &self,
-    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra<'i>> + 'i {
-        match *self {
-            EnclosureToken::Flexible([start, end]) => {
-                none_of::<'i, _, _, Extra>([start, end])
-                    .repeated()
-                    .to_slice()
-                    .delimited_by(just(start), just(end))
-                    .map(move |s| (s, [start, end]))
-                    .boxed()
-            }
-            EnclosureToken::Strict([start, end], ref allowed) => {
-                let allowed =
-                    allowed.iter().map(|&s| just(s)).collect::<Vec<_>>();
-
-                choice(allowed)
-                    .to_slice()
-                    .delimited_by(just(start), just(end))
-                    .map(move |s| (s, [start, end]))
-                    .boxed()
-            }
         }
     }
 }
@@ -174,21 +132,46 @@ impl<'i> From<Tokens<'i>> for ExtraContext<'i> {
 pub type Extra<'i> =
     extra::Full<ExtraError<'i>, ExtraState<'i>, ExtraContext<'i>>;
 
+fn ident<'i>(
+    i: &mut chumsky::input::InputRef<'i, '_, &'i str, Extra<'i>>,
+) -> (&'i str, SimpleSpan) {
+    let before = i.cursor();
+
+    while i
+        .peek()
+        .is_some_and(|c: char| c.is_alphanumeric() || c == '_')
+    {
+        i.next();
+    }
+
+    (i.slice_since(&before..), i.span_since(&before))
+}
+
+fn expected_one_of(found: &str, kind: &str, expected: &[&str]) -> String {
+    let expected = expected.join(", ");
+
+    if found.is_empty() {
+        format!("expected {kind}, one of: {expected}")
+    } else {
+        format!("unknown {kind} `{found}`, expected one of: {expected}")
+    }
+}
+
 pub fn keyword<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
     use chumsky::input::InputRef;
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        let parsers: Vec<_> = i
-            .ctx()
-            .tokens
-            .keywords
-            .iter()
-            .map(TokenParser::parser)
-            .collect();
+        let (s, span) = ident(i);
+        let keywords = &i.ctx().tokens.keywords;
 
-        i.parse(choice(parsers))
+        if keywords.contains(&s) {
+            return Ok(s);
+        }
+
+        let message = expected_one_of(s, "keyword", keywords);
+
+        Err(Rich::custom(span, message))
     })
-    .labelled("keyword")
 }
 
 pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
@@ -200,17 +183,49 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
             .tokens
             .modifiers
             .iter()
-            .map(TokenParser::parser)
+            .map(|&token| just(token))
             .collect::<Vec<_>>();
 
         i.parse(choice(parsers))
     })
-    .labelled("modifier")
 }
 
 pub fn enclosures<'i>()
 -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
     use chumsky::input::InputRef;
+
+    fn parser<'i>(
+        token: &EnclosureToken<'i>,
+    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra<'i>> {
+        match *token {
+            EnclosureToken::Flexible([start, end]) => {
+                none_of::<'i, _, _, Extra>([start, end])
+                    .repeated()
+                    .to_slice()
+                    .delimited_by(just(start), just(end))
+                    .map(move |s| (s, [start, end]))
+                    .boxed()
+            }
+            EnclosureToken::Strict([start, end], ref allowed) => {
+                let allowed = allowed.clone();
+
+                custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
+                    let (s, span) = ident(i);
+
+                    if allowed.contains(&s) {
+                        return Ok(s);
+                    }
+
+                    let message = expected_one_of(s, "enclosure", &allowed);
+
+                    Err(Rich::custom(span, message))
+                })
+                .delimited_by(just(start), just(end))
+                .map(move |s| (s, [start, end]))
+                .boxed()
+            }
+        }
+    }
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
         let ctx = i.ctx();
@@ -232,10 +247,8 @@ pub fn enclosures<'i>()
                 break;
             }
 
-            let parsers = delimiters[index..]
-                .iter()
-                .map(TokenParser::parser)
-                .collect::<Vec<_>>();
+            let parsers =
+                delimiters[index..].iter().map(parser).collect::<Vec<_>>();
 
             let (content, delimited_by) = i.parse(choice(parsers))?;
             let position = delimiters
@@ -248,7 +261,6 @@ pub fn enclosures<'i>()
 
         Ok(results)
     })
-    .labelled("enclosures")
 }
 
 pub fn separator<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
@@ -259,27 +271,30 @@ pub fn separator<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
 
         i.parse(just(ctx.tokens.separator))
     })
-    .labelled("separator")
+}
+
+pub fn modifier_when<'i>(
+    sequence: Sequence,
+) -> impl Parser<'i, &'i str, Option<Modifier<'i>>, Extra<'i>> {
+    use chumsky::input::InputRef;
+
+    custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
+        if i.ctx().tokens.modifier_sequence != sequence {
+            return Ok(None);
+        }
+
+        i.parse(modifier().or_not())
+    })
 }
 
 pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
     let keyword = keyword();
 
-    let modifier_pre = modifier()
-        .contextual()
-        .configure(|_, ctx| {
-            matches!(ctx.tokens.modifier_sequence, Sequence::Pre)
-        })
-        .or_not();
+    let modifier_pre = modifier_when(Sequence::Pre);
 
     let enclosures = enclosures();
 
-    let modifier_post = modifier()
-        .contextual()
-        .configure(|_, ctx| {
-            matches!(ctx.tokens.modifier_sequence, Sequence::Post)
-        })
-        .or_not();
+    let modifier_post = modifier_when(Sequence::Post);
 
     let separator = separator();
 
