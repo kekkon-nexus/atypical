@@ -21,6 +21,15 @@ pub struct Prefix<'i> {
     pub enclosures: Vec<Enclosure<'i>>,
 }
 
+#[doc(alias("Subject"))]
+pub type Description<'i> = &'i str;
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Header<'i> {
+    pub prefix: Prefix<'i>,
+    pub description: Description<'i>,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum Sequence {
     Pre,
@@ -287,6 +296,41 @@ pub fn modifier_when<'i>(
     })
 }
 
+pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
+{
+    use chumsky::input::InputRef;
+
+    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+        let before = i.cursor();
+
+        while i.peek().is_some_and(|c: char| c != '\n') {
+            i.next();
+        }
+
+        let s = i.slice_since(&before..);
+        let span = i.span_since(&before);
+
+        let Some(rest) = s.strip_prefix(' ') else {
+            let message = if s.trim().is_empty() {
+                "expected a description after the separator"
+            } else {
+                "expected a space before the description"
+            };
+
+            return Err(Rich::custom(span, message));
+        };
+
+        if rest.trim().is_empty() {
+            return Err(Rich::custom(
+                span,
+                "expected a description after the separator",
+            ));
+        }
+
+        Ok(rest.trim_end())
+    })
+}
+
 pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
     let keyword = keyword();
 
@@ -305,6 +349,13 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             enclosures,
         },
     )
+}
+
+pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
+    group((prefix(), description())).map(|(prefix, description)| Header {
+        prefix,
+        description,
+    })
 }
 
 #[cfg(test)]
@@ -415,5 +466,50 @@ mod tests {
         assert!(parser_standard().parse("add").has_errors());
         assert!(parser_standard().parse("feat:").has_errors());
         assert!(parser_standard().parse("add(exe)!:").has_errors());
+    }
+
+    #[test]
+    fn test_description() {
+        fn parser_standard<'i>()
+        -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>> {
+            description().with_ctx(Tokens::preset_standard().into())
+        }
+
+        assert!(parser_standard().parse("").has_errors());
+        assert!(parser_standard().parse(" ").has_errors());
+        assert!(parser_standard().parse("no space").has_errors());
+
+        assert_eq!(parser_standard().parse(" ok").into_result(), Ok("ok"));
+        assert_eq!(
+            parser_standard().parse(" trailing ").into_result(),
+            Ok("trailing")
+        );
+    }
+
+    #[test]
+    fn test_header() {
+        fn parser_standard<'i>()
+        -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
+            header().with_ctx(Tokens::preset_standard().into())
+        }
+
+        assert!(parser_standard().parse("").has_errors());
+        assert!(parser_standard().parse("add:").has_errors());
+        assert!(parser_standard().parse("add: ").has_errors());
+        assert!(parser_standard().parse("add:no space").has_errors());
+
+        assert_eq!(
+            parser_standard()
+                .parse("add(exe)[int]: initial")
+                .into_result(),
+            Ok(Header {
+                prefix: Prefix {
+                    keyword: "add",
+                    modifier: None,
+                    enclosures: vec![("exe", ['(', ')']), ("int", ['[', ']'])]
+                },
+                description: "initial"
+            })
+        );
     }
 }
