@@ -3,6 +3,8 @@
 
 use chumsky::prelude::*;
 
+pub mod config;
+
 pub type DelimitedBy = [char; 2];
 
 #[doc(alias("Type", "Verb"))]
@@ -30,7 +32,9 @@ pub struct Header<'i> {
     pub description: Description<'i>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Sequence {
     Pre,
     Post,

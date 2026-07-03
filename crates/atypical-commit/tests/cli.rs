@@ -1,11 +1,16 @@
 use std::io::Write;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
 const BIN: &str = env!("CARGO_BIN_EXE_commit-lint");
 
 fn lint(args: &[&str], stdin: Option<&str>) -> Output {
+    lint_in(Path::new("."), args, stdin)
+}
+
+fn lint_in(dir: &Path, args: &[&str], stdin: Option<&str>) -> Output {
     let mut child = Command::new(BIN)
+        .current_dir(dir)
         .args(args)
         .stdin(if stdin.is_some() {
             Stdio::piped()
@@ -107,6 +112,59 @@ fn no_input_is_a_usage_error() {
 #[test]
 fn unreadable_file_fails() {
     let output = lint(&["/nonexistent/commit-msg"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn config_flag_overrides_the_keywords() {
+    let config = fixture(
+        "keywords.toml",
+        "[commit]\nkeywords = [\"feat\", \"fix\"]\n",
+    );
+    let config = config.to_str().unwrap();
+
+    let output = lint(&["--config", config, "-"], Some("feat: now valid\n"));
+
+    assert_eq!(output.status.code(), Some(0));
+
+    let output = lint(&["--config", config, "-"], Some("add: now unknown\n"));
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("expected one of: feat, fix"));
+}
+
+#[test]
+fn config_is_discovered_from_the_working_directory() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("discovery");
+
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("atypical.toml"),
+        "[commit]\nkeywords = [\"feat\"]\n",
+    )
+    .unwrap();
+
+    let output = lint_in(&dir, &["-"], Some("feat: discovered\n"));
+
+    assert_eq!(output.status.code(), Some(0));
+}
+
+#[test]
+fn invalid_config_fails() {
+    let config = fixture("invalid.toml", "[commit]\nkeyword = [\"typo\"]\n");
+
+    let output = lint(
+        &["--config", config.to_str().unwrap(), "-"],
+        Some("add: message\n"),
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+
+    let output = lint(
+        &["--config", "/nonexistent/atypical.toml", "-"],
+        Some("add: message\n"),
+    );
 
     assert_eq!(output.status.code(), Some(1));
 }

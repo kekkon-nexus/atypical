@@ -1,7 +1,9 @@
+use std::path::PathBuf;
 use std::process::{ExitCode, Termination};
 
 use anyhow::Result;
 use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
+use atypical_commit::config::{self, CommitConfig};
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 
@@ -41,6 +43,27 @@ impl Termination for Exit {
 )]
 struct Args {
     input: Option<FileOrStdin>,
+
+    /// Path to atypical.toml; the nearest one from the current
+    /// directory upward is used when omitted.
+    #[arg(short, long, value_name = "FILE")]
+    config: Option<PathBuf>,
+}
+
+/// The `[commit]` section of the nearest (or given) atypical.toml,
+/// falling back to the standard preset.
+fn commit_config(path: Option<PathBuf>) -> Result<CommitConfig> {
+    let path = match path {
+        Some(path) => Some(path),
+        None => atypical_config::find(std::env::current_dir()?),
+    };
+
+    let config = match path {
+        Some(path) => atypical_config::load(path, config::SECTION)?,
+        None => None,
+    };
+
+    Ok(config.unwrap_or_default())
 }
 
 /// The header is the first line git keeps: leading blank lines and
@@ -62,6 +85,20 @@ fn message_header(input: &str) -> Option<(usize, &str)> {
     None
 }
 
+fn header_parser<'i>(
+    tokens: &'i atypical_commit::Tokens<'i>,
+) -> impl chumsky::Parser<
+    'i,
+    &'i str,
+    atypical_commit::Header<'i>,
+    atypical_commit::Extra<'i>,
+> {
+    use chumsky::Parser;
+
+    atypical_commit::header()
+        .with_ctx(atypical_commit::ExtraContext::new(tokens))
+}
+
 fn main() -> Result<Exit> {
     let args = Args::parse();
 
@@ -79,7 +116,9 @@ fn main() -> Result<Exit> {
     };
 
     use chumsky::Parser;
-    let result = atypical_commit::header().parse(header);
+    let config = commit_config(args.config)?;
+    let tokens = atypical_commit::Tokens::from(&config);
+    let result = header_parser(&tokens).parse(header);
 
     if !result.has_errors() {
         return Ok(Exit::Success);
