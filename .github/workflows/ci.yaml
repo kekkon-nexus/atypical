@@ -52,7 +52,6 @@ jobs:
           - macos-latest
           - windows-latest
 
-    name: test (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
