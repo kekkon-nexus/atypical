@@ -51,8 +51,8 @@ jobs:
             cargo-nextest
       - run: >-
           cargo llvm-cov nextest --workspace --all-targets --all-features --locked
-            --fail-under-regions 90
-            --codecov --output-path codecov.json
+          --fail-under-regions 90
+          --codecov --output-path codecov.json
         id: lcov
       - uses: codecov/codecov-action@v5
         with:
