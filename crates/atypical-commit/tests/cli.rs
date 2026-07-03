@@ -30,7 +30,15 @@ fn lint(args: &[&str], stdin: Option<&str>) -> Output {
 }
 
 fn fixture(name: &str, contents: &str) -> PathBuf {
-    let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+    let unique = format!(
+        "{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    );
+    let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(format!("{name}-{unique}"));
 
     std::fs::write(&path, contents).unwrap();
 
