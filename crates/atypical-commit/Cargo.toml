@@ -14,14 +14,25 @@ path = "src/main.rs"
 [dependencies]
 anyhow = { workspace = true }
 ariadne = { workspace = true }
+atypical-config = { workspace = true }
 chumsky = { workspace = true }
 clap = { workspace = true }
 clap-stdin = { workspace = true }
+serde = { workspace = true, features = ["alloc", "derive"] }
+
+[dev-dependencies]
+toml = { workspace = true, features = ["parse", "serde", "std"] }
 
 [features]
 default = ["std", "cli", "color"]
 
-std = ["anyhow/std", "chumsky/std", "chumsky/stacker", "clap/std"]
+std = [
+  "anyhow/std",
+  "chumsky/std",
+  "chumsky/stacker",
+  "clap/std",
+  "serde/std",
+]
 
 cli = [
   "clap/error-context",

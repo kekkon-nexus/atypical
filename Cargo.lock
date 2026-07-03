@@ -99,9 +99,12 @@ version = "0.1.1"
 dependencies = [
  "anyhow",
  "ariadne",
+ "atypical-config",
  "chumsky",
  "clap",
  "clap-stdin",
+ "serde",
+ "toml",
 ]
 
 [[package]]
