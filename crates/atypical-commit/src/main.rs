@@ -53,11 +53,10 @@ struct Args {
 /// The `[commit]` section of the nearest (or given) atypical.toml,
 /// falling back to the standard preset.
 fn commit_config(path: Option<PathBuf>) -> Result<CommitConfig> {
-    let path = path.or_else(|| {
-        let current = std::env::current_dir().ok()?;
-
-        atypical_config::find(current)
-    });
+    let path = match path {
+        Some(path) => Some(path),
+        None => atypical_config::find(std::env::current_dir()?),
+    };
 
     let config = match path {
         Some(path) => atypical_config::load(path, config::SECTION)?,
