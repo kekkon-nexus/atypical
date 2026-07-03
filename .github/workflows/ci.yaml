@@ -61,11 +61,11 @@ jobs:
           files: codecov.json
 
   publish:
+    if: github.ref_type == 'tag'
     needs:
       - fmt
       - clippy
       - cov
-    if: github.ref_type == 'tag'
     environment: publish
     permissions:
       id-token: write
