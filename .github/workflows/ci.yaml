@@ -49,16 +49,14 @@ jobs:
           tool: |
             cargo-llvm-cov
             cargo-nextest
-      - run: >-
-          cargo llvm-cov nextest --workspace --all-targets --all-features --locked
-          --fail-under-regions 90
-          --codecov --output-path codecov.json
-        id: lcov
+      - run: cargo llvm-cov nextest --workspace --all-targets --all-features --locked --fail-under-regions 90
+      - run: cargo llvm-cov report --codecov --output-path codecov.json
       - uses: codecov/codecov-action@v5
         with:
           fail_ci_if_error: true
           use_oidc: true
-          files: codecov.json
+          disable_search: true
+          files: codecov.json,target/nextest/default/junit.xml
 
   publish:
     if: github.ref_type == 'tag'
