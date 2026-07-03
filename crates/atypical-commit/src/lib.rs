@@ -419,6 +419,32 @@ mod tests {
     }
 
     #[test]
+    fn test_enclosures_flexible() {
+        fn parser_flexible<'i>()
+        -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
+            let tokens = Tokens {
+                enclosures: vec![EnclosureToken::Flexible(['(', ')'])],
+                ..Tokens::preset_standard()
+            };
+
+            enclosures().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_flexible().parse("").into_result(), Ok(vec![]));
+
+        assert_eq!(
+            parser_flexible().parse("(anything goes)").into_result(),
+            Ok(vec![("anything goes", ['(', ')'])])
+        );
+        assert_eq!(
+            parser_flexible().parse("()").into_result(),
+            Ok(vec![("", ['(', ')'])])
+        );
+        assert!(parser_flexible().parse("(unclosed").has_errors());
+        assert!(parser_flexible().parse("(nested())").has_errors());
+    }
+
+    #[test]
     fn test_separator() {
         fn parser_standard<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
             separator().with_ctx(Tokens::preset_standard().into())
