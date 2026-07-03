@@ -59,8 +59,6 @@ fn main() -> Result<Exit> {
         return Ok(Exit::Usage);
     }
 
-    println!("Input: {}", input);
-
     use chumsky::Parser;
     let result = atypical_commit::prefix().lazy().parse(&input);
 
