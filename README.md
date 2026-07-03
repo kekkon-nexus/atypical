@@ -35,8 +35,8 @@ Exit codes: `0` valid, `1` failed linting (or unreadable input),
 
 Every part of the syntax comes from the `[commit]` section of the
 nearest `atypical.toml`, found from the working directory upward
-(or passed with `--config <FILE>`). Omitted keys keep the standard
-preset, shown here in full:
+(or passed with `--config <FILE>`). If no config is found, or keys are
+omitted, the standard preset is used (shown here in full):
 
 ```toml
 [commit]
