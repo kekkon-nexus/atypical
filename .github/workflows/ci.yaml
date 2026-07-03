@@ -18,7 +18,6 @@ env:
 
 jobs:
   fmt:
-    name: rustfmt (nightly)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -26,7 +25,6 @@ jobs:
       - run: cargo fmt --all --check
 
   clippy:
-    name: clippy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -34,7 +32,6 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
 
   doc:
-    name: doc
     runs-on: ubuntu-latest
     env:
       RUSTDOCFLAGS: -D warnings
