@@ -21,3 +21,7 @@ ariadne = { version = "0.6", default-features = false }
 chumsky = { version = "0.13", default-features = false }
 clap = { version = "4.6", default-features = false }
 clap-stdin = { version = "0.8", default-features = false }
+serde = { version = "1.0", default-features = false }
+toml = { version = "0.9", default-features = false }
+
+atypical-config = { version = "0.1", path = "crates/atypical-config" }
