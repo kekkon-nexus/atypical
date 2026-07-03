@@ -1,3 +1,5 @@
+#![feature(coverage_attribute)]
+
 use std::process::{ExitCode, Termination};
 
 use anyhow::Result;
@@ -62,6 +64,7 @@ fn message_header(input: &str) -> Option<(usize, &str)> {
     None
 }
 
+#[coverage(off)]
 fn main() -> Result<Exit> {
     let args = Args::parse();
 
