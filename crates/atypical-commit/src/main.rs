@@ -30,16 +30,16 @@ impl Termination for Exit {
 #[command(
     version,
     about = "Lint commit messages with atypical.",
-    long_about = "\
-        Lint commit messages with atypical.\n\
-        Check out the documentation for more details: https://github.com/kekkon-nexus/atypical\
-    ",
-    after_help = "\
-        Exit codes:\n  \
-          0  the commit message is valid\n  \
-          1  the commit message failed linting, or input could not be read\n  \
-          2  usage error, or no commit message to lint\
-    "
+    long_about = indoc::indoc! {r#"
+        Lint commit messages with atypical.
+        Check out the documentation for more details: https://github.com/kekkon-nexus/atypical
+    "#},
+    after_help = indoc::indoc! {r#"
+        Exit codes:
+          0  the commit message is valid
+          1  the commit message failed linting, or input could not be read
+          2  usage error, or no commit message to lint
+    "#}
 )]
 struct Args {
     input: Option<FileOrStdin>,

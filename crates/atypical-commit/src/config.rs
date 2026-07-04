@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn test_partial_section_keeps_preset_defaults() {
         let config: CommitConfig =
-            toml::from_str("keywords = [\"feat\", \"fix\"]").unwrap();
+            toml::from_str(r#"keywords = ["feat", "fix"]"#).unwrap();
 
         assert_eq!(config.keywords, vec!["feat", "fix"]);
         assert_eq!(config.modifiers, CommitConfig::default().modifiers);
@@ -110,16 +110,14 @@ mod tests {
 
     #[test]
     fn test_enclosures_map_to_strict_and_flexible() {
-        let config: CommitConfig = toml::from_str(
-            "\
-            [[enclosures]]\n\
-            delimiters = [\"(\", \")\"]\n\
-            allowed = [\"core\"]\n\
-            \n\
-            [[enclosures]]\n\
-            delimiters = [\"{\", \"}\"]\n\
-            ",
-        )
+        let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[enclosures]]
+            delimiters = ["(", ")"]
+            allowed = ["core"]
+
+            [[enclosures]]
+            delimiters = ["{", "}"]
+        "#})
         .unwrap();
 
         assert_eq!(
@@ -134,12 +132,12 @@ mod tests {
     #[test]
     fn test_modifier_sequence_names() {
         let config: CommitConfig =
-            toml::from_str("modifier-sequence = \"post\"").unwrap();
+            toml::from_str(r#"modifier-sequence = "post""#).unwrap();
 
         assert_eq!(config.modifier_sequence, Sequence::Post);
 
         assert!(
-            toml::from_str::<CommitConfig>("modifier-sequence = \"sideways\"")
+            toml::from_str::<CommitConfig>(r#"modifier-sequence = "sideways""#)
                 .is_err()
         );
     }
@@ -147,7 +145,7 @@ mod tests {
     #[test]
     fn test_unknown_fields_are_rejected() {
         assert!(
-            toml::from_str::<CommitConfig>("keyword = [\"typo\"]").is_err()
+            toml::from_str::<CommitConfig>(r#"keyword = ["typo"]"#).is_err()
         );
     }
 }

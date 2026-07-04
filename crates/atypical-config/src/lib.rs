@@ -76,7 +76,10 @@ mod tests {
 
     #[test]
     fn test_section() {
-        let document = "[commit]\nname = \"value\"\n";
+        let document = indoc::indoc! {r#"
+            [commit]
+            name = "value"
+        "#};
 
         assert_eq!(
             section::<Section>(document, "commit").unwrap(),
@@ -88,6 +91,12 @@ mod tests {
         assert_eq!(section::<Section>("", "commit").unwrap(), None);
 
         assert!(section::<Section>("not toml", "commit").is_err());
-        assert!(section::<Section>("[commit]\nname = 1\n", "commit").is_err());
+        assert!(section::<Section>(
+            indoc::indoc! {r#"
+                [commit]
+                name = 1
+            "#},
+            "commit"
+        ).is_err());
     }
 }

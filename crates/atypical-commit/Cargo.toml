@@ -18,6 +18,7 @@ atypical-config = { workspace = true }
 chumsky = { workspace = true }
 clap = { workspace = true }
 clap-stdin = { workspace = true }
+indoc = { workspace = true }
 serde = { workspace = true, features = ["alloc", "derive"] }
 
 [dev-dependencies]
