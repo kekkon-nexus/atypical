@@ -25,19 +25,19 @@ serde = { workspace = true, features = ["alloc", "derive"] }
 toml = { workspace = true, features = ["parse", "serde", "std"] }
 
 [features]
-default = ["std", "cli", "color"]
+default = ["cli", "color", "std"]
 
 std = [
   "anyhow/std",
-  "chumsky/std",
   "chumsky/stacker",
+  "chumsky/std",
   "clap/std",
   "serde/std",
 ]
 
 cli = [
-  "clap/error-context",
   "clap/derive",
+  "clap/error-context",
   "clap/help",
   "clap/suggestions",
   "clap/usage",
