@@ -1,0 +1,7 @@
+{
+  "recommendations": [
+    "rust-lang.rust-analyzer",
+    "tombi-toml.tombi",
+    "redhat.vscode-yaml"
+  ]
+}
