@@ -91,12 +91,15 @@ mod tests {
         assert_eq!(section::<Section>("", "commit").unwrap(), None);
 
         assert!(section::<Section>("not toml", "commit").is_err());
-        assert!(section::<Section>(
-            indoc::indoc! {r#"
+        assert!(
+            section::<Section>(
+                indoc::indoc! {r#"
                 [commit]
                 name = 1
             "#},
-            "commit"
-        ).is_err());
+                "commit"
+            )
+            .is_err()
+        );
     }
 }
