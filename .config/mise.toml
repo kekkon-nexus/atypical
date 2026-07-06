@@ -1,6 +1,7 @@
 [tools]
 hk = "latest"
 rust = "nightly"
+"cargo:cargo-nextest" = "latest"
 
 tombi = "latest"
 yq = "latest"
