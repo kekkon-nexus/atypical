@@ -14,3 +14,7 @@ HK_MISE = 1
 
 [hooks]
 postinstall = "hk install --mise"
+
+[tasks."test:rust"]
+description = "Test the Rust project"
+run = "cargo nextest run --workspace"
