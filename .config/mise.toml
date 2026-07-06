@@ -1,0 +1,15 @@
+[tools]
+hk = "latest"
+rust = "nightly"
+
+tombi = "latest"
+yq = "latest"
+
+actionlint = "latest"
+shellcheck = "latest"
+
+[env]
+HK_MISE = 1
+
+[hooks]
+postinstall = "hk install --mise"

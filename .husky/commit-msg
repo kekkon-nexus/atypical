@@ -1,4 +1,0 @@
-#!/bin/bash
-set -e
-
-cargo run -p atypical-commit -- "$1"

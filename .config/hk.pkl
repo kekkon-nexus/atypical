@@ -1,0 +1,47 @@
+amends "package://github.com/jdx/hk/releases/download/v1.49.0/hk@1.49.0#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v1.49.0/hk@1.49.0#/Builtins.pkl"
+
+local linters = new Mapping<String, Step> {
+  // Add linters here. Examples:
+  // ["prettier"] = Builtins.prettier
+  // ["eslint"] = Builtins.eslint
+  // ["ruff"] = Builtins.ruff
+
+  // Or define custom steps:
+  // ["custom"] {
+  //     glob = "**/*.py"
+  //     check = "mypy {{ files }}"
+  // }
+
+  ["cargo-clippy"] = Builtins.cargo_clippy
+  ["cargo-fmt"] = Builtins.cargo_fmt
+
+  ["tombi-format"] = Builtins.tombi_format
+  ["yq"] = Builtins.yq
+
+  ["actionlint"] = Builtins.actionlint
+}
+
+hooks {
+  ["check"] {
+    steps = linters
+  }
+  ["fix"] {
+    fix = true
+    steps = linters
+  }
+
+  ["pre-commit"] {
+    fix = true
+    stash = "git"
+    steps = linters
+  }
+  ["commit-msg"] {
+    stash = "git"
+    steps {
+      ["atypical"] {
+        check = "cargo run -p atypical-commit -- {{commit_msg_file}}"
+      }
+    }
+  }
+}

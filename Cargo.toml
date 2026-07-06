@@ -38,7 +38,4 @@ categories.workspace = true
 publish = false
 
 [lib]
-path = ".husky/workaround.rs"
-
-[dependencies]
-husky-rs = "0.3"
+path = ".config/stub.rs"
