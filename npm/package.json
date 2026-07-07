@@ -3,10 +3,24 @@
   "version": "0.2.3",
   "description": "(Non)-standard enforcing DX",
   "keywords": [
+    "changelog",
+    "cli",
     "commit",
+    "commit-message",
     "commit-msg",
-    "lint",
-    "standard-commits"
+    "commitizen",
+    "commitlint",
+    "conventional-changelog",
+    "conventional-commits",
+    "git",
+    "git-hooks",
+    "gitmoji",
+    "husky",
+    "lint-staged",
+    "linter",
+    "monorepo",
+    "napi",
+    "release-notes"
   ],
   "license": "(MIT OR Apache-2.0)",
   "contributors": [
@@ -14,22 +28,22 @@
     "Yuuki Rika <yvvki@kekkon.nexus>"
   ],
   "repository": "kekkon-nexus/atypical",
-  "type": "module",
   "bin": {
     "commit-lint": "bin/commit-lint.js"
   },
   "files": [
     "bin/commit-lint.js"
   ],
+  "type": "module",
+  "optionalDependencies": {
+    "@atypical/commit-darwin-arm64": "0.2.3",
+    "@atypical/commit-darwin-x64": "0.2.3",
+    "@atypical/commit-linux-arm64": "0.2.3",
+    "@atypical/commit-linux-x64": "0.2.3",
+    "@atypical/commit-win32-arm64": "0.2.3",
+    "@atypical/commit-win32-x64": "0.2.3"
+  },
   "engines": {
     "node": ">=18"
-  },
-  "optionalDependencies": {
-    "@atypical/commit-linux-x64": "0.2.3",
-    "@atypical/commit-linux-arm64": "0.2.3",
-    "@atypical/commit-darwin-x64": "0.2.3",
-    "@atypical/commit-darwin-arm64": "0.2.3",
-    "@atypical/commit-win32-x64": "0.2.3",
-    "@atypical/commit-win32-arm64": "0.2.3"
   }
 }
