@@ -109,6 +109,7 @@ jobs:
         with:
           bin: commit-lint
           archive: atypical-commit-$tag-$target
+          package: atypical-commit
+          locked: true
           target: ${{ matrix.target }}
           checksum: sha256
-          token: ${{ secrets.GITHUB_TOKEN }}
