@@ -1,0 +1,29 @@
+{
+  "name": "atypical-commit",
+  "version": "0.2.3",
+  "description": "Commit message linting: the commit-lint binary, prebuilt",
+  "keywords": [
+    "commit",
+    "lint",
+    "commit-msg",
+    "standard-commits"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kekkon-nexus/atypical.git"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "bin": {
+    "commit-lint": "bin/commit-lint.js"
+  },
+  "files": [
+    "bin/commit-lint.js",
+    "install.js"
+  ],
+  "scripts": {
+    "postinstall": "node install.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

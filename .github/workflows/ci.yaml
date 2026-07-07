@@ -118,3 +118,20 @@ jobs:
           locked: true
           target: ${{ matrix.target }}
           checksum: sha256
+  npm:
+    needs:
+      - binaries
+    environment: publish
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm version --no-git-tag-version --allow-same-version "${GITHUB_REF_NAME#v}"
+        working-directory: npm
+      - run: npm publish
+        working-directory: npm
