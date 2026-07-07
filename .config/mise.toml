@@ -2,6 +2,7 @@
 hk = "latest"
 rust = "nightly"
 upx = "latest"
+hyperfine = "latest"
 "cargo:cargo-nextest" = "latest"
 
 tombi = "latest"
@@ -21,10 +22,13 @@ description = "Build release commit-lint"
 run = [
   "cargo build --release -p atypical-commit",
   "mkdir -p target/dist",
-  "cp target/release/commit-lint target/dist/commit-lint",
-  "upx -q --best --lzma target/dist/commit-lint",
+  "upx -q --best --lzma target/release/commit-lint -o target/dist/commit-lint -f",
 ]
 
 [tasks."test:rust"]
 description = "Test Rust workspace"
 run = "cargo nextest run --workspace"
+
+[tasks."bench:latency"]
+description = "Per-invocation latency receipts for commit-lint"
+run = "sh benches/latency.sh"

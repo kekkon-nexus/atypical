@@ -1,0 +1,8 @@
+{
+  "private": true,
+  "description": "commitlint, vendored for the latency head-to-head",
+  "devDependencies": {
+    "@commitlint/cli": "^21",
+    "@commitlint/config-conventional": "^21"
+  }
+}

@@ -21,6 +21,10 @@ mise run test:rust
 
 The `pre-commit` hook runs `hk fix` on staged files.
 
+`mise run bench:latency` writes per-invocation latency receipts to
+`benches/results.md`; `npm --prefix benches install` first to include
+the commitlint head-to-head.
+
 ## Commits
 
 Headers follow the
