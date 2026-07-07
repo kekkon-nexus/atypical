@@ -5,7 +5,6 @@ set -eu
 cd "$(dirname "$0")/.."
 
 BIN=${BIN:-target/release/commit-lint}
-BIN_PACKED=${BIN_PACKED:-target/dist/commit-lint}
 FIX=${FIX:-benches/fixtures}
 OUT=${OUT:-benches/results.md}
 WARMUP=${WARMUP:-10}
@@ -62,8 +61,6 @@ fi
 set -- \
   --command-name "atypical (valid)" "$BIN -- $FIX/atypical-valid.txt" \
   --command-name "atypical (invalid)" "$BIN -- $FIX/atypical-invalid.txt" \
-  --command-name "atypical (valid + packed)" "$BIN_PACKED -- $FIX/atypical-invalid.txt" \
-  --command-name "atypical (invalid + packed)" "$BIN_PACKED -- $FIX/atypical-invalid.txt" \
 
 if [ -n "$CL" ]; then
   set -- "$@" --command-name "commitlint (valid)" \

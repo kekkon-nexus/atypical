@@ -37,7 +37,7 @@ codegen-backend = "cranelift"
 
 [profile.release]
 codegen-units = 1
-lto = "thin"
-opt-level = "s"
-strip = "debuginfo"
+lto = "fat"
+opt-level = "z"
+strip = "symbols"
 panic = "abort"
