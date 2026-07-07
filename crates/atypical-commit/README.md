@@ -17,10 +17,10 @@ e.g. `add(exe)[int]: initial commit linting`.
 cargo install atypical-commit
 ```
 
-Or as a prebuilt binary, [from npm](https://www.npmjs.com/package/atypical-commit):
+Or as a prebuilt binary, [from npm](https://www.npmjs.com/package/@atypical/commit):
 
 ```sh
-npm i -D atypical-commit
+npm i -D @atypical/commit
 ```
 
 ### Usage

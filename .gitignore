@@ -1,4 +1,3 @@
 /target
 node_modules
-/npm/bin/commit-lint
-/npm/bin/commit-lint.exe
+/npm/platforms

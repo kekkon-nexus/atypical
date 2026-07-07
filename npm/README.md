@@ -1,15 +1,15 @@
-# atypical-commit
+# @atypical/commit
 
 Commit message linting: the `commit-lint` binary, prebuilt.
 
-Installing this package downloads the binary for your platform from the
-matching [GitHub release](https://github.com/kekkon-nexus/atypical/releases)
-and verifies its sha256.
+The binary for your platform comes in as an optional dependency
+(`@atypical/commit-<platform>-<arch>`); nothing is downloaded at
+install time and there are no install scripts.
 
 ## Install
 
 ```sh
-npm i -D atypical-commit
+npm i -D @atypical/commit
 ```
 
 ## Usage
