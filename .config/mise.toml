@@ -1,6 +1,7 @@
 [tools]
 hk = "latest"
 rust = "nightly"
+upx = "latest"
 "cargo:cargo-nextest" = "latest"
 
 tombi = "latest"
@@ -15,6 +16,15 @@ HK_MISE = 1
 [hooks]
 postinstall = "hk install --mise"
 
+[tasks."build:rust"]
+description = "Build release commit-lint"
+run = [
+  "cargo build --release -p atypical-commit",
+  "mkdir -p target/dist",
+  "cp target/release/commit-lint target/dist/commit-lint",
+  "upx -q --best --lzma target/dist/commit-lint",
+]
+
 [tasks."test:rust"]
-description = "Test the Rust project"
+description = "Test Rust workspace"
 run = "cargo nextest run --workspace"

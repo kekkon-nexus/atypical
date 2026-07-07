@@ -1,0 +1,43 @@
+[unstable]
+codegen-backend = true
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = [
+  "-Clink-arg=-fuse-ld=lld",
+  "-Zshare-generics=y",
+  "-Zthreads=0",
+]
+
+[target.x86_64-apple-darwin]
+linker = "clang"
+rustflags = [
+  "-Clink-arg=-fuse-ld=lld",
+  "-Zshare-generics=y",
+  "-Zthreads=0",
+]
+
+[target.aarch64-apple-darwin]
+linker = "clang"
+rustflags = [
+  "-Clink-arg=-fuse-ld=lld",
+  "-Zshare-generics=y",
+  "-Zthreads=0",
+]
+
+[target.x86_64-pc-windows-msvc]
+linker = "rust-lld.exe"
+rustflags = [
+  "-Zshare-generics=y",
+  "-Zthreads=0",
+]
+
+[profile.dev]
+codegen-backend = "cranelift"
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = "s"
+strip = "debuginfo"
+panic = "abort"
