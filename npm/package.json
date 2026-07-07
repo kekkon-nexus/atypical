@@ -1,29 +1,35 @@
 {
-  "name": "atypical-commit",
+  "name": "@atypical/commit",
   "version": "0.2.3",
-  "description": "Commit message linting: the commit-lint binary, prebuilt",
+  "description": "(Non)-standard enforcing DX",
   "keywords": [
     "commit",
-    "lint",
     "commit-msg",
+    "lint",
     "standard-commits"
   ],
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/kekkon-nexus/atypical.git"
-  },
   "license": "(MIT OR Apache-2.0)",
+  "contributors": [
+    "Ryan Suhartanto <suhartanto@kekkon.nexus>",
+    "Yuuki Rika <yvvki@kekkon.nexus>"
+  ],
+  "repository": "kekkon-nexus/atypical",
+  "type": "module",
   "bin": {
     "commit-lint": "bin/commit-lint.js"
   },
   "files": [
-    "bin/commit-lint.js",
-    "install.js"
+    "bin/commit-lint.js"
   ],
-  "scripts": {
-    "postinstall": "node install.js"
-  },
   "engines": {
     "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@atypical/commit-linux-x64": "0.2.3",
+    "@atypical/commit-linux-arm64": "0.2.3",
+    "@atypical/commit-darwin-x64": "0.2.3",
+    "@atypical/commit-darwin-arm64": "0.2.3",
+    "@atypical/commit-win32-x64": "0.2.3",
+    "@atypical/commit-win32-arm64": "0.2.3"
   }
 }
