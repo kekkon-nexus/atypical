@@ -4,5 +4,4 @@ components = [
   "clippy",
   "llvm-tools",
   "rustfmt",
-  "rustc-codegen-cranelift",
 ]
