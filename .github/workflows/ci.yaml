@@ -41,8 +41,8 @@ jobs:
           tool: |
             cargo-llvm-cov
             cargo-nextest
-      - run: cargo llvm-cov nextest --workspace --all-targets --all-features --locked --fail-under-regions 90
-      - run: cargo llvm-cov report --codecov --output-path codecov.json
+      - run: mkdir -p target/llvm-cov
+      - run: cargo llvm-cov nextest --workspace --all-targets --all-features --locked --fail-under-regions 90 --codecov --output-path target/llvm-cov/codecov.json
       - if: github.ref_type != 'tag'
         uses: codecov/codecov-action@v5
         with:
@@ -50,7 +50,7 @@ jobs:
           use_oidc: true
           report_type: coverage
           disable_search: true
-          files: codecov.json
+          files: target/llvm-cov/codecov.json
       - if: github.ref_type != 'tag'
         uses: codecov/codecov-action@v5
         with:
