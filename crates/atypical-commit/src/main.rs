@@ -117,6 +117,11 @@ fn main() -> Result<Exit> {
 
     use chumsky::Parser;
     let config = commit_config(args.config)?;
+
+    if config.default_ignores && atypical_commit::ignore::is_ignored(header) {
+        return Ok(Exit::Success);
+    }
+
     let tokens = atypical_commit::Tokens::from(&config);
     let result = header_parser(&tokens).parse(header);
 
