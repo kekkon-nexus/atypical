@@ -14,7 +14,7 @@
     },
     "npm": {
       "name": "@atypical/commit",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "bin": {
         "commit-lint": "bin/commit-lint.js",
       },
