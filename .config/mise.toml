@@ -1,6 +1,7 @@
 [tools]
 hk = "latest"
 rust = "nightly"
+bun = "latest"
 hyperfine = "latest"
 "cargo:cargo-nextest" = "latest"
 

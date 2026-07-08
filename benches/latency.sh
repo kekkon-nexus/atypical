@@ -41,10 +41,12 @@ printf 'feat(api): add thing\n' > "$FIX/conventional-valid.txt"
 
 TMP=$(mktemp)
 
-# commitlint (vendored): npm --prefix benches install
+# commitlint (vendored): bun install
 CL=""
 if [ -x benches/node_modules/.bin/commitlint ]; then
   CL="benches/node_modules/.bin/commitlint"
+elif [ -x node_modules/.bin/commitlint ]; then
+  CL="node_modules/.bin/commitlint"
 elif command -v commitlint >/dev/null 2>&1; then
   CL="commitlint"
 fi
@@ -66,7 +68,7 @@ if [ -n "$CL" ]; then
   set -- "$@" --command-name "commitlint (valid)" \
     "$CL --config benches/commitlint.config.mjs --edit $FIX/conventional-valid.txt"
 else
-  echo ">> skipping commitlint  ->  npm --prefix benches install"
+  echo ">> skipping commitlint  ->  bun install"
 fi
 
 hyperfine -N -i --time-unit millisecond --warmup "$WARMUP" --runs "$RUNS" \

@@ -1,4 +1,5 @@
 {
+  "name": "benches",
   "private": true,
   "description": "commitlint, vendored for the latency head-to-head",
   "devDependencies": {
