@@ -124,6 +124,8 @@ jobs:
     environment: publish
     permissions:
       id-token: write
+    env:
+      NPM_CONFIG_PROVENANCE: true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -134,6 +136,6 @@ jobs:
       - run: node npm/prepare.mjs "${GITHUB_REF_NAME#v}"
       - run: |
           for pkg in npm/platforms/*; do
-            npm publish --access public "$pkg"
+            npm publish "$pkg"
           done
-          npm publish --access public npm
+          npm publish npm
