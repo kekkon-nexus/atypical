@@ -30,7 +30,7 @@ async function download(url) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-async function materialize(platform, { target, os, cpu }) {
+async function materialize(platform, { target, os, cpu, libc }) {
   const stem = `atypical-commit-v${version}-${target}`;
   const archive = `${stem}.${os === "win32" ? "zip" : "tar.gz"}`;
   const [data, checksum] = await Promise.all([
@@ -72,6 +72,7 @@ async function materialize(platform, { target, os, cpu }) {
         repository: main.repository,
         os: [os],
         cpu: [cpu],
+        ...(libc && { libc: [libc] }),
         publishConfig: main.publishConfig,
         files: [exe],
       },

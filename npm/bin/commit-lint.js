@@ -1,10 +1,22 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
 import { once } from "node:events";
+import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
+// glibc distros ship /usr/bin/ldd as a script that never mentions musl;
+// musl ones either mention it there or lack the glibc runtime header.
+const isMusl = () => {
+  try {
+    return readFileSync("/usr/bin/ldd", "utf8").includes("musl");
+  } catch {
+    return !process.report?.getReport?.().header?.glibcVersionRuntime;
+  }
+};
+
 const exe = process.platform === "win32" ? "commit-lint.exe" : "commit-lint";
-const pkg = `@atypical/commit-${process.platform}-${process.arch}`;
+const libc = process.platform === "linux" && isMusl() ? "-musl" : "";
+const pkg = `@atypical/commit-${process.platform}-${process.arch}${libc}`;
 
 let bin = process.env.COMMIT_LINT_BINARY;
 if (!bin) {
