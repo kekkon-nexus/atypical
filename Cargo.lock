@@ -95,7 +95,7 @@ dependencies = [
 
 [[package]]
 name = "atypical-commit"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -111,7 +111,7 @@ dependencies = [
 
 [[package]]
 name = "atypical-config"
-version = "0.2.3"
+version = "0.3.0"
 dependencies = [
  "indoc",
  "serde",

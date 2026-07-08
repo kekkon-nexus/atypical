@@ -1,6 +1,6 @@
 {
   "name": "@atypical/commit",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "(Non)-standard enforcing DX",
   "keywords": [
     "changelog",
@@ -35,11 +35,11 @@
     "bin/commit-lint.js"
   ],
   "type": "module",
-  "scripts": {
-    "prepublishOnly": "bun prepublish.mjs"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "scripts": {
+    "prepublishOnly": "bun prepublish.mjs"
   },
   "optionalDependencies": {},
   "engines": {
