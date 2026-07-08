@@ -5,7 +5,8 @@ edition.workspace = true
 description.workspace = true
 repository.workspace = true
 license.workspace = true
-categories.workspace = true
+keywords.workspace = true
+categories = ["command-line-utilities", "development-tools"]
 
 [[bin]]
 name = "commit-lint"

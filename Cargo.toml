@@ -4,11 +4,12 @@ edition = "2024"
 description = "(Non)-standard enforcing DX"
 repository = "https://github.com/kekkon-nexus/atypical"
 license = "MIT OR Apache-2.0"
-categories = [
-  "development-tools",
-  "parsing",
-  "template-engine",
-  "text-processing",
+keywords = [
+  "cli",
+  "commit",
+  "conventional-commits",
+  "git",
+  "linter",
 ]
 
 [workspace]
