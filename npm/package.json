@@ -35,13 +35,8 @@
     "bin/commit-lint.js"
   ],
   "type": "module",
-  "optionalDependencies": {
-    "@atypical/commit-darwin-arm64": "0.2.3",
-    "@atypical/commit-darwin-x64": "0.2.3",
-    "@atypical/commit-linux-arm64": "0.2.3",
-    "@atypical/commit-linux-x64": "0.2.3",
-    "@atypical/commit-win32-arm64": "0.2.3",
-    "@atypical/commit-win32-x64": "0.2.3"
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=18"

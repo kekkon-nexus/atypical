@@ -37,6 +37,10 @@ async function download(url) {
 
 const main = JSON.parse(fs.readFileSync(path.join(root, "package.json")));
 main.version = version;
+// The platform packages only exist for published versions, so the
+// committed package.json carries no optionalDependencies; each release
+// stamps the full set here.
+main.optionalDependencies = {};
 
 for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
   const stem = `atypical-commit-v${version}-${target}`;
@@ -80,6 +84,7 @@ for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
         repository: main.repository,
         os: [os],
         cpu: [cpu],
+        publishConfig: main.publishConfig,
         files: [exe],
       },
       null,
