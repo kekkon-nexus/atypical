@@ -147,6 +147,10 @@ Conventions visible in the code:
   without `allowed` is flexible (anything between the delimiters).
 - Enclosure order is positional: each `[[commit.enclosures]]` entry
   may appear at most once, in declaration order.
+- Machine-generated headers — merges, reverts, `fixup!`/`squash!`/
+  `amend!`, semver release bumps — exit 0 without linting
+  (`src/ignore.rs`, mirroring commitlint's default ignores) unless
+  `default-ignores = false` is set in `[commit]`.
 - `ExtraContext::new` sorts keywords/modifiers longest-first so that
   e.g. `!!` wins over `!`. Any new token class with overlapping
   prefixes needs the same treatment.
