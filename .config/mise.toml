@@ -1,15 +1,14 @@
 [tools]
-hk = "latest"
-rust = "nightly"
 bun = "latest"
+rust = "nightly"
 hyperfine = "latest"
 "cargo:cargo-nextest" = "latest"
 
-tombi = "latest"
-yq = "latest"
-
+hk = "latest"
 actionlint = "latest"
 shellcheck = "latest"
+tombi = "latest"
+yq = "latest"
 
 [env]
 HK_MISE = 1
