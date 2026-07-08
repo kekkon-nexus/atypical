@@ -1,0 +1,48 @@
+{
+  "name": "@atypical/commit",
+  "version": "0.2.3",
+  "description": "(Non)-standard enforcing DX",
+  "keywords": [
+    "changelog",
+    "cli",
+    "commit",
+    "commit-message",
+    "commit-msg",
+    "commitizen",
+    "commitlint",
+    "conventional-changelog",
+    "conventional-commits",
+    "git",
+    "git-hooks",
+    "gitmoji",
+    "husky",
+    "lint-staged",
+    "linter",
+    "monorepo",
+    "napi",
+    "release-notes"
+  ],
+  "license": "(MIT OR Apache-2.0)",
+  "contributors": [
+    "Ryan Suhartanto <suhartanto@kekkon.nexus>",
+    "Yuuki Rika <yvvki@kekkon.nexus>"
+  ],
+  "repository": "kekkon-nexus/atypical",
+  "bin": {
+    "commit-lint": "bin/commit-lint.js"
+  },
+  "files": [
+    "bin/commit-lint.js"
+  ],
+  "type": "module",
+  "scripts": {
+    "prepublishOnly": "bun prepublish.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "optionalDependencies": {},
+  "engines": {
+    "node": ">=18"
+  }
+}

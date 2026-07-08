@@ -118,3 +118,28 @@ jobs:
           locked: true
           target: ${{ matrix.target }}
           checksum: sha256
+  npm:
+    needs:
+      - binaries
+    environment: publish
+    permissions:
+      id-token: write
+    env:
+      NPM_CONFIG_PROVENANCE: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: latest
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun npm/prepare.mjs "${GITHUB_REF_NAME#v}"
+      - run: |
+          for pkg in npm/platforms/*; do
+            bunx npm publish "$pkg"
+          done
+          bunx npm publish npm

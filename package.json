@@ -1,0 +1,8 @@
+{
+  "name": "atypical",
+  "private": true,
+  "workspaces": [
+    "benches",
+    "npm"
+  ]
+}
