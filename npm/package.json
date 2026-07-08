@@ -35,9 +35,13 @@
     "bin/commit-lint.js"
   ],
   "type": "module",
+  "scripts": {
+    "prepublishOnly": "node prepublish.mjs"
+  },
   "publishConfig": {
     "access": "public"
   },
+  "optionalDependencies": {},
   "engines": {
     "node": ">=18"
   }

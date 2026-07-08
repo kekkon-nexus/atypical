@@ -2,21 +2,14 @@
 //
 // Materializes the platform packages under platforms/ from the GitHub
 // release assets of v<version> (verifying each sha256), and stamps
-// <version> into package.json and its optionalDependencies.
+// <version> into package.json. optionalDependencies are pinned by
+// prepublish.mjs when publishing.
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
-
-const PLATFORMS = {
-  "linux-x64": { target: "x86_64-unknown-linux-gnu", os: "linux", cpu: "x64" },
-  "linux-arm64": { target: "aarch64-unknown-linux-gnu", os: "linux", cpu: "arm64" },
-  "darwin-x64": { target: "x86_64-apple-darwin", os: "darwin", cpu: "x64" },
-  "darwin-arm64": { target: "aarch64-apple-darwin", os: "darwin", cpu: "arm64" },
-  "win32-x64": { target: "x86_64-pc-windows-msvc", os: "win32", cpu: "x64" },
-  "win32-arm64": { target: "aarch64-pc-windows-msvc", os: "win32", cpu: "arm64" },
-};
+import PLATFORMS from "./platforms.mjs";
 
 const version = process.argv[2];
 if (!version) {
@@ -37,10 +30,6 @@ async function download(url) {
 
 const main = JSON.parse(fs.readFileSync(path.join(root, "package.json")));
 main.version = version;
-// The platform packages only exist for published versions, so the
-// committed package.json carries no optionalDependencies; each release
-// stamps the full set here.
-main.optionalDependencies = {};
 
 for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
   const stem = `atypical-commit-v${version}-${target}`;
@@ -91,7 +80,6 @@ for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
       2,
     ) + "\n",
   );
-  main.optionalDependencies[name] = version;
   console.log(`${name}@${version} <- ${archive}`);
 }
 
