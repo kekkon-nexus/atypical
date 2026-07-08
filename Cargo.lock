@@ -94,10 +94,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atypical"
-version = "0.2.3"
-
-[[package]]
 name = "atypical-commit"
 version = "0.2.3"
 dependencies = [
