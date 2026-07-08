@@ -115,12 +115,11 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           target: ${{ matrix.target }}
+      - uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
       - if: runner.os == 'macOS'
         run: brew install lld
-      - if: contains(matrix.target, 'musl')
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
       - uses: taiki-e/upload-rust-binary-action@v1
         id: build
         with:
