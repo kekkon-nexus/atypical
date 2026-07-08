@@ -4,6 +4,7 @@
 use chumsky::prelude::*;
 
 pub mod config;
+pub mod ignore;
 
 pub type DelimitedBy = [char; 2];
 

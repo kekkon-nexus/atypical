@@ -76,6 +76,34 @@ fn valid_header_after_blank_lines_and_crlf() {
 }
 
 #[test]
+fn generated_messages_are_ignored() {
+    for header in [
+        "Merge pull request #1 from repo/branch\n",
+        "Merge branch 'main' into fix/default-ignore\n",
+        "Revert \"add(lib)[int]: something\"\n",
+        "fixup! add(lib)[int]: something\n",
+        "chore(release): v1.2.3 [skip ci]\n",
+    ] {
+        let output = lint(&["-"], Some(header));
+
+        assert_eq!(output.status.code(), Some(0), "not ignored: {header}");
+    }
+}
+
+#[test]
+fn default_ignores_can_be_disabled() {
+    let config =
+        fixture("no-ignores.toml", "[commit]\ndefault-ignores = false\n");
+    let config = config.to_str().unwrap();
+    let header = Some("Merge branch 'main'\n");
+
+    let output = lint(&["--config", config, "-"], header);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("unknown keyword `Merge`"));
+}
+
+#[test]
 fn invalid_keyword_reports_and_fails() {
     let output = lint(&["-"], Some("feat: wrong style\n"));
 

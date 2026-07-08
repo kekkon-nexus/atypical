@@ -16,6 +16,9 @@ pub struct CommitConfig {
     pub enclosures: Vec<EnclosureConfig>,
     pub separator: char,
     pub modifier_sequence: Sequence,
+    /// Skip machine-generated headers (merges, reverts, version
+    /// bumps...); not part of the grammar, so absent from `Tokens`.
+    pub default_ignores: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -57,6 +60,7 @@ impl From<&Tokens<'_>> for CommitConfig {
                 .collect(),
             separator: tokens.separator,
             modifier_sequence: tokens.modifier_sequence,
+            default_ignores: true,
         }
     }
 }
@@ -127,6 +131,16 @@ mod tests {
                 EnclosureToken::Flexible(['{', '}']),
             ]
         );
+    }
+
+    #[test]
+    fn test_default_ignores_is_on_unless_disabled() {
+        assert!(CommitConfig::default().default_ignores);
+
+        let config: CommitConfig =
+            toml::from_str("default-ignores = false").unwrap();
+
+        assert!(!config.default_ignores);
     }
 
     #[test]

@@ -23,6 +23,7 @@ chumsky = { version = "0.13", default-features = false }
 clap = { version = "4.6", default-features = false }
 clap-stdin = { version = "0.8", default-features = false }
 indoc = "2"
+semver = { version = "1.0", default-features = false }
 serde = { version = "1.0", default-features = false }
 toml = { version = "1.1", default-features = false }
 

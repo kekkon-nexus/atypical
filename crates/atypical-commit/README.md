@@ -42,6 +42,7 @@ keywords = ["add", "rem", "ref", "fix", "undo", "release"]
 modifiers = ["?", "!", "!!"]
 separator = ":"
 modifier-sequence = "pre" # before the enclosures, or "post"
+default-ignores = true    # skip machine-generated headers
 
 # Scopes; omit `allowed` to accept anything between the delimiters.
 [[commit.enclosures]]
@@ -56,6 +57,24 @@ allowed = [
   "exp", "sec", "upg", "ux", "pol", "sty",
 ]
 ```
+
+### Default ignores
+
+Headers that git and forges generate on their own are exempt from
+linting, mirroring [commitlint's default
+ignores](https://commitlint.js.org/reference/configuration.html#defaultignores):
+
+- merges: `Merge pull request ...`, `Merge branch '...'`,
+  `Merge tag '...'`, `Merge x into y`,
+  `Merge remote-tracking branch '...'`, `Merged x in(to) y`,
+  `Merged PR 1: ...`, `Automatic merge ...`, `Auto-merged x into y`
+- reverts and reapplies: `Revert "..."`, `Reapply "..."`
+- autosquash markers: `fixup! ...`, `squash! ...`, `amend! ...`
+- release bumps: a semver version, optionally behind a `chore:`
+  prefix and a `[skip ci]`-style marker, e.g. `chore(release): v1.2.3`
+
+Set `default-ignores = false` in the `[commit]` section to lint these
+like any other header.
 
 ### As a `commit-msg` hook
 

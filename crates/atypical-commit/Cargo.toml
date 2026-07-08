@@ -20,6 +20,7 @@ chumsky = { workspace = true }
 clap = { workspace = true }
 clap-stdin = { workspace = true }
 indoc = { workspace = true }
+semver = { workspace = true }
 serde = { workspace = true, features = ["alloc", "derive"] }
 
 [dev-dependencies]
@@ -33,6 +34,7 @@ std = [
   "chumsky/stacker",
   "chumsky/std",
   "clap/std",
+  "semver/std",
   "serde/std",
 ]
 
