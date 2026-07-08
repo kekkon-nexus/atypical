@@ -5,10 +5,11 @@
 // <version> into package.json. optionalDependencies are pinned by
 // prepublish.mjs when publishing.
 import crypto from "node:crypto";
-import fs from "node:fs";
+import fs from "node:fs/promises";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { execFile } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 import PLATFORMS from "./platforms.mjs";
 
 const version = process.argv[2];
@@ -19,6 +20,7 @@ if (!version) {
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const base = `https://github.com/kekkon-nexus/atypical/releases/download/v${version}`;
+const extract = promisify(execFile);
 
 async function download(url) {
   const res = await fetch(url);
@@ -28,10 +30,7 @@ async function download(url) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-const main = JSON.parse(fs.readFileSync(path.join(root, "package.json")));
-main.version = version;
-
-for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
+async function materialize(platform, { target, os, cpu }) {
   const stem = `atypical-commit-v${version}-${target}`;
   const archive = `${stem}.${os === "win32" ? "zip" : "tar.gz"}`;
   const [data, checksum] = await Promise.all([
@@ -47,21 +46,21 @@ for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
 
   const name = `${main.name}-${platform}`;
   const dir = path.join(root, "platforms", platform);
-  fs.mkdirSync(dir, { recursive: true });
+  await fs.mkdir(dir, { recursive: true });
 
   const file = path.join(dir, archive);
-  fs.writeFileSync(file, data);
+  await fs.writeFile(file, data);
   try {
     const [cmd, ...args] =
       os === "win32" ? ["unzip", "-o", archive] : ["tar", "-xf", archive];
-    execFileSync(cmd, args, { cwd: dir, stdio: "ignore" });
+    await extract(cmd, args, { cwd: dir });
   } finally {
-    fs.rmSync(file);
+    await fs.rm(file);
   }
   const exe = os === "win32" ? "commit-lint.exe" : "commit-lint";
-  fs.chmodSync(path.join(dir, exe), 0o755);
+  await fs.chmod(path.join(dir, exe), 0o755);
 
-  fs.writeFileSync(
+  await fs.writeFile(
     path.join(dir, "package.json"),
     JSON.stringify(
       {
@@ -83,7 +82,14 @@ for (const [platform, { target, os, cpu }] of Object.entries(PLATFORMS)) {
   console.log(`${name}@${version} <- ${archive}`);
 }
 
-fs.writeFileSync(
-  path.join(root, "package.json"),
-  JSON.stringify(main, null, 2) + "\n",
+const file = path.join(root, "package.json");
+const main = JSON.parse(await fs.readFile(file));
+main.version = version;
+
+await Promise.all(
+  Object.entries(PLATFORMS).map(([platform, spec]) =>
+    materialize(platform, spec),
+  ),
 );
+
+await fs.writeFile(file, JSON.stringify(main, null, 2) + "\n");
