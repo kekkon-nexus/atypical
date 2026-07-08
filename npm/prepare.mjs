@@ -1,4 +1,4 @@
-// Usage: node prepare.mjs <version>
+// Usage: bun prepare.mjs <version>
 //
 // Materializes the platform packages under platforms/ from the GitHub
 // release assets of v<version> (verifying each sha256), and stamps
@@ -13,7 +13,7 @@ import PLATFORMS from "./platforms.mjs";
 
 const version = process.argv[2];
 if (!version) {
-  console.error("usage: node prepare.mjs <version>");
+  console.error("usage: bun prepare.mjs <version>");
   process.exit(2);
 }
 

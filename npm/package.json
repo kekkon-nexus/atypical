@@ -36,7 +36,7 @@
   ],
   "type": "module",
   "scripts": {
-    "prepublishOnly": "node prepublish.mjs"
+    "prepublishOnly": "bun prepublish.mjs"
   },
   "publishConfig": {
     "access": "public"
