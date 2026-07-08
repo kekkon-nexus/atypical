@@ -60,6 +60,7 @@ jobs:
           disable_search: true
           files: target/nextest/default/junit.xml
   binaries:
+    if: github.ref_type == 'tag'
     needs:
       - fmt
       - clippy
@@ -100,8 +101,7 @@ jobs:
           target: ${{ matrix.target }}
       - if: runner.os == 'macOS'
         run: brew install lld
-      - if: github.ref_type == 'tag'
-        uses: taiki-e/upload-rust-binary-action@v1
+      - uses: taiki-e/upload-rust-binary-action@v1
         id: build
         with:
           bin: commit-lint
@@ -110,12 +110,10 @@ jobs:
           locked: true
           target: ${{ matrix.target }}
           checksum: sha256
-      - if: github.ref_type == 'tag'
-        uses: actions/attest@v4
+      - uses: actions/attest@v4
         with:
           subject-path: ${{ steps.build.outputs.archive }}.*
   publish:
-    if: github.ref_type == 'tag'
     needs:
       - binaries
     environment: publish
@@ -135,7 +133,6 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
   npm:
-    if: github.ref_type == 'tag'
     needs:
       - binaries
     environment: publish
