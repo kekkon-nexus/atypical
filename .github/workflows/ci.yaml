@@ -123,7 +123,6 @@ jobs:
       - binaries
     environment: publish
     permissions:
-      contents: read
       id-token: write
     env:
       NPM_CONFIG_PROVENANCE: true
