@@ -123,6 +123,7 @@ jobs:
       - binaries
     environment: publish
     permissions:
+      contents: read
       id-token: write
     env:
       NPM_CONFIG_PROVENANCE: true
@@ -131,11 +132,15 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: latest
           registry-url: https://registry.npmjs.org
-      - run: node npm/prepare.mjs "${GITHUB_REF_NAME#v}"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun npm/prepare.mjs "${GITHUB_REF_NAME#v}"
       - run: |
           for pkg in npm/platforms/*; do
-            npm publish "$pkg"
+            bunx npm publish "$pkg"
           done
-          npm publish npm
+          bunx npm publish npm
