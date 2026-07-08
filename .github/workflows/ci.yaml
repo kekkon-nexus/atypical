@@ -59,31 +59,11 @@ jobs:
           report_type: test_results
           disable_search: true
           files: target/nextest/default/junit.xml
-  publish:
-    if: github.ref_type == 'tag'
+  binaries:
     needs:
       - fmt
       - clippy
       - cov
-    environment: publish
-    permissions:
-      id-token: write
-      contents: write
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
-      - uses: rust-lang/crates-io-auth-action@v1
-        id: auth
-      - run: cargo publish --workspace --all-features --locked
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-      - uses: taiki-e/create-gh-release-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-  binaries:
-    needs:
-      - publish
     permissions:
       id-token: write
       contents: write
@@ -120,7 +100,8 @@ jobs:
           target: ${{ matrix.target }}
       - if: runner.os == 'macOS'
         run: brew install lld
-      - uses: taiki-e/upload-rust-binary-action@v1
+      - if: github.ref_type == 'tag'
+        uses: taiki-e/upload-rust-binary-action@v1
         id: build
         with:
           bin: commit-lint
@@ -129,10 +110,32 @@ jobs:
           locked: true
           target: ${{ matrix.target }}
           checksum: sha256
-      - uses: actions/attest@v4
+      - if: github.ref_type == 'tag'
+        uses: actions/attest@v4
         with:
           subject-path: ${{ steps.build.outputs.archive }}.*
+  publish:
+    if: github.ref_type == 'tag'
+    needs:
+      - binaries
+    environment: publish
+    permissions:
+      id-token: write
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish --workspace --all-features --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
   npm:
+    if: github.ref_type == 'tag'
     needs:
       - binaries
     environment: publish
