@@ -59,12 +59,23 @@ jobs:
           report_type: test_results
           disable_search: true
           files: target/nextest/default/junit.xml
-  binaries:
+  draft:
     if: github.ref_type == 'tag'
     needs:
       - fmt
       - clippy
       - cov
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          draft: true
+  binaries:
+    needs:
+      - draft
     permissions:
       id-token: write
       contents: write
@@ -113,13 +124,12 @@ jobs:
       - uses: actions/attest@v4
         with:
           subject-path: ${{ steps.build.outputs.archive }}.*
-  publish:
+  cargo:
     needs:
       - binaries
     environment: publish
     permissions:
       id-token: write
-      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -129,9 +139,6 @@ jobs:
       - run: cargo publish --workspace --all-features --locked
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-      - uses: taiki-e/create-gh-release-action@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
   npm:
     needs:
       - binaries
@@ -157,3 +164,15 @@ jobs:
             bunx npm publish "$pkg"
           done
           bunx npm publish npm
+  release:
+    needs:
+      - cargo
+      - npm
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
