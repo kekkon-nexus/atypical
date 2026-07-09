@@ -127,7 +127,6 @@ jobs:
   release:
     needs:
       - binaries
-    environment: publish
     permissions:
       contents: write
     runs-on: ubuntu-latest
