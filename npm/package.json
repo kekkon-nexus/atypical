@@ -39,7 +39,7 @@
     "access": "public"
   },
   "scripts": {
-    "prepublishOnly": "bun prepublish.mjs"
+    "prepublishOnly": "bun scripts/prepublish.ts"
   },
   "optionalDependencies": {},
   "engines": {

@@ -4,6 +4,8 @@
   "compilerOptions": {
     "allowJs": true,
     "checkJs": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    "noEmit": true
   }
 }

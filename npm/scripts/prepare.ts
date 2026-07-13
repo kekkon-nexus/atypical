@@ -1,28 +1,24 @@
-// Usage: bun prepare.mjs <version>
-//
-// Materializes the platform packages under platforms/ from the GitHub
-// release assets of v<version> (verifying each sha256), and stamps
-// <version> into package.json. optionalDependencies are pinned by
-// prepublish.mjs when publishing.
+import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import PLATFORMS from "./platforms.mjs";
 
-const version = process.argv[2];
+import platforms from "./platforms";
+
+const version = process.argv.at(2);
 if (!version) {
-  console.error("usage: bun prepare.mjs <version>");
+  // oxlint-disable-next-line no-console
+  console.error("usage: bun scripts/prepare.ts <version>");
+  // oxlint-disable-next-line unicorn/no-process-exit
   process.exit(2);
 }
 
-const root = path.dirname(fileURLToPath(import.meta.url));
+const root = import.meta.dirname;
 const base = `https://github.com/kekkon-nexus/atypical/releases/download/v${version}`;
 const extract = promisify(execFile);
 
-async function download(url) {
+async function download(url: string) {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
@@ -30,7 +26,20 @@ async function download(url) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-async function materialize(platform, { target, os, cpu, libc }) {
+async function materialize(
+  platform: string,
+  {
+    target,
+    os,
+    cpu,
+    libc,
+  }: {
+    target: string;
+    os: string;
+    cpu: string;
+    libc?: string;
+  },
+) {
   const stem = `atypical-commit-v${version}-${target}`;
   const archive = `${stem}.${os === "win32" ? "zip" : "tar.gz"}`;
   const [data, checksum] = await Promise.all([
@@ -38,7 +47,7 @@ async function materialize(platform, { target, os, cpu, libc }) {
     download(`${base}/${stem}.sha256`),
   ]);
 
-  const expected = checksum.toString().trim().split(/\s+/)[0];
+  const [expected] = checksum.toString().trim().split(/\s+/);
   const actual = crypto.createHash("sha256").update(data).digest("hex");
   if (actual !== expected) {
     throw new Error(`${archive}: checksum mismatch (${actual} != ${expected})`);
@@ -51,8 +60,7 @@ async function materialize(platform, { target, os, cpu, libc }) {
   const file = path.join(dir, archive);
   await fs.writeFile(file, data);
   try {
-    const [cmd, ...args] =
-      os === "win32" ? ["unzip", "-o", archive] : ["tar", "-xf", archive];
+    const [cmd, ...args] = os === "win32" ? ["unzip", "-o", archive] : ["tar", "-xf", archive];
     await extract(cmd, args, { cwd: dir });
   } finally {
     await fs.rm(file);
@@ -62,6 +70,7 @@ async function materialize(platform, { target, os, cpu, libc }) {
 
   await fs.writeFile(
     path.join(dir, "package.json"),
+    // oxlint-disable-next-line prefer-template
     JSON.stringify(
       {
         name,
@@ -80,17 +89,15 @@ async function materialize(platform, { target, os, cpu, libc }) {
       2,
     ) + "\n",
   );
+  // oxlint-disable-next-line no-console
   console.log(`${name}@${version} <- ${archive}`);
 }
 
 const file = path.join(root, "package.json");
-const main = JSON.parse(await fs.readFile(file));
+const main = JSON.parse(await fs.readFile(file, "utf8"));
 main.version = version;
 
-await Promise.all(
-  Object.entries(PLATFORMS).map(([platform, spec]) =>
-    materialize(platform, spec),
-  ),
-);
+await Promise.all(Object.entries(platforms).map(([platform, spec]) => materialize(platform, spec)));
 
+// oxlint-disable-next-line prefer-template
 await fs.writeFile(file, JSON.stringify(main, null, 2) + "\n");
