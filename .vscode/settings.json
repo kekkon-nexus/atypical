@@ -4,6 +4,9 @@
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
+  "[javascript][typescript][json][jsonc]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
   "[toml]": {
     "editor.defaultFormatter": "tombi-toml.tombi"
   },
