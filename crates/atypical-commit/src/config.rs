@@ -3,15 +3,54 @@
 
 use serde::Deserialize;
 
-use crate::{DelimitedBy, EnclosureToken, Sequence, Tokens};
+use crate::{DelimitedBy, EnclosureToken, Sequence, TokenSet, Tokens};
 
 pub const SECTION: &str = "commit";
+
+/// The literal string `any` in TOML.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Any {
+    Any,
+}
+
+/// `"any"`, or a closed list of accepted spellings.
+#[derive(Debug, Clone, PartialEq)]
+#[derive(Deserialize)]
+#[serde(untagged, expecting = "`any` or an array of strings")]
+pub enum SetConfig {
+    Any(Any),
+    OneOf(Vec<String>),
+}
+
+impl From<&TokenSet<'_>> for SetConfig {
+    fn from(set: &TokenSet<'_>) -> Self {
+        match set {
+            TokenSet::Any => SetConfig::Any(Any::Any),
+            TokenSet::OneOf(v) => {
+                SetConfig::OneOf(v.iter().map(ToString::to_string).collect())
+            }
+        }
+    }
+}
+
+impl<'i> From<&'i SetConfig> for TokenSet<'i> {
+    fn from(set: &'i SetConfig) -> Self {
+        match set {
+            SetConfig::Any(_) => TokenSet::Any,
+            SetConfig::OneOf(v) => {
+                TokenSet::OneOf(v.iter().map(String::as_str).collect())
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone, PartialEq)]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case", default)]
 pub struct CommitConfig {
-    pub keywords: Vec<String>,
+    pub keywords: SetConfig,
     pub modifiers: Vec<String>,
     pub enclosures: Vec<EnclosureConfig>,
     pub separator: char,
@@ -43,7 +82,7 @@ impl From<&Tokens<'_>> for CommitConfig {
         }
 
         Self {
-            keywords: owned(&tokens.keywords),
+            keywords: (&tokens.keywords).into(),
             modifiers: owned(&tokens.modifiers),
             enclosures: tokens
                 .enclosures
@@ -72,7 +111,7 @@ impl<'i> From<&'i CommitConfig> for Tokens<'i> {
         }
 
         Self {
-            keywords: borrowed(&config.keywords),
+            keywords: (&config.keywords).into(),
             modifiers: borrowed(&config.modifiers),
             enclosures: config
                 .enclosures
@@ -107,9 +146,26 @@ mod tests {
         let config: CommitConfig =
             toml::from_str(r#"keywords = ["feat", "fix"]"#).unwrap();
 
-        assert_eq!(config.keywords, vec!["feat", "fix"]);
+        assert_eq!(
+            config.keywords,
+            SetConfig::OneOf(vec!["feat".into(), "fix".into()])
+        );
         assert_eq!(config.modifiers, CommitConfig::default().modifiers);
         assert_eq!(config.separator, ':');
+    }
+
+    #[test]
+    fn test_any_keywords() {
+        let config: CommitConfig =
+            toml::from_str(r#"keywords = "any""#).unwrap();
+
+        assert_eq!(config.keywords, SetConfig::Any(Any::Any));
+        assert_eq!(Tokens::from(&config).keywords, TokenSet::Any);
+
+        assert!(
+            toml::from_str::<CommitConfig>(r#"keywords = "some""#).is_err()
+        );
+        assert!(toml::from_str::<CommitConfig>("keywords = 1").is_err());
     }
 
     #[test]

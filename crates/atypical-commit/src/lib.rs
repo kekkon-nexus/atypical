@@ -41,7 +41,15 @@ pub enum Sequence {
     Post,
 }
 
-pub type KeywordToken<'i> = Keyword<'i>;
+/// A restrictable set of accepted spellings: anything, or a closed
+/// list.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenSet<'i> {
+    Any,
+    OneOf(Vec<&'i str>),
+}
+
+pub type KeywordToken<'i> = TokenSet<'i>;
 
 pub type ModifierToken<'i> = Modifier<'i>;
 
@@ -63,7 +71,7 @@ impl<'i> EnclosureToken<'i> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tokens<'i> {
-    pub keywords: Vec<KeywordToken<'i>>,
+    pub keywords: KeywordToken<'i>,
     pub modifiers: Vec<ModifierToken<'i>>,
     pub enclosures: Vec<EnclosureToken<'i>>,
     pub separator: char,
@@ -78,7 +86,9 @@ pub struct Positional {
 impl Tokens<'_> {
     pub fn preset_standard() -> Self {
         Self {
-            keywords: vec!["add", "rem", "ref", "fix", "undo", "release"],
+            keywords: TokenSet::OneOf(vec![
+                "add", "rem", "ref", "fix", "undo", "release",
+            ]),
             modifiers: vec!["?", "!", "!!"],
             enclosures: vec![
                 EnclosureToken::Strict(
@@ -123,7 +133,9 @@ impl<'i> ExtraContext<'i> {
 
         let mut tokens = tokens.clone();
 
-        sort(&mut tokens.keywords);
+        if let TokenSet::OneOf(keywords) = &mut tokens.keywords {
+            sort(keywords);
+        }
         sort(&mut tokens.modifiers);
 
         Self { tokens }
@@ -176,15 +188,17 @@ pub fn keyword<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
         let (s, span) = ident(i);
-        let keywords = &i.ctx().tokens.keywords;
 
-        if keywords.contains(&s) {
-            return Ok(s);
+        match &i.ctx().tokens.keywords {
+            TokenSet::Any if !s.is_empty() => Ok(s),
+            TokenSet::Any => Err(Rich::custom(span, "expected a keyword")),
+            TokenSet::OneOf(keywords) if keywords.contains(&s) => Ok(s),
+            TokenSet::OneOf(keywords) => {
+                let message = expected_one_of(s, "keyword", keywords);
+
+                Err(Rich::custom(span, message))
+            }
         }
-
-        let message = expected_one_of(s, "keyword", keywords);
-
-        Err(Rich::custom(span, message))
     })
 }
 
@@ -379,6 +393,23 @@ mod tests {
         assert_eq!(parser_standard().parse("add").into_result(), Ok("add"));
         assert_eq!(parser_standard().parse("rem").into_result(), Ok("rem"));
         assert!(parser_standard().parse("feat").has_errors());
+    }
+
+    #[test]
+    fn test_keyword_any() {
+        fn parser_any<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>>
+        {
+            let tokens = Tokens {
+                keywords: TokenSet::Any,
+                ..Tokens::preset_standard()
+            };
+
+            keyword().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_any().parse("feat").into_result(), Ok("feat"));
+        assert_eq!(parser_any().parse("añadir").into_result(), Ok("añadir"));
+        assert!(parser_any().parse("").has_errors());
     }
 
     #[test]
