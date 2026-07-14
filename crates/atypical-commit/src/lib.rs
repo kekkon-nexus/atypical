@@ -531,7 +531,6 @@ mod tests {
         assert_eq!(parser_any().parse("??").into_result(), Ok("??"));
         assert_eq!(parser_any().parse("~+!").into_result(), Ok("~+!"));
         assert!(parser_any().parse("").has_errors());
-        // Stops at the separator and at enclosure openers.
         assert!(parser_any().parse("!:").has_errors());
         assert!(parser_any().parse("!(").has_errors());
     }
@@ -663,7 +662,6 @@ mod tests {
             prefix().with_ctx(tokens.into())
         }
 
-        // The last symbol of the run is the separator.
         assert_eq!(
             parser_any_prefix().parse("add!!;").into_result(),
             Ok(Prefix {
@@ -753,8 +751,6 @@ mod tests {
             assert!(!parser_default().parse(header).has_errors(), "{header}");
         }
 
-        // The shape still holds: a keyword, a separator, a space,
-        // and a non-empty description.
         assert!(parser_default().parse("no separator here").has_errors());
         assert!(parser_default().parse(": no keyword").has_errors());
         assert!(parser_default().parse("add:").has_errors());

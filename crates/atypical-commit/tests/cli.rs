@@ -123,7 +123,6 @@ fn invalid_keyword_reports_and_fails() {
 
 #[test]
 fn unconfigured_lints_nothing() {
-    // No [commit] section: there is no convention to enforce.
     let config = fixture("no-section.toml", "");
     let config = config.to_str().unwrap();
 
@@ -141,7 +140,6 @@ fn unconfigured_lints_nothing() {
 
 #[test]
 fn empty_commit_section_enforces_only_the_shape() {
-    // Declaring [commit] opts in; unset fields are unrestricted.
     let config = fixture("empty-section.toml", "[commit]\n");
     let config = config.to_str().unwrap();
 
