@@ -1,0 +1,30 @@
+# Standard Commits: https://github.com/standard-commits/standard-commits
+
+[commit]
+keywords = ["add", "rem", "ref", "fix", "undo", "release"]
+modifiers = ["?", "!", "!!"]
+separator = ":"
+modifier-sequence = "pre"
+default-ignores = true
+
+[[commit.enclosures]]
+delimiters = ["(", ")"]
+allowed = ["exe", "lib", "test", "build", "doc", "ci", "cd"]
+
+[[commit.enclosures]]
+delimiters = ["[", "]"]
+allowed = [
+  "int",
+  "pre",
+  "eff",
+  "rel",
+  "cmp",
+  "mnt",
+  "tmp",
+  "exp",
+  "sec",
+  "upg",
+  "ux",
+  "pol",
+  "sty",
+]

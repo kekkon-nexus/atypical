@@ -1,0 +1,23 @@
+# Conventional Commits: https://www.conventionalcommits.org/en/v1.0.0/
+
+[commit]
+keywords = [
+  "build",
+  "chore",
+  "ci",
+  "docs",
+  "feat",
+  "fix",
+  "perf",
+  "refactor",
+  "revert",
+  "style",
+  "test",
+]
+modifiers = ["!"]
+separator = ":"
+modifier-sequence = "post"
+default-ignores = true
+
+[[commit.enclosures]]
+delimiters = ["(", ")"]

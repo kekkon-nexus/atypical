@@ -39,11 +39,28 @@ pub struct Header<'i> {
 pub enum Sequence {
     Pre,
     Post,
+    /// Either position.
+    Any,
 }
 
-pub type KeywordToken<'i> = Keyword<'i>;
+/// A restrictable set of accepted spellings: anything, or a closed
+/// list.
+#[derive(Debug, Clone, PartialEq)]
+pub enum TokenSet<'i> {
+    Any,
+    OneOf(Vec<&'i str>),
+}
 
-pub type ModifierToken<'i> = Modifier<'i>;
+pub type KeywordToken<'i> = TokenSet<'i>;
+
+pub type ModifierToken<'i> = TokenSet<'i>;
+
+/// The separator: one specific character, or any single symbol.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SeparatorToken {
+    Any,
+    Just(char),
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnclosureToken<'i> {
@@ -63,10 +80,10 @@ impl<'i> EnclosureToken<'i> {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tokens<'i> {
-    pub keywords: Vec<KeywordToken<'i>>,
-    pub modifiers: Vec<ModifierToken<'i>>,
+    pub keywords: KeywordToken<'i>,
+    pub modifiers: ModifierToken<'i>,
     pub enclosures: Vec<EnclosureToken<'i>>,
-    pub separator: char,
+    pub separator: SeparatorToken,
 
     pub modifier_sequence: Sequence,
 }
@@ -78,8 +95,10 @@ pub struct Positional {
 impl Tokens<'_> {
     pub fn preset_standard() -> Self {
         Self {
-            keywords: vec!["add", "rem", "ref", "fix", "undo", "release"],
-            modifiers: vec!["?", "!", "!!"],
+            keywords: TokenSet::OneOf(vec![
+                "add", "rem", "ref", "fix", "undo", "release",
+            ]),
+            modifiers: TokenSet::OneOf(vec!["?", "!", "!!"]),
             enclosures: vec![
                 EnclosureToken::Strict(
                     ['(', ')'],
@@ -93,15 +112,28 @@ impl Tokens<'_> {
                     ],
                 ),
             ],
-            separator: ':',
+            separator: SeparatorToken::Just(':'),
             modifier_sequence: Sequence::Pre,
         }
     }
 }
 
 impl Default for Tokens<'_> {
+    /// Unrestricted: any keyword, any modifier on either side of
+    /// free-form `(...)`/`[...]` enclosures, and any single-symbol
+    /// separator. Only the header shape itself is enforced. Fields
+    /// omitted from a `[commit]` section fall back to this.
     fn default() -> Self {
-        Self::preset_standard()
+        Self {
+            keywords: TokenSet::Any,
+            modifiers: TokenSet::Any,
+            enclosures: vec![
+                EnclosureToken::Flexible(['(', ')']),
+                EnclosureToken::Flexible(['[', ']']),
+            ],
+            separator: SeparatorToken::Any,
+            modifier_sequence: Sequence::Any,
+        }
     }
 }
 
@@ -117,8 +149,10 @@ pub struct ExtraContext<'i> {
 
 impl<'i> ExtraContext<'i> {
     pub fn new(tokens: &Tokens<'i>) -> Self {
-        fn sort(v: &mut Vec<&str>) {
-            v.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+        fn sort(set: &mut TokenSet<'_>) {
+            if let TokenSet::OneOf(v) = set {
+                v.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+            }
         }
 
         let mut tokens = tokens.clone();
@@ -161,6 +195,11 @@ fn ident<'i>(
     (i.slice_since(&before..), i.span_since(&before))
 }
 
+/// A visible char that can't belong to a keyword or a description.
+fn is_symbol(c: char) -> bool {
+    !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
+}
+
 fn expected_one_of(found: &str, kind: &str, expected: &[&str]) -> String {
     let expected = expected.join(", ");
 
@@ -176,15 +215,17 @@ pub fn keyword<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
         let (s, span) = ident(i);
-        let keywords = &i.ctx().tokens.keywords;
 
-        if keywords.contains(&s) {
-            return Ok(s);
+        match &i.ctx().tokens.keywords {
+            TokenSet::Any if !s.is_empty() => Ok(s),
+            TokenSet::Any => Err(Rich::custom(span, "expected a keyword")),
+            TokenSet::OneOf(keywords) if keywords.contains(&s) => Ok(s),
+            TokenSet::OneOf(keywords) => {
+                let message = expected_one_of(s, "keyword", keywords);
+
+                Err(Rich::custom(span, message))
+            }
         }
-
-        let message = expected_one_of(s, "keyword", keywords);
-
-        Err(Rich::custom(span, message))
     })
 }
 
@@ -192,15 +233,61 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
     use chumsky::input::InputRef;
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        let parsers = i
-            .ctx()
-            .tokens
-            .modifiers
+        if let TokenSet::OneOf(modifiers) = &i.ctx().tokens.modifiers {
+            let parsers = modifiers
+                .iter()
+                .map(|&token| just(token))
+                .collect::<Vec<_>>();
+
+            return i.parse(choice(parsers));
+        }
+
+        // Any: the longest run of symbols that leaves the separator
+        // and the enclosure openers untouched.
+        let tokens = &i.ctx().tokens;
+        let separator = tokens.separator;
+        let openers = tokens
+            .enclosures
             .iter()
-            .map(|&token| just(token))
+            .map(|enclosure| enclosure.delimiters()[0])
             .collect::<Vec<_>>();
 
-        i.parse(choice(parsers))
+        let before = i.cursor();
+
+        while let Some(c) = i.peek() {
+            if !is_symbol(c) || openers.contains(&c) {
+                break;
+            }
+
+            match separator {
+                SeparatorToken::Just(s) if c == s => break,
+                SeparatorToken::Just(_) => {
+                    i.next();
+                }
+                // With an unrestricted separator, the last symbol
+                // of the run is the separator, not the modifier.
+                SeparatorToken::Any => {
+                    let checkpoint = i.save();
+
+                    i.next();
+
+                    if !i.peek().is_some_and(is_symbol) {
+                        i.rewind(checkpoint);
+                        break;
+                    }
+                }
+            }
+        }
+
+        let s = i.slice_since(&before..);
+
+        if s.is_empty() {
+            let span = i.span_since(&before);
+
+            return Err(Rich::custom(span, "expected a modifier"));
+        }
+
+        Ok(s)
     })
 }
 
@@ -281,9 +368,24 @@ pub fn separator<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
     use chumsky::input::InputRef;
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        let ctx = i.ctx();
+        match i.ctx().tokens.separator {
+            SeparatorToken::Just(separator) => i.parse(just(separator)),
+            SeparatorToken::Any => {
+                let before = i.cursor();
 
-        i.parse(just(ctx.tokens.separator))
+                match i.peek() {
+                    Some(c) if is_symbol(c) => {
+                        i.next();
+
+                        Ok(c)
+                    }
+                    _ => Err(Rich::custom(
+                        i.span_since(&before),
+                        "expected a separator",
+                    )),
+                }
+            }
+        }
     })
 }
 
@@ -293,7 +395,9 @@ pub fn modifier_when<'i>(
     use chumsky::input::InputRef;
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
-        if i.ctx().tokens.modifier_sequence != sequence {
+        let position = i.ctx().tokens.modifier_sequence;
+
+        if position != sequence && position != Sequence::Any {
             return Ok(None);
         }
 
@@ -382,6 +486,23 @@ mod tests {
     }
 
     #[test]
+    fn test_keyword_any() {
+        fn parser_any<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>>
+        {
+            let tokens = Tokens {
+                keywords: TokenSet::Any,
+                ..Tokens::preset_standard()
+            };
+
+            keyword().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_any().parse("feat").into_result(), Ok("feat"));
+        assert_eq!(parser_any().parse("añadir").into_result(), Ok("añadir"));
+        assert!(parser_any().parse("").has_errors());
+    }
+
+    #[test]
     fn test_modifier() {
         fn parser_standard<'i>()
         -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
@@ -393,6 +514,55 @@ mod tests {
         assert_eq!(parser_standard().parse("?").into_result(), Ok("?"));
         assert_eq!(parser_standard().parse("!!").into_result(), Ok("!!"));
         assert!(parser_standard().parse("??").has_errors());
+    }
+
+    #[test]
+    fn test_modifier_any() {
+        fn parser_any<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>>
+        {
+            let tokens = Tokens {
+                modifiers: TokenSet::Any,
+                ..Tokens::preset_standard()
+            };
+
+            modifier().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_any().parse("??").into_result(), Ok("??"));
+        assert_eq!(parser_any().parse("~+!").into_result(), Ok("~+!"));
+        assert!(parser_any().parse("").has_errors());
+        assert!(parser_any().parse("!:").has_errors());
+        assert!(parser_any().parse("!(").has_errors());
+    }
+
+    #[test]
+    fn test_modifier_sequence_any() {
+        fn parser_any_sequence<'i>()
+        -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
+            let tokens = Tokens {
+                modifier_sequence: Sequence::Any,
+                ..Tokens::preset_standard()
+            };
+
+            prefix().with_ctx(tokens.into())
+        }
+
+        assert_eq!(
+            parser_any_sequence().parse("add!(lib):").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!"),
+                enclosures: vec![("lib", ['(', ')'])]
+            })
+        );
+        assert_eq!(
+            parser_any_sequence().parse("add(lib)!:").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!"),
+                enclosures: vec![("lib", ['(', ')'])]
+            })
+        );
     }
 
     #[test]
@@ -462,6 +632,72 @@ mod tests {
     }
 
     #[test]
+    fn test_separator_any() {
+        fn parser_any<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
+            let tokens = Tokens {
+                separator: SeparatorToken::Any,
+                ..Tokens::preset_standard()
+            };
+
+            separator().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_any().parse(":").into_result(), Ok(':'));
+        assert_eq!(parser_any().parse(">").into_result(), Ok('>'));
+        assert!(parser_any().parse("").has_errors());
+        assert!(parser_any().parse("a").has_errors());
+        assert!(parser_any().parse(" ").has_errors());
+    }
+
+    #[test]
+    fn test_modifier_any_leaves_the_any_separator() {
+        fn parser_any_prefix<'i>()
+        -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
+            let tokens = Tokens {
+                modifiers: TokenSet::Any,
+                separator: SeparatorToken::Any,
+                ..Tokens::preset_standard()
+            };
+
+            prefix().with_ctx(tokens.into())
+        }
+
+        assert_eq!(
+            parser_any_prefix().parse("add!!;").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!!"),
+                enclosures: vec![]
+            })
+        );
+        assert_eq!(
+            parser_any_prefix().parse("add;").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: None,
+                enclosures: vec![]
+            })
+        );
+        assert_eq!(
+            parser_any_prefix().parse("add!(lib):").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!"),
+                enclosures: vec![("lib", ['(', ')'])]
+            })
+        );
+        // A lone symbol is the separator, not a modifier.
+        assert_eq!(
+            parser_any_prefix().parse("add!").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: None,
+                enclosures: vec![]
+            })
+        );
+    }
+
+    #[test]
     fn test_prefix() {
         fn parser_standard<'i>()
         -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
@@ -497,6 +733,28 @@ mod tests {
         assert!(parser_standard().parse("add").has_errors());
         assert!(parser_standard().parse("feat:").has_errors());
         assert!(parser_standard().parse("add(exe)!:").has_errors());
+    }
+
+    #[test]
+    fn test_header_unrestricted() {
+        fn parser_default<'i>()
+        -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
+            header().with_ctx(Tokens::default().into())
+        }
+
+        for header in [
+            "add(lib)[int]: standard style",
+            "feat(api)!: conventional style",
+            "yolo(whatever)> ship it",
+            "wip!!~ kitchen sink",
+        ] {
+            assert!(!parser_default().parse(header).has_errors(), "{header}");
+        }
+
+        assert!(parser_default().parse("no separator here").has_errors());
+        assert!(parser_default().parse(": no keyword").has_errors());
+        assert!(parser_default().parse("add:").has_errors());
+        assert!(parser_default().parse("add:no space").has_errors());
     }
 
     #[test]

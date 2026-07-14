@@ -4,6 +4,9 @@ use std::process::{Command, Output, Stdio};
 
 const BIN: &str = env!("CARGO_BIN_EXE_commit-lint");
 
+const STANDARD_PRESET: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/../../presets/standard.toml");
+
 fn lint(args: &[&str], stdin: Option<&str>) -> Output {
     lint_in(Path::new("."), args, stdin)
 }
@@ -92,8 +95,12 @@ fn generated_messages_are_ignored() {
 
 #[test]
 fn default_ignores_can_be_disabled() {
-    let config =
-        fixture("no-ignores.toml", "[commit]\ndefault-ignores = false\n");
+    let config = fixture(
+        "no-ignores.toml",
+        &format!(
+            "extends = '{STANDARD_PRESET}'\n[commit]\ndefault-ignores = false\n"
+        ),
+    );
     let config = config.to_str().unwrap();
     let header = Some("Merge branch 'main'\n");
 
@@ -105,10 +112,51 @@ fn default_ignores_can_be_disabled() {
 
 #[test]
 fn invalid_keyword_reports_and_fails() {
-    let output = lint(&["-"], Some("feat: wrong style\n"));
+    let output = lint(
+        &["--config", STANDARD_PRESET, "-"],
+        Some("feat: wrong style\n"),
+    );
 
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr(&output).contains("unknown keyword `feat`"));
+}
+
+#[test]
+fn unconfigured_lints_nothing() {
+    let config = fixture("no-section.toml", "");
+    let config = config.to_str().unwrap();
+
+    for header in [
+        "add(lib)[int]: standard style\n",
+        "feat(api)!: conventional style\n",
+        "not a header at all\n",
+    ] {
+        let output = lint(&["--config", config, "-"], Some(header));
+
+        assert_eq!(output.status.code(), Some(0), "rejected: {header}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn empty_commit_section_enforces_only_the_shape() {
+    let config = fixture("empty-section.toml", "[commit]\n");
+    let config = config.to_str().unwrap();
+
+    for header in [
+        "add(lib)[int]: standard style\n",
+        "feat(api)!: conventional style\n",
+        "yolo(whatever)> ship it\n",
+    ] {
+        let output = lint(&["--config", config, "-"], Some(header));
+
+        assert_eq!(output.status.code(), Some(0), "rejected: {header}");
+    }
+
+    let output = lint(&["--config", config, "-"], Some("no separator here\n"));
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("Failed to parse commit message"));
 }
 
 #[test]

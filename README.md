@@ -17,6 +17,36 @@ A toolkit for enforcing your own conventions, configured from a single
 - [`atypical-config`](crates/atypical-config) — discovery and loading
   of `atypical.toml`; each tool owns its own section.
 
+## Presets
+
+Unconfigured, `commit-lint` enforces nothing: without an
+`atypical.toml` (or without a `[commit]` section in it), every
+message passes. Declaring `[commit]` opts into the header shape,
+and every field left unset is unrestricted: any keyword, any
+modifiers on either side of free-form `(...)`/`[...]` enclosures,
+any single-symbol separator. Presets tighten it.
+
+Ready-made `[commit]` sections live in [`presets/`](presets):
+
+- [`standard.toml`](presets/standard.toml) —
+  [Standard Commits](https://github.com/standard-commits/standard-commits).
+- [`conventional.toml`](presets/conventional.toml) —
+  [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
+
+Copy one next to your project (or vendor this repository) and point
+the top-level `extends` key of `atypical.toml` at it; anything you
+set locally overrides the preset key by key:
+
+```toml
+extends = "conventional.toml"
+
+[commit]
+keywords = ["feat", "fix", "docs"]
+```
+
+`extends` also takes an array of paths, applied one by one in order,
+with the extending file last.
+
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and
