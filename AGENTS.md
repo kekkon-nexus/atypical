@@ -13,7 +13,9 @@ toolchain, resolver 3) with two crates:
   binary (`src/main.rs`) plus a chumsky-based parser library
   (`src/lib.rs`), rendering diagnostics with `ariadne`. The `[commit]`
   section schema lives in `src/config.rs` and defaults field-by-field
-  to the Standard Commits preset.
+  to the lax preset (`Tokens::preset_lax()`): any keyword, any
+  modifiers in either position, any single-symbol separator,
+  free-form `(...)`/`[...]` enclosures.
 - `crates/atypical-config` — discovery (`find`, walking ancestors for
   `atypical.toml`) and loading (`section`/`load`/`resolve`) of
   `atypical.toml`. Schema-free: each tool owns its own section schema
@@ -21,7 +23,7 @@ toolchain, resolver 3) with two crates:
 
 The design principle is **grammar-as-data**: the entire commit syntax
 (keywords, modifiers, enclosures, separator, ordering) lives in one
-`Tokens` struct, populated from the standard preset or the `[commit]`
+`Tokens` struct, populated from a preset or the `[commit]`
 section of `atypical.toml`. Parsers read it at runtime via chumsky's
 context (`ExtraContext`), so nothing about the grammar is hardcoded
 into parser structure. Preserve this: new syntax features should
@@ -35,7 +37,8 @@ Headers follow [Standard Commits](https://github.com/standard-commits/standard-c
 <keyword>[<modifier>][(<scope>)][<reason>]: <description>
 ```
 
-The standard preset (also this repo's convention):
+The standard preset (also this repo's convention, pinned by the root
+`atypical.toml`):
 
 - keywords: `add`, `rem`, `ref`, `fix`, `undo`, `release`
 - modifiers: `?`, `!`, `!!` (placed before the enclosures)
@@ -143,8 +146,8 @@ Conventions visible in the code:
   (`message_header` in `main.rs`). CRLF is tolerated.
 - The preset files in `presets/` (`standard.toml`, `conventional.toml`)
   are meant to be targeted by `extends`; `tests/presets.rs` in
-  `atypical-commit` pins `standard.toml` to the built-in default and
-  the headers each preset accepts — keep file and code in sync.
+  `atypical-commit` pins `standard.toml` to `Tokens::preset_standard()`
+  and the headers each preset accepts — keep file and code in sync.
 - A top-level `extends` key (a path or an array of paths, relative to
   the extending file) is resolved by `atypical-config` before section
   lookup: extended documents apply one by one in declaration order,
@@ -152,9 +155,11 @@ Conventions visible in the code:
   replaces the one beneath it. Cycles and non-path values are errors
   (`Error::Cycle` / `Error::Extends`).
 - Config semantics: the `[commit]` section defaults *field by field*
-  to the standard preset (`#[serde(default)]` on `CommitConfig`);
+  to the lax preset (`#[serde(default)]` on `CommitConfig`);
   unknown keys are rejected (`deny_unknown_fields`); an enclosure
-  without `allowed` is flexible (anything between the delimiters).
+  without `allowed` is flexible (anything between the delimiters);
+  `keywords`, `modifiers`, `separator`, and `modifier-sequence`
+  accept the literal string `"any"`.
 - Enclosure order is positional: each `[[commit.enclosures]]` entry
   may appear at most once, in declaration order.
 - Machine-generated headers — merges, reverts, `fixup!`/`squash!`/

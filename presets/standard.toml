@@ -1,6 +1,5 @@
 # Standard Commits: https://github.com/standard-commits/standard-commits
-# Mirrors the built-in default of atypical-commit, spelled out so it
-# can be extended and overridden field by field.
+# Spelled out field by field so it can be extended and overridden.
 
 [commit]
 keywords = ["add", "rem", "ref", "fix", "undo", "release"]

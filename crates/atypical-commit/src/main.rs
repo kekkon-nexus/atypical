@@ -51,7 +51,7 @@ struct Args {
 }
 
 /// The `[commit]` section of the nearest (or given) atypical.toml,
-/// falling back to the standard preset.
+/// falling back to the lax preset.
 fn commit_config(path: Option<PathBuf>) -> Result<CommitConfig> {
     let path = match path {
         Some(path) => Some(path),

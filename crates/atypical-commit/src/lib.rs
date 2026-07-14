@@ -116,11 +116,27 @@ impl Tokens<'_> {
             modifier_sequence: Sequence::Pre,
         }
     }
+
+    /// As lax as the header shape allows: any keyword, any modifier
+    /// on either side of free-form `(...)`/`[...]` enclosures, and
+    /// any single-symbol separator.
+    pub fn preset_lax() -> Self {
+        Self {
+            keywords: TokenSet::Any,
+            modifiers: TokenSet::Any,
+            enclosures: vec![
+                EnclosureToken::Flexible(['(', ')']),
+                EnclosureToken::Flexible(['[', ']']),
+            ],
+            separator: SeparatorToken::Any,
+            modifier_sequence: Sequence::Any,
+        }
+    }
 }
 
 impl Default for Tokens<'_> {
     fn default() -> Self {
-        Self::preset_standard()
+        Self::preset_lax()
     }
 }
 
@@ -722,6 +738,29 @@ mod tests {
         assert!(parser_standard().parse("add").has_errors());
         assert!(parser_standard().parse("feat:").has_errors());
         assert!(parser_standard().parse("add(exe)!:").has_errors());
+    }
+
+    #[test]
+    fn test_header_lax() {
+        fn parser_lax<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
+            header().with_ctx(Tokens::preset_lax().into())
+        }
+
+        for header in [
+            "add(lib)[int]: standard style",
+            "feat(api)!: conventional style",
+            "yolo(whatever)> ship it",
+            "wip!!~ kitchen sink",
+        ] {
+            assert!(!parser_lax().parse(header).has_errors(), "{header}");
+        }
+
+        // The shape still holds: a keyword, a separator, a space,
+        // and a non-empty description.
+        assert!(parser_lax().parse("no separator here").has_errors());
+        assert!(parser_lax().parse(": no keyword").has_errors());
+        assert!(parser_lax().parse("add:").has_errors());
+        assert!(parser_lax().parse("add:no space").has_errors());
     }
 
     #[test]

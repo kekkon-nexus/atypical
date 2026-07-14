@@ -32,8 +32,11 @@ fn parses(config: &CommitConfig, header: &str) -> bool {
 }
 
 #[test]
-fn standard_preset_mirrors_the_default() {
-    assert_eq!(preset("standard.toml"), CommitConfig::default());
+fn standard_preset_mirrors_preset_standard() {
+    assert_eq!(
+        preset("standard.toml"),
+        CommitConfig::from(&Tokens::preset_standard())
+    );
 }
 
 #[test]

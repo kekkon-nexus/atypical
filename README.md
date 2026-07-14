@@ -19,11 +19,15 @@ A toolkit for enforcing your own conventions, configured from a single
 
 ## Presets
 
+Without configuration, `commit-lint` is as lax as possible: any
+keyword, any modifiers on either side of free-form `(...)`/`[...]`
+enclosures, any single-symbol separator — only the header shape
+itself is enforced. Presets tighten it.
+
 Ready-made `[commit]` sections live in [`presets/`](presets):
 
 - [`standard.toml`](presets/standard.toml) —
-  [Standard Commits](https://github.com/standard-commits/standard-commits),
-  the built-in default, spelled out.
+  [Standard Commits](https://github.com/standard-commits/standard-commits).
 - [`conventional.toml`](presets/conventional.toml) —
   [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/).
 
