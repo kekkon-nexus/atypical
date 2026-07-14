@@ -28,7 +28,11 @@ fn find_walks_up_to_the_nearest_file() {
 
 #[test]
 fn find_without_a_file_is_none() {
-    let root = tree("find-none");
+    // Outside the repository: the ancestor walk would otherwise find
+    // this repo's own atypical.toml above CARGO_TARGET_TMPDIR.
+    let root = std::env::temp_dir().join("atypical-find-none");
+
+    std::fs::create_dir_all(root.join("nested/deeper")).unwrap();
 
     assert_eq!(atypical_config::find(root.join("nested/deeper")), None);
 }
