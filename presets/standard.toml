@@ -1,5 +1,4 @@
 # Standard Commits: https://github.com/standard-commits/standard-commits
-# Spelled out field by field so it can be extended and overridden.
 
 [commit]
 keywords = ["add", "rem", "ref", "fix", "undo", "release"]

@@ -1,7 +1,4 @@
 # Conventional Commits: https://www.conventionalcommits.org/en/v1.0.0/
-# Types follow @commitlint/config-conventional; the scope is
-# free-form and a trailing `!` marks a breaking change
-# (`feat(api)!: ...`).
 
 [commit]
 keywords = [
