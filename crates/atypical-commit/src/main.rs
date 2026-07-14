@@ -50,9 +50,10 @@ struct Args {
     config: Option<PathBuf>,
 }
 
-/// The `[commit]` section of the nearest (or given) atypical.toml,
-/// falling back to the lax preset.
-fn commit_config(path: Option<PathBuf>) -> Result<CommitConfig> {
+/// The `[commit]` section of the nearest (or given) atypical.toml.
+/// `None` — no config file, or no `[commit]` section in it — means
+/// there is no convention to enforce.
+fn commit_config(path: Option<PathBuf>) -> Result<Option<CommitConfig>> {
     let path = match path {
         Some(path) => Some(path),
         None => atypical_config::find(std::env::current_dir()?),
@@ -63,7 +64,7 @@ fn commit_config(path: Option<PathBuf>) -> Result<CommitConfig> {
         None => None,
     };
 
-    Ok(config.unwrap_or_default())
+    Ok(config)
 }
 
 /// The header is the first line git keeps: leading blank lines and
@@ -116,7 +117,9 @@ fn main() -> Result<Exit> {
     };
 
     use chumsky::Parser;
-    let config = commit_config(args.config)?;
+    let Some(config) = commit_config(args.config)? else {
+        return Ok(Exit::Success);
+    };
 
     if config.default_ignores && atypical_commit::ignore::is_ignored(header) {
         return Ok(Exit::Success);

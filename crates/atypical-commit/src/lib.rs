@@ -116,11 +116,14 @@ impl Tokens<'_> {
             modifier_sequence: Sequence::Pre,
         }
     }
+}
 
-    /// As lax as the header shape allows: any keyword, any modifier
-    /// on either side of free-form `(...)`/`[...]` enclosures, and
-    /// any single-symbol separator.
-    pub fn preset_lax() -> Self {
+impl Default for Tokens<'_> {
+    /// Unrestricted: any keyword, any modifier on either side of
+    /// free-form `(...)`/`[...]` enclosures, and any single-symbol
+    /// separator. Only the header shape itself is enforced. Fields
+    /// omitted from a `[commit]` section fall back to this.
+    fn default() -> Self {
         Self {
             keywords: TokenSet::Any,
             modifiers: TokenSet::Any,
@@ -131,12 +134,6 @@ impl Tokens<'_> {
             separator: SeparatorToken::Any,
             modifier_sequence: Sequence::Any,
         }
-    }
-}
-
-impl Default for Tokens<'_> {
-    fn default() -> Self {
-        Self::preset_lax()
     }
 }
 
@@ -655,7 +652,7 @@ mod tests {
 
     #[test]
     fn test_modifier_any_leaves_the_any_separator() {
-        fn parser_lax_prefix<'i>()
+        fn parser_any_prefix<'i>()
         -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             let tokens = Tokens {
                 modifiers: TokenSet::Any,
@@ -668,7 +665,7 @@ mod tests {
 
         // The last symbol of the run is the separator.
         assert_eq!(
-            parser_lax_prefix().parse("add!!;").into_result(),
+            parser_any_prefix().parse("add!!;").into_result(),
             Ok(Prefix {
                 keyword: "add",
                 modifier: Some("!!"),
@@ -676,7 +673,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parser_lax_prefix().parse("add;").into_result(),
+            parser_any_prefix().parse("add;").into_result(),
             Ok(Prefix {
                 keyword: "add",
                 modifier: None,
@@ -684,7 +681,7 @@ mod tests {
             })
         );
         assert_eq!(
-            parser_lax_prefix().parse("add!(lib):").into_result(),
+            parser_any_prefix().parse("add!(lib):").into_result(),
             Ok(Prefix {
                 keyword: "add",
                 modifier: Some("!"),
@@ -693,7 +690,7 @@ mod tests {
         );
         // A lone symbol is the separator, not a modifier.
         assert_eq!(
-            parser_lax_prefix().parse("add!").into_result(),
+            parser_any_prefix().parse("add!").into_result(),
             Ok(Prefix {
                 keyword: "add",
                 modifier: None,
@@ -741,9 +738,10 @@ mod tests {
     }
 
     #[test]
-    fn test_header_lax() {
-        fn parser_lax<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
-            header().with_ctx(Tokens::preset_lax().into())
+    fn test_header_unrestricted() {
+        fn parser_default<'i>()
+        -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
+            header().with_ctx(Tokens::default().into())
         }
 
         for header in [
@@ -752,15 +750,15 @@ mod tests {
             "yolo(whatever)> ship it",
             "wip!!~ kitchen sink",
         ] {
-            assert!(!parser_lax().parse(header).has_errors(), "{header}");
+            assert!(!parser_default().parse(header).has_errors(), "{header}");
         }
 
         // The shape still holds: a keyword, a separator, a space,
         // and a non-empty description.
-        assert!(parser_lax().parse("no separator here").has_errors());
-        assert!(parser_lax().parse(": no keyword").has_errors());
-        assert!(parser_lax().parse("add:").has_errors());
-        assert!(parser_lax().parse("add:no space").has_errors());
+        assert!(parser_default().parse("no separator here").has_errors());
+        assert!(parser_default().parse(": no keyword").has_errors());
+        assert!(parser_default().parse("add:").has_errors());
+        assert!(parser_default().parse("add:no space").has_errors());
     }
 
     #[test]

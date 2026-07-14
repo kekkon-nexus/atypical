@@ -11,9 +11,10 @@ toolchain, resolver 3) with two crates:
 
 - `crates/atypical-commit` — commit message linting: the `commit-lint`
   binary (`src/main.rs`) plus a chumsky-based parser library
-  (`src/lib.rs`), rendering diagnostics with `ariadne`. The `[commit]`
-  section schema lives in `src/config.rs` and defaults field-by-field
-  to the lax preset (`Tokens::preset_lax()`): any keyword, any
+  (`src/lib.rs`), rendering diagnostics with `ariadne`. Without a
+  `[commit]` section there is nothing to enforce and every message
+  passes. The section schema lives in `src/config.rs`; fields left
+  unset are unrestricted (`Tokens::default()`): any keyword, any
   modifiers in either position, any single-symbol separator,
   free-form `(...)`/`[...]` enclosures.
 - `crates/atypical-config` — discovery (`find`, walking ancestors for
@@ -154,8 +155,9 @@ Conventions visible in the code:
   the extending file last; tables merge key-by-key, any other value
   replaces the one beneath it. Cycles and non-path values are errors
   (`Error::Cycle` / `Error::Extends`).
-- Config semantics: the `[commit]` section defaults *field by field*
-  to the lax preset (`#[serde(default)]` on `CommitConfig`);
+- Config semantics: no `[commit]` section means nothing is linted
+  (exit 0 for any message); a declared section defaults *field by
+  field* to unrestricted (`#[serde(default)]` on `CommitConfig`);
   unknown keys are rejected (`deny_unknown_fields`); an enclosure
   without `allowed` is flexible (anything between the delimiters);
   `keywords`, `modifiers`, `separator`, and `modifier-sequence`

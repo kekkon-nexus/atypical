@@ -122,9 +122,27 @@ fn invalid_keyword_reports_and_fails() {
 }
 
 #[test]
-fn lax_default_accepts_any_style() {
-    // An empty config: no [commit] section, so the lax default.
-    let config = fixture("empty.toml", "");
+fn unconfigured_lints_nothing() {
+    // No [commit] section: there is no convention to enforce.
+    let config = fixture("no-section.toml", "");
+    let config = config.to_str().unwrap();
+
+    for header in [
+        "add(lib)[int]: standard style\n",
+        "feat(api)!: conventional style\n",
+        "not a header at all\n",
+    ] {
+        let output = lint(&["--config", config, "-"], Some(header));
+
+        assert_eq!(output.status.code(), Some(0), "rejected: {header}");
+        assert!(output.stderr.is_empty());
+    }
+}
+
+#[test]
+fn empty_commit_section_enforces_only_the_shape() {
+    // Declaring [commit] opts in; unset fields are unrestricted.
+    let config = fixture("empty-section.toml", "[commit]\n");
     let config = config.to_str().unwrap();
 
     for header in [

@@ -19,10 +19,12 @@ A toolkit for enforcing your own conventions, configured from a single
 
 ## Presets
 
-Without configuration, `commit-lint` is as lax as possible: any
-keyword, any modifiers on either side of free-form `(...)`/`[...]`
-enclosures, any single-symbol separator — only the header shape
-itself is enforced. Presets tighten it.
+Unconfigured, `commit-lint` enforces nothing: without an
+`atypical.toml` (or without a `[commit]` section in it), every
+message passes. Declaring `[commit]` opts into the header shape,
+and every field left unset is unrestricted: any keyword, any
+modifiers on either side of free-form `(...)`/`[...]` enclosures,
+any single-symbol separator. Presets tighten it.
 
 Ready-made `[commit]` sections live in [`presets/`](presets):
 

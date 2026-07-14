@@ -1,5 +1,5 @@
 // The `[commit]` section of atypical.toml: an owned mirror of
-// `Tokens`, defaulting field by field to the lax preset.
+// `Tokens`, unrestricted for every field left unset.
 
 use serde::Deserialize;
 
@@ -100,7 +100,7 @@ pub struct EnclosureConfig {
 
 impl Default for CommitConfig {
     fn default() -> Self {
-        (&Tokens::preset_lax()).into()
+        (&Tokens::default()).into()
     }
 }
 
@@ -164,10 +164,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_default_mirrors_the_lax_preset() {
+    fn test_default_is_unrestricted() {
         let config = CommitConfig::default();
 
-        assert_eq!(Tokens::from(&config), Tokens::preset_lax());
+        assert_eq!(config.keywords, SetConfig::Any(Any::Any));
+        assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
+        assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
+        assert_eq!(Tokens::from(&config), Tokens::default());
     }
 
     #[test]
