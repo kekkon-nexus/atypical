@@ -51,7 +51,7 @@ impl<'i> From<&'i SetConfig> for TokenSet<'i> {
 #[serde(deny_unknown_fields, rename_all = "kebab-case", default)]
 pub struct CommitConfig {
     pub keywords: SetConfig,
-    pub modifiers: Vec<String>,
+    pub modifiers: SetConfig,
     pub enclosures: Vec<EnclosureConfig>,
     pub separator: char,
     pub modifier_sequence: Sequence,
@@ -83,7 +83,7 @@ impl From<&Tokens<'_>> for CommitConfig {
 
         Self {
             keywords: (&tokens.keywords).into(),
-            modifiers: owned(&tokens.modifiers),
+            modifiers: (&tokens.modifiers).into(),
             enclosures: tokens
                 .enclosures
                 .iter()
@@ -112,7 +112,7 @@ impl<'i> From<&'i CommitConfig> for Tokens<'i> {
 
         Self {
             keywords: (&config.keywords).into(),
-            modifiers: borrowed(&config.modifiers),
+            modifiers: (&config.modifiers).into(),
             enclosures: config
                 .enclosures
                 .iter()
@@ -169,6 +169,15 @@ mod tests {
     }
 
     #[test]
+    fn test_any_modifiers() {
+        let config: CommitConfig =
+            toml::from_str(r#"modifiers = "any""#).unwrap();
+
+        assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
+        assert_eq!(Tokens::from(&config).modifiers, TokenSet::Any);
+    }
+
+    #[test]
     fn test_enclosures_map_to_strict_and_flexible() {
         let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
             [[enclosures]]
@@ -205,6 +214,11 @@ mod tests {
             toml::from_str(r#"modifier-sequence = "post""#).unwrap();
 
         assert_eq!(config.modifier_sequence, Sequence::Post);
+
+        let config: CommitConfig =
+            toml::from_str(r#"modifier-sequence = "any""#).unwrap();
+
+        assert_eq!(config.modifier_sequence, Sequence::Any);
 
         assert!(
             toml::from_str::<CommitConfig>(r#"modifier-sequence = "sideways""#)

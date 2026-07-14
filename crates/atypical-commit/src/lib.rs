@@ -39,6 +39,8 @@ pub struct Header<'i> {
 pub enum Sequence {
     Pre,
     Post,
+    /// Either position.
+    Any,
 }
 
 /// A restrictable set of accepted spellings: anything, or a closed
@@ -51,7 +53,7 @@ pub enum TokenSet<'i> {
 
 pub type KeywordToken<'i> = TokenSet<'i>;
 
-pub type ModifierToken<'i> = Modifier<'i>;
+pub type ModifierToken<'i> = TokenSet<'i>;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnclosureToken<'i> {
@@ -72,7 +74,7 @@ impl<'i> EnclosureToken<'i> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Tokens<'i> {
     pub keywords: KeywordToken<'i>,
-    pub modifiers: Vec<ModifierToken<'i>>,
+    pub modifiers: ModifierToken<'i>,
     pub enclosures: Vec<EnclosureToken<'i>>,
     pub separator: char,
 
@@ -89,7 +91,7 @@ impl Tokens<'_> {
             keywords: TokenSet::OneOf(vec![
                 "add", "rem", "ref", "fix", "undo", "release",
             ]),
-            modifiers: vec!["?", "!", "!!"],
+            modifiers: TokenSet::OneOf(vec!["?", "!", "!!"]),
             enclosures: vec![
                 EnclosureToken::Strict(
                     ['(', ')'],
@@ -127,15 +129,15 @@ pub struct ExtraContext<'i> {
 
 impl<'i> ExtraContext<'i> {
     pub fn new(tokens: &Tokens<'i>) -> Self {
-        fn sort(v: &mut Vec<&str>) {
-            v.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+        fn sort(set: &mut TokenSet<'_>) {
+            if let TokenSet::OneOf(v) = set {
+                v.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
+            }
         }
 
         let mut tokens = tokens.clone();
 
-        if let TokenSet::OneOf(keywords) = &mut tokens.keywords {
-            sort(keywords);
-        }
+        sort(&mut tokens.keywords);
         sort(&mut tokens.modifiers);
 
         Self { tokens }
@@ -173,6 +175,11 @@ fn ident<'i>(
     (i.slice_since(&before..), i.span_since(&before))
 }
 
+/// A visible char that can't belong to a keyword or a description.
+fn is_symbol(c: char) -> bool {
+    !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
+}
+
 fn expected_one_of(found: &str, kind: &str, expected: &[&str]) -> String {
     let expected = expected.join(", ");
 
@@ -206,15 +213,42 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
     use chumsky::input::InputRef;
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        let parsers = i
-            .ctx()
-            .tokens
-            .modifiers
+        if let TokenSet::OneOf(modifiers) = &i.ctx().tokens.modifiers {
+            let parsers = modifiers
+                .iter()
+                .map(|&token| just(token))
+                .collect::<Vec<_>>();
+
+            return i.parse(choice(parsers));
+        }
+
+        // Any: the longest run of symbols that leaves the separator
+        // and the enclosure openers untouched.
+        let tokens = &i.ctx().tokens;
+        let separator = tokens.separator;
+        let openers = tokens
+            .enclosures
             .iter()
-            .map(|&token| just(token))
+            .map(|enclosure| enclosure.delimiters()[0])
             .collect::<Vec<_>>();
 
-        i.parse(choice(parsers))
+        let before = i.cursor();
+
+        while i.peek().is_some_and(|c: char| {
+            is_symbol(c) && c != separator && !openers.contains(&c)
+        }) {
+            i.next();
+        }
+
+        let s = i.slice_since(&before..);
+
+        if s.is_empty() {
+            let span = i.span_since(&before);
+
+            return Err(Rich::custom(span, "expected a modifier"));
+        }
+
+        Ok(s)
     })
 }
 
@@ -307,7 +341,9 @@ pub fn modifier_when<'i>(
     use chumsky::input::InputRef;
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
-        if i.ctx().tokens.modifier_sequence != sequence {
+        let position = i.ctx().tokens.modifier_sequence;
+
+        if position != sequence && position != Sequence::Any {
             return Ok(None);
         }
 
@@ -424,6 +460,56 @@ mod tests {
         assert_eq!(parser_standard().parse("?").into_result(), Ok("?"));
         assert_eq!(parser_standard().parse("!!").into_result(), Ok("!!"));
         assert!(parser_standard().parse("??").has_errors());
+    }
+
+    #[test]
+    fn test_modifier_any() {
+        fn parser_any<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>>
+        {
+            let tokens = Tokens {
+                modifiers: TokenSet::Any,
+                ..Tokens::preset_standard()
+            };
+
+            modifier().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_any().parse("??").into_result(), Ok("??"));
+        assert_eq!(parser_any().parse("~+!").into_result(), Ok("~+!"));
+        assert!(parser_any().parse("").has_errors());
+        // Stops at the separator and at enclosure openers.
+        assert!(parser_any().parse("!:").has_errors());
+        assert!(parser_any().parse("!(").has_errors());
+    }
+
+    #[test]
+    fn test_modifier_sequence_any() {
+        fn parser_any_sequence<'i>()
+        -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
+            let tokens = Tokens {
+                modifier_sequence: Sequence::Any,
+                ..Tokens::preset_standard()
+            };
+
+            prefix().with_ctx(tokens.into())
+        }
+
+        assert_eq!(
+            parser_any_sequence().parse("add!(lib):").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!"),
+                enclosures: vec![("lib", ['(', ')'])]
+            })
+        );
+        assert_eq!(
+            parser_any_sequence().parse("add(lib)!:").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!"),
+                enclosures: vec![("lib", ['(', ')'])]
+            })
+        );
     }
 
     #[test]
