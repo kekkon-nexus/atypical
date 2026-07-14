@@ -55,6 +55,13 @@ pub type KeywordToken<'i> = TokenSet<'i>;
 
 pub type ModifierToken<'i> = TokenSet<'i>;
 
+/// The separator: one specific character, or any single symbol.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum SeparatorToken {
+    Any,
+    Just(char),
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum EnclosureToken<'i> {
     Flexible(DelimitedBy),
@@ -76,7 +83,7 @@ pub struct Tokens<'i> {
     pub keywords: KeywordToken<'i>,
     pub modifiers: ModifierToken<'i>,
     pub enclosures: Vec<EnclosureToken<'i>>,
-    pub separator: char,
+    pub separator: SeparatorToken,
 
     pub modifier_sequence: Sequence,
 }
@@ -105,7 +112,7 @@ impl Tokens<'_> {
                     ],
                 ),
             ],
-            separator: ':',
+            separator: SeparatorToken::Just(':'),
             modifier_sequence: Sequence::Pre,
         }
     }
@@ -234,10 +241,29 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
 
         let before = i.cursor();
 
-        while i.peek().is_some_and(|c: char| {
-            is_symbol(c) && c != separator && !openers.contains(&c)
-        }) {
-            i.next();
+        while let Some(c) = i.peek() {
+            if !is_symbol(c) || openers.contains(&c) {
+                break;
+            }
+
+            match separator {
+                SeparatorToken::Just(s) if c == s => break,
+                SeparatorToken::Just(_) => {
+                    i.next();
+                }
+                // With an unrestricted separator, the last symbol
+                // of the run is the separator, not the modifier.
+                SeparatorToken::Any => {
+                    let checkpoint = i.save();
+
+                    i.next();
+
+                    if !i.peek().is_some_and(is_symbol) {
+                        i.rewind(checkpoint);
+                        break;
+                    }
+                }
+            }
         }
 
         let s = i.slice_since(&before..);
@@ -329,9 +355,24 @@ pub fn separator<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
     use chumsky::input::InputRef;
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        let ctx = i.ctx();
+        match i.ctx().tokens.separator {
+            SeparatorToken::Just(separator) => i.parse(just(separator)),
+            SeparatorToken::Any => {
+                let before = i.cursor();
 
-        i.parse(just(ctx.tokens.separator))
+                match i.peek() {
+                    Some(c) if is_symbol(c) => {
+                        i.next();
+
+                        Ok(c)
+                    }
+                    _ => Err(Rich::custom(
+                        i.span_since(&before),
+                        "expected a separator",
+                    )),
+                }
+            }
+        }
     })
 }
 
@@ -576,6 +617,73 @@ mod tests {
 
         assert_eq!(parser_standard().parse(":").into_result(), Ok(':'));
         assert!(parser_standard().parse(";").has_errors());
+    }
+
+    #[test]
+    fn test_separator_any() {
+        fn parser_any<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
+            let tokens = Tokens {
+                separator: SeparatorToken::Any,
+                ..Tokens::preset_standard()
+            };
+
+            separator().with_ctx(tokens.into())
+        }
+
+        assert_eq!(parser_any().parse(":").into_result(), Ok(':'));
+        assert_eq!(parser_any().parse(">").into_result(), Ok('>'));
+        assert!(parser_any().parse("").has_errors());
+        assert!(parser_any().parse("a").has_errors());
+        assert!(parser_any().parse(" ").has_errors());
+    }
+
+    #[test]
+    fn test_modifier_any_leaves_the_any_separator() {
+        fn parser_lax_prefix<'i>()
+        -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
+            let tokens = Tokens {
+                modifiers: TokenSet::Any,
+                separator: SeparatorToken::Any,
+                ..Tokens::preset_standard()
+            };
+
+            prefix().with_ctx(tokens.into())
+        }
+
+        // The last symbol of the run is the separator.
+        assert_eq!(
+            parser_lax_prefix().parse("add!!;").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!!"),
+                enclosures: vec![]
+            })
+        );
+        assert_eq!(
+            parser_lax_prefix().parse("add;").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: None,
+                enclosures: vec![]
+            })
+        );
+        assert_eq!(
+            parser_lax_prefix().parse("add!(lib):").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: Some("!"),
+                enclosures: vec![("lib", ['(', ')'])]
+            })
+        );
+        // A lone symbol is the separator, not a modifier.
+        assert_eq!(
+            parser_lax_prefix().parse("add!").into_result(),
+            Ok(Prefix {
+                keyword: "add",
+                modifier: None,
+                enclosures: vec![]
+            })
+        );
     }
 
     #[test]

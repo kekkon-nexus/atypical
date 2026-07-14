@@ -3,7 +3,9 @@
 
 use serde::Deserialize;
 
-use crate::{DelimitedBy, EnclosureToken, Sequence, TokenSet, Tokens};
+use crate::{
+    DelimitedBy, EnclosureToken, SeparatorToken, Sequence, TokenSet, Tokens,
+};
 
 pub const SECTION: &str = "commit";
 
@@ -46,6 +48,33 @@ impl<'i> From<&'i SetConfig> for TokenSet<'i> {
     }
 }
 
+/// `"any"`, or one specific character.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Deserialize)]
+#[serde(untagged, expecting = "`any` or a single character")]
+pub enum SeparatorConfig {
+    Any(Any),
+    Just(char),
+}
+
+impl From<SeparatorToken> for SeparatorConfig {
+    fn from(separator: SeparatorToken) -> Self {
+        match separator {
+            SeparatorToken::Any => SeparatorConfig::Any(Any::Any),
+            SeparatorToken::Just(c) => SeparatorConfig::Just(c),
+        }
+    }
+}
+
+impl From<SeparatorConfig> for SeparatorToken {
+    fn from(separator: SeparatorConfig) -> Self {
+        match separator {
+            SeparatorConfig::Any(_) => SeparatorToken::Any,
+            SeparatorConfig::Just(c) => SeparatorToken::Just(c),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case", default)]
@@ -53,7 +82,7 @@ pub struct CommitConfig {
     pub keywords: SetConfig,
     pub modifiers: SetConfig,
     pub enclosures: Vec<EnclosureConfig>,
-    pub separator: char,
+    pub separator: SeparatorConfig,
     pub modifier_sequence: Sequence,
     /// Skip machine-generated headers (merges, reverts, version
     /// bumps...); not part of the grammar, so absent from `Tokens`.
@@ -97,7 +126,7 @@ impl From<&Tokens<'_>> for CommitConfig {
                     },
                 })
                 .collect(),
-            separator: tokens.separator,
+            separator: tokens.separator.into(),
             modifier_sequence: tokens.modifier_sequence,
             default_ignores: true,
         }
@@ -124,7 +153,7 @@ impl<'i> From<&'i CommitConfig> for Tokens<'i> {
                     ),
                 })
                 .collect(),
-            separator: config.separator,
+            separator: config.separator.into(),
             modifier_sequence: config.modifier_sequence,
         }
     }
@@ -151,7 +180,7 @@ mod tests {
             SetConfig::OneOf(vec!["feat".into(), "fix".into()])
         );
         assert_eq!(config.modifiers, CommitConfig::default().modifiers);
-        assert_eq!(config.separator, ':');
+        assert_eq!(config.separator, SeparatorConfig::Just(':'));
     }
 
     #[test]
@@ -175,6 +204,22 @@ mod tests {
 
         assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
         assert_eq!(Tokens::from(&config).modifiers, TokenSet::Any);
+    }
+
+    #[test]
+    fn test_any_separator() {
+        let config: CommitConfig =
+            toml::from_str(r#"separator = "any""#).unwrap();
+
+        assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
+        assert_eq!(Tokens::from(&config).separator, SeparatorToken::Any);
+
+        let config: CommitConfig =
+            toml::from_str(r#"separator = ";""#).unwrap();
+
+        assert_eq!(config.separator, SeparatorConfig::Just(';'));
+
+        assert!(toml::from_str::<CommitConfig>(r#"separator = "ab""#).is_err());
     }
 
     #[test]
