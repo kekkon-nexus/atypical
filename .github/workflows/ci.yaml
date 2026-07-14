@@ -169,7 +169,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bun npm/prepare.mjs "${GITHUB_REF_NAME#v}"
+      - run: bun npm/scripts/prepare.ts "${GITHUB_REF_NAME#v}"
       - run: |
           for pkg in ./npm/platforms/*; do
             bunx npm publish "$pkg"
