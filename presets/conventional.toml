@@ -1,0 +1,26 @@
+# Conventional Commits: https://www.conventionalcommits.org/en/v1.0.0/
+# Types follow @commitlint/config-conventional; the scope is
+# free-form and a trailing `!` marks a breaking change
+# (`feat(api)!: ...`).
+
+[commit]
+keywords = [
+  "build",
+  "chore",
+  "ci",
+  "docs",
+  "feat",
+  "fix",
+  "perf",
+  "refactor",
+  "revert",
+  "style",
+  "test",
+]
+modifiers = ["!"]
+separator = ":"
+modifier-sequence = "post"
+default-ignores = true
+
+[[commit.enclosures]]
+delimiters = ["(", ")"]

@@ -141,6 +141,10 @@ Conventions visible in the code:
 - Header extraction mimics git: leading blank lines and `#` comment
   lines are skipped; the first remaining line is the header
   (`message_header` in `main.rs`). CRLF is tolerated.
+- The preset files in `presets/` (`standard.toml`, `conventional.toml`)
+  are meant to be targeted by `extends`; `tests/presets.rs` in
+  `atypical-commit` pins `standard.toml` to the built-in default and
+  the headers each preset accepts — keep file and code in sync.
 - A top-level `extends` key (a path or an array of paths, relative to
   the extending file) is resolved by `atypical-config` before section
   lookup: extended documents apply one by one in declaration order,
