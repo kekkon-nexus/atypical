@@ -1,2 +1,1 @@
-# This repository follows its own convention: Standard Commits.
 extends = "presets/standard.toml"
