@@ -15,9 +15,9 @@ toolchain, resolver 3) with two crates:
   section schema lives in `src/config.rs` and defaults field-by-field
   to the Standard Commits preset.
 - `crates/atypical-config` — discovery (`find`, walking ancestors for
-  `atypical.toml`) and loading (`section`/`load`) of `atypical.toml`.
-  Schema-free: each tool owns its own section schema and deserializes
-  it from here.
+  `atypical.toml`) and loading (`section`/`load`/`resolve`) of
+  `atypical.toml`. Schema-free: each tool owns its own section schema
+  and deserializes it from here.
 
 The design principle is **grammar-as-data**: the entire commit syntax
 (keywords, modifiers, enclosures, separator, ordering) lives in one
@@ -141,6 +141,12 @@ Conventions visible in the code:
 - Header extraction mimics git: leading blank lines and `#` comment
   lines are skipped; the first remaining line is the header
   (`message_header` in `main.rs`). CRLF is tolerated.
+- A top-level `extends` key (a path or an array of paths, relative to
+  the extending file) is resolved by `atypical-config` before section
+  lookup: extended documents apply one by one in declaration order,
+  the extending file last; tables merge key-by-key, any other value
+  replaces the one beneath it. Cycles and non-path values are errors
+  (`Error::Cycle` / `Error::Extends`).
 - Config semantics: the `[commit]` section defaults *field by field*
   to the standard preset (`#[serde(default)]` on `CommitConfig`);
   unknown keys are rejected (`deny_unknown_fields`); an enclosure
