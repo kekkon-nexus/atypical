@@ -4,11 +4,17 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: ref[upg]
   - package-ecosystem: bun
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: ref[upg]
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    commit-message:
+      prefix: ref(ci)[upg]
