@@ -8,7 +8,7 @@
   "devDependencies": {
     "@kekkon-nexus/config": "3.0.0",
     "@types/bun": "latest",
-    "oxfmt": "0.64.0",
+    "oxfmt": "0.65.0",
     "oxlint": "1.79.0"
   }
 }
