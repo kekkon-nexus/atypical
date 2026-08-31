@@ -34,7 +34,7 @@ Available configuration in `[commit]`:
 | `modifier-sequence` | Modifier position, before or after enclosures    | `"pre"`, `"post"`, `"any"`    | `feat!(api)`, `feat(api)!` |
 | `separator`         | Symbol between header and subject                | Single-symbol string, `"any"` | `:`, `-`, `/`              |
 | `default-ignores`   | Skips merge, revert, and fixup commits           | `true` (default), `false`     | —                          |
-| `enclosures[]`      | Enclosure delimiters, as `[[commit.enclosures]]` | Pair of strings               | `(api)`, `[api]`           |
+| `enclosures[]`      | Enclosures, as `[[commit.enclosures]]`           | Table: `delimiters` + optional `allowed` | `delimiters = ["(", ")"]` |
 
 ## Presets
 
