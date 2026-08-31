@@ -67,7 +67,9 @@ pub fn commits(
         bail!("{}", String::from_utf8_lossy(&log.stderr).trim());
     }
 
-    Ok(records(&String::from_utf8(log.stdout)?))
+    // Git stores message bytes as they were given, so a commit made
+    // under another encoding must still lint rather than abort.
+    Ok(records(&String::from_utf8_lossy(&log.stdout)))
 }
 
 #[cfg(test)]

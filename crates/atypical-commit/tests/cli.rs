@@ -419,3 +419,55 @@ fn range_conflicts_with_input() {
 
     assert_eq!(output.status.code(), Some(2));
 }
+
+fn lint_without_git(dir: &Path, args: &[&str]) -> Output {
+    Command::new(BIN)
+        .current_dir(dir)
+        .args(args)
+        .env("PATH", "")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap()
+}
+
+#[test]
+fn range_without_git_fails() {
+    let dir = repo("range-no-git", &["add(exe)[int]: one"]);
+
+    for args in [["--from", "HEAD"], ["--to", "HEAD"]] {
+        let output = lint_without_git(&dir, &args);
+
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+        assert!(stderr(&output).contains("Cannot run `git`"), "{args:?}");
+    }
+}
+
+#[test]
+fn range_lints_messages_of_another_encoding() {
+    let dir = repo("range-encoding", &["add(exe)[int]: one"]);
+    let message = dir.join("latin1-message");
+
+    // Latin-1 `é`, which is not valid UTF-8 on its own.
+    std::fs::write(&message, b"add(exe)[int]: caf\xe9\n").unwrap();
+
+    let output = git(
+        &dir,
+        &[
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "--no-verify",
+            "-F",
+            message.to_str().unwrap(),
+        ],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+
+    let root = rev(&dir, "HEAD~1");
+    let output = lint_in(&dir, &["--from", &root], None);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}

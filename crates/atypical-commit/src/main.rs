@@ -118,6 +118,7 @@ fn report<'i>(
     offset: usize,
     header: &str,
     errors: impl Iterator<Item = &'i atypical_commit::ExtraError<'i>>,
+    to: impl std::io::Write,
 ) -> Result<()> {
     let mut report =
         Report::build(ReportKind::Error, (name, offset..offset + header.len()))
@@ -136,7 +137,7 @@ fn report<'i>(
         );
     }
 
-    report.finish().eprint((name, Source::from(source)))?;
+    report.finish().write((name, Source::from(source)), to)?;
 
     Ok(())
 }
@@ -187,10 +188,39 @@ fn main() -> Result<Exit> {
         let result = header_parser(&tokens).parse(header);
 
         if result.has_errors() {
-            report(name, message, offset, header, result.errors())?;
+            report(
+                name,
+                message,
+                offset,
+                header,
+                result.errors(),
+                std::io::stderr(),
+            )?;
             failed = true;
         }
     }
 
     Ok(if failed { Exit::Invalid } else { Exit::Success })
+}
+
+#[cfg(test)]
+mod tests {
+    use chumsky::Parser;
+
+    use super::*;
+
+    #[test]
+    fn report_propagates_write_failures() {
+        let tokens = atypical_commit::Tokens::preset_standard();
+        let header = "feat: not standard";
+        let result = header_parser(&tokens).parse(header);
+
+        // A `&mut [u8]` fails once it is full, and an empty one is.
+        let mut full = [0u8; 0];
+
+        let written =
+            report("msg", header, 0, header, result.errors(), &mut full[..]);
+
+        assert!(written.is_err());
+    }
 }
