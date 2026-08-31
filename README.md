@@ -59,7 +59,8 @@ extends = "conventional.toml"
 keywords = ["feat", "fix", "docs"]
 ```
 
-`extends` also takes an array of paths. They apply in order and can be overridden by setting custom configuration locally.
+`extends` also takes an array of paths. They apply in order and can be
+overridden by setting custom configuration locally.
 
 ## Contributing
 
