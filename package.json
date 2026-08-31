@@ -9,6 +9,6 @@
     "@kekkon-nexus/config": "3.0.0",
     "@types/bun": "latest",
     "oxfmt": "0.64.0",
-    "oxlint": "1.79.0"
+    "oxlint": "1.80.0"
   }
 }
