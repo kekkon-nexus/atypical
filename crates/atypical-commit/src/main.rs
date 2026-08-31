@@ -7,6 +7,8 @@ use atypical_commit::config::{self, CommitConfig};
 use clap::Parser;
 use clap_stdin::FileOrStdin;
 
+mod range;
+
 #[repr(u8)]
 enum Exit {
     /// The commit message is valid.
@@ -48,6 +50,16 @@ struct Args {
     /// directory upward is used when omitted.
     #[arg(short, long, value_name = "FILE")]
     config: Option<PathBuf>,
+
+    /// Lower end of the commit range to lint; excluded, as in
+    /// `git log <from>..<to>`.
+    #[arg(long, value_name = "REV", conflicts_with = "input")]
+    from: Option<String>,
+
+    /// Upper end of the commit range to lint; included, defaults to
+    /// HEAD.
+    #[arg(long, value_name = "REV", conflicts_with = "input")]
+    to: Option<String>,
 }
 
 /// The `[commit]` section of the nearest (or given) atypical.toml.
@@ -100,20 +112,56 @@ fn header_parser<'i>(
         .with_ctx(atypical_commit::ExtraContext::new(tokens))
 }
 
+fn report<'i>(
+    name: &str,
+    source: &str,
+    offset: usize,
+    header: &str,
+    errors: impl Iterator<Item = &'i atypical_commit::ExtraError<'i>>,
+) -> Result<()> {
+    let mut report =
+        Report::build(ReportKind::Error, (name, offset..offset + header.len()))
+            .with_message("Failed to parse commit message")
+            .with_code(3);
+
+    let mut colors = ColorGenerator::new();
+
+    for error in errors {
+        let range = error.span().into_range();
+
+        report = report.with_label(
+            Label::new((name, offset + range.start..offset + range.end))
+                .with_message(error.to_string())
+                .with_color(colors.next()),
+        );
+    }
+
+    report.finish().eprint((name, Source::from(source)))?;
+
+    Ok(())
+}
+
 fn main() -> Result<Exit> {
     let args = Args::parse();
+    let range = args.from.is_some() || args.to.is_some();
 
-    let Some(input) = args.input else {
-        eprintln!("No input provided.");
-        return Ok(Exit::Usage);
-    };
+    let messages = if range {
+        range::commits(args.from.as_deref(), args.to.as_deref())?
+    } else {
+        let Some(input) = args.input else {
+            eprintln!("No input provided.");
+            return Ok(Exit::Usage);
+        };
 
-    let filename = input.filename().to_owned();
-    let input = input.contents()?;
+        let filename = input.filename().to_owned();
+        let contents = input.contents()?;
 
-    let Some((offset, header)) = message_header(&input) else {
-        eprintln!("No commit message to lint.");
-        return Ok(Exit::Usage);
+        if message_header(&contents).is_none() {
+            eprintln!("No commit message to lint.");
+            return Ok(Exit::Usage);
+        }
+
+        vec![(filename, contents)]
     };
 
     use chumsky::Parser;
@@ -121,37 +169,28 @@ fn main() -> Result<Exit> {
         return Ok(Exit::Success);
     };
 
-    if config.default_ignores && atypical_commit::ignore::is_ignored(header) {
-        return Ok(Exit::Success);
-    }
-
     let tokens = atypical_commit::Tokens::from(&config);
-    let result = header_parser(&tokens).parse(header);
+    let mut failed = false;
 
-    if !result.has_errors() {
-        return Ok(Exit::Success);
+    for (name, message) in &messages {
+        let Some((offset, header)) = message_header(message) else {
+            eprintln!("{name}: no commit message to lint.");
+            failed = true;
+            continue;
+        };
+
+        if config.default_ignores && atypical_commit::ignore::is_ignored(header)
+        {
+            continue;
+        }
+
+        let result = header_parser(&tokens).parse(header);
+
+        if result.has_errors() {
+            report(name, message, offset, header, result.errors())?;
+            failed = true;
+        }
     }
 
-    let mut report = Report::build(
-        ReportKind::Error,
-        (&filename, offset..offset + header.len()),
-    )
-    .with_message("Failed to parse commit message")
-    .with_code(3);
-
-    let mut colors = ColorGenerator::new();
-
-    for error in result.errors() {
-        let range = error.span().into_range();
-
-        report = report.with_label(
-            Label::new((&filename, offset + range.start..offset + range.end))
-                .with_message(error.to_string())
-                .with_color(colors.next()),
-        );
-    }
-
-    report.finish().eprint((&filename, Source::from(&input)))?;
-
-    Ok(Exit::Invalid)
+    Ok(if failed { Exit::Invalid } else { Exit::Success })
 }

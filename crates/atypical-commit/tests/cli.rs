@@ -244,3 +244,178 @@ fn invalid_config_fails() {
 
     assert_eq!(output.status.code(), Some(1));
 }
+
+fn git(dir: &Path, args: &[&str]) -> Output {
+    Command::new("git")
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+/// A throwaway repository holding one empty commit per message, in
+/// order, pinned to the standard preset.
+fn repo(name: &str, messages: &[&str]) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("atypical.toml"),
+        format!("extends = '{STANDARD_PRESET}'\n"),
+    )
+    .unwrap();
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "lint@example.com"]);
+    git(&dir, &["config", "user.name", "Lint"]);
+
+    for message in messages {
+        commit(&dir, message);
+    }
+
+    dir
+}
+
+fn commit(dir: &Path, message: &str) {
+    let output = git(
+        dir,
+        &[
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "--allow-empty-message",
+            "--no-verify",
+            "-m",
+            message,
+        ],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+}
+
+fn rev(dir: &Path, spec: &str) -> String {
+    let output = git(dir, &["rev-parse", spec]);
+
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
+}
+
+#[test]
+fn range_lints_every_commit_after_from() {
+    let dir = repo(
+        "range-valid",
+        &["add(exe)[int]: one", "fix(ci): two", "ref(lib)[eff]: three"],
+    );
+    let root = rev(&dir, "HEAD~2");
+
+    let output = lint_in(&dir, &["--from", &root, "--to", "HEAD"], None);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}
+
+#[test]
+fn range_reports_every_invalid_commit() {
+    let dir = repo(
+        "range-invalid",
+        &["add(exe)[int]: one", "feat: two", "chore: three"],
+    );
+    let root = rev(&dir, "HEAD~2");
+    let (second, third) = (rev(&dir, "HEAD~1"), rev(&dir, "HEAD"));
+
+    let output = lint_in(&dir, &["--from", &root], None);
+    let stderr = stderr(&output);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr.contains("unknown keyword `feat`"), "{stderr}");
+    assert!(stderr.contains("unknown keyword `chore`"), "{stderr}");
+    assert!(stderr.contains(&second[..7]), "{stderr}");
+    assert!(stderr.contains(&third[..7]), "{stderr}");
+}
+
+#[test]
+fn range_excludes_from() {
+    let dir = repo("range-exclusive", &["feat: bad root", "fix(ci): good"]);
+    let root = rev(&dir, "HEAD~1");
+
+    let output = lint_in(&dir, &["--from", &root, "--to", "HEAD"], None);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}
+
+#[test]
+fn range_without_from_walks_whole_history() {
+    let dir = repo("range-to-only", &["add(exe)[int]: one", "feat: two"]);
+
+    let output = lint_in(&dir, &["--to", "HEAD"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("unknown keyword `feat`"));
+}
+
+#[test]
+fn range_applies_default_ignores() {
+    let dir = repo(
+        "range-ignores",
+        &["add(exe)[int]: one", "Merge branch 'main' into topic"],
+    );
+    let root = rev(&dir, "HEAD~1");
+
+    let output = lint_in(&dir, &["--from", &root], None);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}
+
+#[test]
+fn empty_range_passes() {
+    let dir = repo("range-empty", &["add(exe)[int]: one"]);
+
+    let output = lint_in(&dir, &["--from", "HEAD", "--to", "HEAD"], None);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}
+
+#[test]
+fn empty_commit_message_in_range_fails() {
+    let dir = repo("range-empty-message", &["add(exe)[int]: one", ""]);
+    let root = rev(&dir, "HEAD~1");
+
+    let output = lint_in(&dir, &["--from", &root], None);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("no commit message to lint."));
+}
+
+#[test]
+fn range_without_merge_base_fails() {
+    let dir = repo("range-unrelated", &["add(exe)[int]: one"]);
+
+    git(&dir, &["checkout", "-q", "--orphan", "other"]);
+    commit(&dir, "add(exe)[int]: unrelated");
+
+    let output = lint_in(&dir, &["--from", "main", "--to", "other"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("Cannot find merge-base"));
+}
+
+#[test]
+fn unknown_revision_fails() {
+    let dir = repo("range-unknown-rev", &["add(exe)[int]: one"]);
+
+    let output = lint_in(&dir, &["--from", "nope", "--to", "HEAD"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+
+    let output = lint_in(&dir, &["--to", "nope"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn range_conflicts_with_input() {
+    let output = lint(&["--from", "HEAD", "-"], Some("add: message\n"));
+
+    assert_eq!(output.status.code(), Some(2));
+}
