@@ -37,6 +37,18 @@ fn lint_in(dir: &Path, args: &[&str], stdin: Option<&str>) -> Output {
     child.wait_with_output().unwrap()
 }
 
+/// As `lint_in`, but with nothing on `PATH`, so that `git` cannot be
+/// found.
+fn lint_without_git(dir: &Path, args: &[&str]) -> Output {
+    Command::new(BIN)
+        .current_dir(dir)
+        .args(args)
+        .env("PATH", "")
+        .stdin(Stdio::null())
+        .output()
+        .unwrap()
+}
+
 fn fixture(name: &str, contents: &str) -> PathBuf {
     let path = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
 
@@ -47,6 +59,63 @@ fn fixture(name: &str, contents: &str) -> PathBuf {
 
 fn stderr(output: &Output) -> String {
     String::from_utf8_lossy(&output.stderr).into_owned()
+}
+
+fn git(dir: &Path, args: &[&str]) -> Output {
+    Command::new("git")
+        .current_dir(dir)
+        .args(args)
+        .output()
+        .unwrap()
+}
+
+/// A throwaway repository holding one empty commit per message, in
+/// order, pinned to the standard preset.
+fn repo(name: &str, messages: &[&str]) -> PathBuf {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+
+    std::fs::remove_dir_all(&dir).ok();
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(
+        dir.join("atypical.toml"),
+        format!("extends = '{STANDARD_PRESET}'\n"),
+    )
+    .unwrap();
+
+    git(&dir, &["init", "-q", "-b", "main"]);
+    git(&dir, &["config", "user.email", "lint@example.com"]);
+    git(&dir, &["config", "user.name", "Lint"]);
+
+    for message in messages {
+        commit(&dir, message);
+    }
+
+    dir
+}
+
+fn commit(dir: &Path, message: &str) {
+    let output = git(
+        dir,
+        &[
+            "-c",
+            "commit.gpgsign=false",
+            "commit",
+            "-q",
+            "--allow-empty",
+            "--allow-empty-message",
+            "--no-verify",
+            "-m",
+            message,
+        ],
+    );
+
+    assert!(output.status.success(), "{}", stderr(&output));
+}
+
+fn rev(dir: &Path, spec: &str) -> String {
+    let output = git(dir, &["rev-parse", spec]);
+
+    String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
 
 #[test]
@@ -245,63 +314,6 @@ fn invalid_config_fails() {
     assert_eq!(output.status.code(), Some(1));
 }
 
-fn git(dir: &Path, args: &[&str]) -> Output {
-    Command::new("git")
-        .current_dir(dir)
-        .args(args)
-        .output()
-        .unwrap()
-}
-
-/// A throwaway repository holding one empty commit per message, in
-/// order, pinned to the standard preset.
-fn repo(name: &str, messages: &[&str]) -> PathBuf {
-    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
-
-    std::fs::remove_dir_all(&dir).ok();
-    std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(
-        dir.join("atypical.toml"),
-        format!("extends = '{STANDARD_PRESET}'\n"),
-    )
-    .unwrap();
-
-    git(&dir, &["init", "-q", "-b", "main"]);
-    git(&dir, &["config", "user.email", "lint@example.com"]);
-    git(&dir, &["config", "user.name", "Lint"]);
-
-    for message in messages {
-        commit(&dir, message);
-    }
-
-    dir
-}
-
-fn commit(dir: &Path, message: &str) {
-    let output = git(
-        dir,
-        &[
-            "-c",
-            "commit.gpgsign=false",
-            "commit",
-            "-q",
-            "--allow-empty",
-            "--allow-empty-message",
-            "--no-verify",
-            "-m",
-            message,
-        ],
-    );
-
-    assert!(output.status.success(), "{}", stderr(&output));
-}
-
-fn rev(dir: &Path, spec: &str) -> String {
-    let output = git(dir, &["rev-parse", spec]);
-
-    String::from_utf8(output.stdout).unwrap().trim().to_owned()
-}
-
 #[test]
 fn range_lints_every_commit_after_from() {
     let dir = repo(
@@ -418,16 +430,6 @@ fn range_conflicts_with_input() {
     let output = lint(&["--from", "HEAD", "-"], Some("add: message\n"));
 
     assert_eq!(output.status.code(), Some(2));
-}
-
-fn lint_without_git(dir: &Path, args: &[&str]) -> Output {
-    Command::new(BIN)
-        .current_dir(dir)
-        .args(args)
-        .env("PATH", "")
-        .stdin(Stdio::null())
-        .output()
-        .unwrap()
 }
 
 #[test]
