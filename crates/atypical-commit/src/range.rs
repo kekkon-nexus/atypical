@@ -2,8 +2,11 @@ use std::process::{Command, Output};
 
 use anyhow::{Context, Result, bail};
 
-/// Record and field separators, so that a commit message can hold
-/// anything a commit message can hold.
+/// Record and field separators, chosen because a commit message is
+/// far likelier to hold a newline than either. A message that does
+/// hold one splits early: the sha and the header before it survive,
+/// since git writes them first, and the remnant is dropped for having
+/// no field separator of its own.
 const RECORD: char = '\x1e';
 const FIELD: char = '\x1f';
 
@@ -115,6 +118,22 @@ mod tests {
     #[test]
     fn records_of_an_empty_range_are_empty() {
         assert!(records("").is_empty());
+    }
+
+    #[test]
+    fn records_keep_every_commit_around_a_stray_separator() {
+        let log = log(&[
+            ("abc1234", "add: one\x1e\nbody\n"),
+            ("def5678", "fix: two"),
+        ]);
+
+        assert_eq!(
+            records(&log),
+            [
+                ("abc1234".to_owned(), "add: one".to_owned()),
+                ("def5678".to_owned(), "fix: two".to_owned()),
+            ]
+        );
     }
 
     #[test]

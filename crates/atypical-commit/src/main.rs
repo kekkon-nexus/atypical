@@ -118,7 +118,7 @@ fn report<'i>(
     offset: usize,
     header: &str,
     errors: impl Iterator<Item = &'i atypical_commit::ExtraError<'i>>,
-    to: impl std::io::Write,
+    to: &mut impl std::io::Write,
 ) -> Result<()> {
     let mut report =
         Report::build(ReportKind::Error, (name, offset..offset + header.len()))
@@ -142,38 +142,19 @@ fn report<'i>(
     Ok(())
 }
 
-fn main() -> Result<Exit> {
-    let args = Args::parse();
-    let range = args.from.is_some() || args.to.is_some();
-
-    let messages = if range {
-        range::commits(args.from.as_deref(), args.to.as_deref())?
-    } else {
-        let Some(input) = args.input else {
-            eprintln!("No input provided.");
-            return Ok(Exit::Usage);
-        };
-
-        let filename = input.filename().to_owned();
-        let contents = input.contents()?;
-
-        if message_header(&contents).is_none() {
-            eprintln!("No commit message to lint.");
-            return Ok(Exit::Usage);
-        }
-
-        vec![(filename, contents)]
-    };
-
+/// Lints each `(name, message)`, reporting every failure before
+/// giving the verdict for all of them.
+fn lint(
+    messages: &[(String, String)],
+    config: &CommitConfig,
+    to: &mut impl std::io::Write,
+) -> Result<Exit> {
     use chumsky::Parser;
-    let Some(config) = commit_config(args.config)? else {
-        return Ok(Exit::Success);
-    };
 
-    let tokens = atypical_commit::Tokens::from(&config);
+    let tokens = atypical_commit::Tokens::from(config);
     let mut failed = false;
 
-    for (name, message) in &messages {
+    for (name, message) in messages {
         let Some((offset, header)) = message_header(message) else {
             eprintln!("{name}: no commit message to lint.");
             failed = true;
@@ -188,14 +169,7 @@ fn main() -> Result<Exit> {
         let result = header_parser(&tokens).parse(header);
 
         if result.has_errors() {
-            report(
-                name,
-                message,
-                offset,
-                header,
-                result.errors(),
-                std::io::stderr(),
-            )?;
+            report(name, message, offset, header, result.errors(), to)?;
             failed = true;
         }
     }
@@ -203,24 +177,54 @@ fn main() -> Result<Exit> {
     Ok(if failed { Exit::Invalid } else { Exit::Success })
 }
 
+fn main() -> Result<Exit> {
+    let args = Args::parse();
+
+    // A range with nothing to enforce must not demand a repository:
+    // the config decides before git is ever asked anything.
+    if args.from.is_some() || args.to.is_some() {
+        let Some(config) = commit_config(args.config)? else {
+            return Ok(Exit::Success);
+        };
+
+        let commits = range::commits(args.from.as_deref(), args.to.as_deref())?;
+
+        return lint(&commits, &config, &mut std::io::stderr());
+    }
+
+    let Some(input) = args.input else {
+        eprintln!("No input provided.");
+        return Ok(Exit::Usage);
+    };
+
+    let filename = input.filename().to_owned();
+    let contents = input.contents()?;
+
+    if message_header(&contents).is_none() {
+        eprintln!("No commit message to lint.");
+        return Ok(Exit::Usage);
+    }
+
+    let Some(config) = commit_config(args.config)? else {
+        return Ok(Exit::Success);
+    };
+
+    lint(&[(filename, contents)], &config, &mut std::io::stderr())
+}
+
 #[cfg(test)]
 mod tests {
-    use chumsky::Parser;
-
     use super::*;
 
     #[test]
-    fn report_propagates_write_failures() {
-        let tokens = atypical_commit::Tokens::preset_standard();
-        let header = "feat: not standard";
-        let result = header_parser(&tokens).parse(header);
+    fn a_report_that_cannot_be_written_fails() {
+        let config: CommitConfig =
+            toml::from_str("keywords = ['add']").unwrap();
+        let messages = [("msg".to_owned(), "feat: not standard\n".to_owned())];
 
         // A `&mut [u8]` fails once it is full, and an empty one is.
-        let mut full = [0u8; 0];
+        let mut full: &mut [u8] = &mut [];
 
-        let written =
-            report("msg", header, 0, header, result.errors(), &mut full[..]);
-
-        assert!(written.is_err());
+        assert!(lint(&messages, &config, &mut full).is_err());
     }
 }

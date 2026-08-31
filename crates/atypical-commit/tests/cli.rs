@@ -115,6 +115,8 @@ fn commit(dir: &Path, message: &str) {
 fn rev(dir: &Path, spec: &str) -> String {
     let output = git(dir, &["rev-parse", spec]);
 
+    assert!(output.status.success(), "{spec}: {}", stderr(&output));
+
     String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
 
@@ -472,4 +474,19 @@ fn range_lints_messages_of_another_encoding() {
     let output = lint_in(&dir, &["--from", &root], None);
 
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+}
+
+#[test]
+fn unconfigured_range_walks_nothing() {
+    let dir = repo("range-unconfigured", &["add(exe)[int]: one"]);
+    let config = fixture("range-no-section.toml", "");
+    let config = config.to_str().unwrap();
+
+    // Without `git` there is no range to walk, so exiting 0 proves the
+    // walk never started.
+    let output =
+        lint_without_git(&dir, &["--config", config, "--from", "HEAD"]);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+    assert!(output.stderr.is_empty(), "{}", stderr(&output));
 }
