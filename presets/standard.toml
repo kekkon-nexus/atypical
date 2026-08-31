@@ -3,8 +3,8 @@
 [commit]
 keywords = ["add", "rem", "ref", "fix", "undo", "release"]
 modifiers = ["?", "!", "!!"]
-separator = ":"
 modifier-sequence = "pre"
+separator = ":"
 default-ignores = true
 
 [[commit.enclosures]]

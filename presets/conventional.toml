@@ -15,8 +15,8 @@ keywords = [
   "test",
 ]
 modifiers = ["!"]
-separator = ":"
 modifier-sequence = "post"
+separator = ":"
 default-ignores = true
 
 [[commit.enclosures]]
