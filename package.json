@@ -6,7 +6,7 @@
     "npm"
   ],
   "devDependencies": {
-    "@kekkon-nexus/config": "2.260712.0",
+    "@kekkon-nexus/config": "2.260821.0",
     "@types/bun": "latest",
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0"
