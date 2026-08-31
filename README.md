@@ -27,14 +27,14 @@ or without a `[commit]` section. Unset fields stay unrestricted.
 
 Available configuration in `[commit]`:
 
-| Key                 | Explanation                                      | Values                        | Eg                         |
-| ------------------- | ------------------------------------------------ | ----------------------------- | -------------------------- |
-| `keywords`          | Allowed keywords                                 | List of strings               | `feat`, `wip`, `create`    |
-| `modifiers`         | Allowed modifier symbols                         | List of strings               | `!`, `*`, `+`              |
-| `modifier-sequence` | Modifier position, before or after enclosures    | `"pre"`, `"post"`, `"any"`    | `feat!(api)`, `feat(api)!` |
-| `separator`         | Symbol between header and subject                | Single-symbol string, `"any"` | `:`, `-`, `/`              |
-| `default-ignores`   | Skips merge, revert, and fixup commits           | `true` (default), `false`     | —                          |
-| `enclosures[]`      | Enclosures, as `[[commit.enclosures]]`           | Table: `delimiters` + optional `allowed` | `delimiters = ["(", ")"]` |
+| Key                 | Explanation                                   | Values                                   | Eg                         |
+| ------------------- | --------------------------------------------- | ---------------------------------------- | -------------------------- |
+| `keywords`          | Allowed keywords                              | `"any"`, or list of strings              | `feat`, `wip`, `create`    |
+| `modifiers`         | Allowed modifier symbols                      | `"any"`, or list of strings              | `!`, `*`, `+`              |
+| `modifier-sequence` | Modifier position, before or after enclosures | `"any"`, or `"pre"`, `"post"`            | `feat!(api)`, `feat(api)!` |
+| `separator`         | Symbol between header and subject             | `"any"`, or single-symbol string         | `:`, `-`, `/`              |
+| `default-ignores`   | Skips merge, revert, and fixup commits        | `true` (default), `false`                | —                          |
+| `enclosures[]`      | Enclosures, as `[[commit.enclosures]]`        | Table: `delimiters` + optional `allowed` | `delimiters = ["(", ")"]`  |
 
 ## Presets
 
