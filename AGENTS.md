@@ -75,11 +75,9 @@ will be rejected.
   `node_modules/.bin` on `PATH`.
 - `v8r` resolves schemas from the schemastore.org catalog by filename,
   so no schema is vendored here. It needs network on cache miss (HTTP
-  responses are cached for 600s) and runs with `--ignore-errors` so
-  that files with no known schema pass; genuinely invalid files still
-  fail. It also runs in CI (`schema` job) to cover unstaged files.
-- `actionlint` runs in CI only (`actionlint` job); its npm build is a
-  stale wasm repackage, not the upstream binary.
+  responses are cached for 600s), and `.v8rignore` drops `.vscode/`,
+  whose files have no catalog entry and would otherwise fail the run.
+  It also runs in CI (`schema` job) to cover unstaged files.
 
 ## Commands
 
