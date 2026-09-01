@@ -15,6 +15,7 @@
   "devDependencies": {
     "@kekkon-nexus/config": "3.0.0",
     "@types/bun": "latest",
+    "@types/node": "^26.4.0",
     "lefthook": "2.1.12",
     "oxfmt": "0.64.0",
     "oxlint": "1.79.0",

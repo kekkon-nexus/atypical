@@ -9,9 +9,9 @@ const isMusl = () => {
     return readFileSync("/usr/bin/ldd", "utf8").includes("musl");
   } catch {
     return !(
-      /** @type {Record<string, any>} */ (process.report?.getReport())?.["header"]?.[
-        "glibcVersionRuntime"
-      ]
+      /** @type {{ getReport(): { header?: { glibcVersionRuntime?: string } } } | undefined} */ (
+        process.report
+      )?.getReport().header?.glibcVersionRuntime
     );
   }
 };
@@ -36,10 +36,10 @@ if (!bin) {
 
 const child = spawn(bin, process.argv.slice(2), { stdio: "inherit" });
 try {
-  const [status] = await once(child, "exit");
+  const [status] = /** @type {[number | null]} */ (await once(child, "exit"));
   process.exit(status ?? 1);
-} catch (/** @type {any} */ error) {
+} catch (error) {
   // oxlint-disable-next-line no-console
-  console.error(`commit-lint: ${error.message}`);
+  console.error(`commit-lint: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(127);
 }
