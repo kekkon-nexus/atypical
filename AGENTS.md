@@ -65,24 +65,33 @@ will be rejected.
   clippy, llvm-tools, rustfmt). `.cargo/config.toml` passes nightly
   `-Z` rustflags and expects `clang` + `lld` on Linux/macOS; builds
   fail on stable, or at link time if those are missing.
-- [mise](https://mise.jdx.dev/) manages tools (`.config/mise.toml`):
-  `hk`, `hyperfine`, `cargo-nextest`, `tombi`, `yq`, `actionlint`,
-  `shellcheck`. Setup is `mise install`; git hooks install
-  automatically (`hk install --mise`).
-- [hk](https://hk.jdx.dev/) (`.config/hk.pkl`) runs the linters:
-  cargo clippy, cargo fmt, tombi (TOML), yq (YAML), actionlint.
+- Linters come from npm devDependencies (`bun install`): `tombi`
+  (TOML), `oxfmt` (YAML/JSON/TS), `v8r` (JSON Schema), `lefthook`.
+  `cargo-nextest` and `hyperfine` are not on npm and must be installed
+  separately (`cargo install cargo-nextest --locked`).
+- [lefthook](https://lefthook.dev/) (`.config/lefthook.yaml`) runs the
+  linters and installs the git hooks via its own postinstall. JS tools
+  are invoked through `bunx` because lefthook does not put
+  `node_modules/.bin` on `PATH`.
+- `v8r` resolves schemas from the schemastore.org catalog by filename,
+  so no schema is vendored here. It needs network on cache miss (HTTP
+  responses are cached for 600s) and runs with `--ignore-errors` so
+  that files with no known schema pass; genuinely invalid files still
+  fail. It also runs in CI (`schema` job) to cover unstaged files.
+- `actionlint` runs in CI only (`actionlint` job); its npm build is a
+  stale wasm repackage, not the upstream binary.
 
 ## Commands
 
 | Task | Command |
 | --- | --- |
-| Lint (check only) | `hk check` |
-| Lint + autofix | `hk fix` |
-| Test | `mise run test:rust` (= `cargo nextest run --workspace`) |
-| Build release binary | `mise run build:rust` (= `cargo build --release -p atypical-commit`) |
-| Latency benchmarks | `mise run bench:latency` (receipts in `benches/results.md`) |
+| Lint (check only) | `bun run check` (= `lefthook run check`) |
+| Lint + autofix | `bun run fix` (= `lefthook run fix`) |
+| Test | `bun run test:rust` (= `cargo nextest run --workspace`) |
+| Build release binary | `bun run build:rust` (= `cargo build --release -p atypical-commit`) |
+| Latency benchmarks | `bun run bench:latency` (receipts in `benches/results.md`) |
 
-Tests use **cargo-nextest**, not `cargo test`. Without mise/hk, the
+Tests use **cargo-nextest**, not `cargo test`. Without lefthook, the
 raw CI equivalents:
 
 ```sh
@@ -188,10 +197,15 @@ Conventions visible in the code:
 
 - The toolchain is pinned to **nightly**; don't "fix" builds by
   switching to stable.
-- TOML is formatted by **tombi** and YAML by **yq** via hk — run
-  `hk fix` after editing config/workflow files rather than
-  hand-styling them. `actionlint` checks workflows.
-- Tool configs are gathered under `.config/` (mise, hk, nextest,
+- TOML is formatted by **tombi** and YAML/JSON by **oxfmt** via
+  lefthook — run `bun run fix` after editing config/workflow files
+  rather than hand-styling them.
+- oxfmt also formats TOML and Markdown, and disagrees with tombi and
+  with the committed Markdown, so its globs are scoped to
+  `yml,yaml,json,ts` on purpose. Don't widen them to `.`.
+- lefthook only finds a `.config/` config named `lefthook.yaml`;
+  `.config/lefthook.yml` is silently ignored.
+- Tool configs are gathered under `.config/` (lefthook, nextest,
   tombi) rather than the repo root.
 - `benches/` is not `cargo bench`: it is a POSIX-sh hyperfine harness
   (`latency.sh`) comparing against a vendored commitlint.

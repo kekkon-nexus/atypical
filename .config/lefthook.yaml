@@ -1,0 +1,43 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: rust
+      glob: "*.rs"
+      run: cargo fmt --all && cargo clippy --workspace --all-targets --all-features -- -D warnings
+      stage_fixed: true
+    - name: toml
+      glob: "*.toml"
+      run: bunx tombi format {staged_files} && bunx tombi lint {staged_files}
+      stage_fixed: true
+    - name: web
+      glob: "*.{yml,yaml,json,ts}"
+      run: bunx oxfmt {staged_files}
+      stage_fixed: true
+    - name: schema
+      glob: "*.{yml,yaml,json}"
+      run: bunx v8r --ignore-errors {staged_files}
+commit-msg:
+  jobs:
+    - run: cargo run -p atypical-commit -- {1}
+check:
+  parallel: true
+  jobs:
+    - name: rust
+      run: cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings
+    - name: toml
+      run: bunx tombi format --check && bunx tombi lint
+    - name: web
+      run: bunx oxfmt --check "**/*.{yml,yaml,json,ts}"
+    - name: schema
+      run: bunx v8r --ignore-errors "**/*.{yml,yaml,json}"
+fix:
+  parallel: true
+  jobs:
+    - name: rust
+      run: cargo fmt --all && cargo clippy --workspace --all-targets --all-features --fix --allow-staged --allow-dirty
+    - name: toml
+      run: bunx tombi format && bunx tombi lint
+    - name: web
+      run: bunx oxfmt "**/*.{yml,yaml,json,ts}"
+    - name: schema
+      run: bunx v8r --ignore-errors "**/*.{yml,yaml,json}"

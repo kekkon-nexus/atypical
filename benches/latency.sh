@@ -1,5 +1,5 @@
 #!/bin/sh
-# commit-lint latency bench. Override knobs via env: RUNS=1000 mise run bench:latency
+# commit-lint latency bench. Override knobs via env: RUNS=1000 bun run bench:latency
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -11,11 +11,11 @@ WARMUP=${WARMUP:-10}
 RUNS=${RUNS:-100}
 
 command -v hyperfine >/dev/null 2>&1 || {
-  echo "need hyperfine  ->  mise install" >&2
+  echo "need hyperfine  ->  https://github.com/sharkdp/hyperfine" >&2
   exit 2
 }
 
-mise run build:rust
+bun run build:rust
 [ -x "$BIN" ] || { echo "no binary at $BIN" >&2; exit 2; }
 
 # fixtures: each tool's valid msg (exits 0) + one invalid
