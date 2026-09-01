@@ -15,7 +15,7 @@ pre-commit:
       stage_fixed: true
     - name: schema
       glob: "*.{yml,yaml,json}"
-      run: bunx v8r --ignore-errors {staged_files}
+      run: bunx v8r {staged_files}
 commit-msg:
   jobs:
     - run: cargo run -p atypical-commit -- {1}
@@ -29,7 +29,7 @@ check:
     - name: web
       run: bunx oxfmt --check "**/*.{yml,yaml,json,ts}"
     - name: schema
-      run: bunx v8r --ignore-errors "**/*.{yml,yaml,json}"
+      run: bunx v8r "**/*.{yml,yaml,json}"
 fix:
   parallel: true
   jobs:
@@ -40,4 +40,4 @@ fix:
     - name: web
       run: bunx oxfmt "**/*.{yml,yaml,json,ts}"
     - name: schema
-      run: bunx v8r --ignore-errors "**/*.{yml,yaml,json}"
+      run: bunx v8r "**/*.{yml,yaml,json}"
