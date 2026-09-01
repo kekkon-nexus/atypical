@@ -490,3 +490,25 @@ fn unconfigured_range_walks_nothing() {
     assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
     assert!(output.stderr.is_empty(), "{}", stderr(&output));
 }
+
+#[test]
+fn range_with_an_invalid_config_fails() {
+    let dir = repo("range-invalid-config", &["add(exe)[int]: one"]);
+    let config = fixture("range-typo.toml", "[commit]\nkeyword = ['typo']\n");
+
+    let output = lint_in(
+        &dir,
+        &["--config", config.to_str().unwrap(), "--from", "HEAD"],
+        None,
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+
+    let output = lint_in(
+        &dir,
+        &["--config", "/nonexistent/atypical.toml", "--from", "HEAD"],
+        None,
+    );
+
+    assert_eq!(output.status.code(), Some(1));
+}
