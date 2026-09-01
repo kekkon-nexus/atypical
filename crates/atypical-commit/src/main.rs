@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{ExitCode, Termination};
 
@@ -118,7 +119,7 @@ fn report<'i>(
     offset: usize,
     header: &str,
     errors: impl Iterator<Item = &'i atypical_commit::ExtraError<'i>>,
-    to: &mut impl std::io::Write,
+    to: &mut impl Write,
 ) -> Result<()> {
     let mut report =
         Report::build(ReportKind::Error, (name, offset..offset + header.len()))
@@ -147,7 +148,7 @@ fn report<'i>(
 fn lint(
     messages: &[(String, String)],
     config: &CommitConfig,
-    to: &mut impl std::io::Write,
+    to: &mut impl Write,
 ) -> Result<Exit> {
     use chumsky::Parser;
 
@@ -156,7 +157,7 @@ fn lint(
 
     for (name, message) in messages {
         let Some((offset, header)) = message_header(message) else {
-            eprintln!("{name}: no commit message to lint.");
+            writeln!(to, "{name}: no commit message to lint.")?;
             failed = true;
             continue;
         };
@@ -217,14 +218,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_report_that_cannot_be_written_fails() {
+    fn a_diagnostic_that_cannot_be_written_fails() {
         let config: CommitConfig =
             toml::from_str("keywords = ['add']").unwrap();
-        let messages = [("msg".to_owned(), "feat: not standard\n".to_owned())];
 
         // A `&mut [u8]` fails once it is full, and an empty one is.
         let mut full: &mut [u8] = &mut [];
 
-        assert!(lint(&messages, &config, &mut full).is_err());
+        for message in ["feat: not standard\n", "\n"] {
+            let messages = [("msg".to_owned(), message.to_owned())];
+
+            assert!(
+                lint(&messages, &config, &mut full).is_err(),
+                "wrote {message:?} anyway"
+            );
+        }
     }
 }
