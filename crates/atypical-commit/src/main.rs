@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::path::PathBuf;
 use std::process::{ExitCode, Termination};
 
@@ -6,6 +7,8 @@ use ariadne::{ColorGenerator, Label, Report, ReportKind, Source};
 use atypical_commit::config::{self, CommitConfig};
 use clap::Parser;
 use clap_stdin::FileOrStdin;
+
+mod range;
 
 #[repr(u8)]
 enum Exit {
@@ -48,6 +51,16 @@ struct Args {
     /// directory upward is used when omitted.
     #[arg(short, long, value_name = "FILE")]
     config: Option<PathBuf>,
+
+    /// Lower end of the commit range to lint; excluded, as in
+    /// `git log <from>..<to>`.
+    #[arg(long, value_name = "REV", conflicts_with = "input")]
+    from: Option<String>,
+
+    /// Upper end of the commit range to lint; included, defaults to
+    /// HEAD.
+    #[arg(long, value_name = "REV", conflicts_with = "input")]
+    to: Option<String>,
 }
 
 /// The `[commit]` section of the nearest (or given) atypical.toml.
@@ -100,8 +113,85 @@ fn header_parser<'i>(
         .with_ctx(atypical_commit::ExtraContext::new(tokens))
 }
 
+fn report<'i>(
+    name: &str,
+    source: &str,
+    offset: usize,
+    header: &str,
+    errors: impl Iterator<Item = &'i atypical_commit::ExtraError<'i>>,
+    to: &mut impl Write,
+) -> Result<()> {
+    let mut report =
+        Report::build(ReportKind::Error, (name, offset..offset + header.len()))
+            .with_message("Failed to parse commit message")
+            .with_code(3);
+
+    let mut colors = ColorGenerator::new();
+
+    for error in errors {
+        let range = error.span().into_range();
+
+        report = report.with_label(
+            Label::new((name, offset + range.start..offset + range.end))
+                .with_message(error.to_string())
+                .with_color(colors.next()),
+        );
+    }
+
+    report.finish().write((name, Source::from(source)), to)?;
+
+    Ok(())
+}
+
+/// Lints each `(name, message)`, reporting every failure before
+/// giving the verdict for all of them.
+fn lint(
+    messages: &[(String, String)],
+    config: &CommitConfig,
+    to: &mut impl Write,
+) -> Result<Exit> {
+    use chumsky::Parser;
+
+    let tokens = atypical_commit::Tokens::from(config);
+    let mut failed = false;
+
+    for (name, message) in messages {
+        let Some((offset, header)) = message_header(message) else {
+            writeln!(to, "{name}: no commit message to lint.")?;
+            failed = true;
+            continue;
+        };
+
+        if config.default_ignores && atypical_commit::ignore::is_ignored(header)
+        {
+            continue;
+        }
+
+        let result = header_parser(&tokens).parse(header);
+
+        if result.has_errors() {
+            report(name, message, offset, header, result.errors(), to)?;
+            failed = true;
+        }
+    }
+
+    Ok(if failed { Exit::Invalid } else { Exit::Success })
+}
+
 fn main() -> Result<Exit> {
     let args = Args::parse();
+
+    // A range with nothing to enforce must not demand a repository:
+    // the config decides before git is ever asked anything.
+    if args.from.is_some() || args.to.is_some() {
+        let Some(config) = commit_config(args.config)? else {
+            return Ok(Exit::Success);
+        };
+
+        let commits = range::commits(args.from.as_deref(), args.to.as_deref())?;
+
+        return lint(&commits, &config, &mut std::io::stderr());
+    }
 
     let Some(input) = args.input else {
         eprintln!("No input provided.");
@@ -109,49 +199,39 @@ fn main() -> Result<Exit> {
     };
 
     let filename = input.filename().to_owned();
-    let input = input.contents()?;
+    let contents = input.contents()?;
 
-    let Some((offset, header)) = message_header(&input) else {
+    if message_header(&contents).is_none() {
         eprintln!("No commit message to lint.");
         return Ok(Exit::Usage);
-    };
+    }
 
-    use chumsky::Parser;
     let Some(config) = commit_config(args.config)? else {
         return Ok(Exit::Success);
     };
 
-    if config.default_ignores && atypical_commit::ignore::is_ignored(header) {
-        return Ok(Exit::Success);
+    lint(&[(filename, contents)], &config, &mut std::io::stderr())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_diagnostic_that_cannot_be_written_fails() {
+        let config: CommitConfig =
+            toml::from_str("keywords = ['add']").unwrap();
+
+        // A `&mut [u8]` fails once it is full, and an empty one is.
+        let mut full: &mut [u8] = &mut [];
+
+        for message in ["feat: not standard\n", "\n"] {
+            let messages = [("msg".to_owned(), message.to_owned())];
+
+            assert!(
+                lint(&messages, &config, &mut full).is_err(),
+                "wrote {message:?} anyway"
+            );
+        }
     }
-
-    let tokens = atypical_commit::Tokens::from(&config);
-    let result = header_parser(&tokens).parse(header);
-
-    if !result.has_errors() {
-        return Ok(Exit::Success);
-    }
-
-    let mut report = Report::build(
-        ReportKind::Error,
-        (&filename, offset..offset + header.len()),
-    )
-    .with_message("Failed to parse commit message")
-    .with_code(3);
-
-    let mut colors = ColorGenerator::new();
-
-    for error in result.errors() {
-        let range = error.span().into_range();
-
-        report = report.with_label(
-            Label::new((&filename, offset + range.start..offset + range.end))
-                .with_message(error.to_string())
-                .with_color(colors.next()),
-        );
-    }
-
-    report.finish().eprint((&filename, Source::from(&input)))?;
-
-    Ok(Exit::Invalid)
 }
