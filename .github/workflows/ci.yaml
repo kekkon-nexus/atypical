@@ -38,7 +38,7 @@ jobs:
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
-      - run: bunx v8r --ignore-errors "**/*.{yml,yaml,json}"
+      - run: bunx v8r "**/*.{yml,yaml,json}"
   clippy:
     runs-on: ubuntu-latest
     steps:
