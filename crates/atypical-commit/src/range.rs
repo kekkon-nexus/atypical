@@ -48,7 +48,9 @@ pub fn commits(
     if let Some(from) = from {
         // Without a common ancestor `from..to` yields only the commits
         // that happen to be present, as in a shallow clone.
-        let base = git(&["merge-base", from, to])?;
+        // `--end-of-options`, not `--`, which would make git read the
+        // revisions as paths.
+        let base = git(&["merge-base", "--end-of-options", from, to])?;
 
         if base.status.code() == Some(1) {
             bail!(
@@ -64,7 +66,7 @@ pub fn commits(
     }
 
     let format = format!("--format=%h{FIELD}%B{RECORD}");
-    let log = git(&["log", &format, &range(from, to)])?;
+    let log = git(&["log", &format, "--end-of-options", &range(from, to)])?;
 
     if !log.status.success() {
         bail!("{}", String::from_utf8_lossy(&log.stderr).trim());

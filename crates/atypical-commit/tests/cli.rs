@@ -69,6 +69,16 @@ fn git(dir: &Path, args: &[&str]) -> Output {
         .unwrap()
 }
 
+/// As `git`, but failing the test rather than letting a broken setup
+/// surface later as a confusing assertion.
+fn git_ok(dir: &Path, args: &[&str]) -> Output {
+    let output = git(dir, args);
+
+    assert!(output.status.success(), "{args:?}: {}", stderr(&output));
+
+    output
+}
+
 /// A throwaway repository holding one empty commit per message, in
 /// order, pinned to the standard preset.
 fn repo(name: &str, messages: &[&str]) -> PathBuf {
@@ -82,9 +92,9 @@ fn repo(name: &str, messages: &[&str]) -> PathBuf {
     )
     .unwrap();
 
-    git(&dir, &["init", "-q", "-b", "main"]);
-    git(&dir, &["config", "user.email", "lint@example.com"]);
-    git(&dir, &["config", "user.name", "Lint"]);
+    git_ok(&dir, &["init", "-q", "-b", "main"]);
+    git_ok(&dir, &["config", "user.email", "lint@example.com"]);
+    git_ok(&dir, &["config", "user.name", "Lint"]);
 
     for message in messages {
         commit(&dir, message);
@@ -94,7 +104,7 @@ fn repo(name: &str, messages: &[&str]) -> PathBuf {
 }
 
 fn commit(dir: &Path, message: &str) {
-    let output = git(
+    git_ok(
         dir,
         &[
             "-c",
@@ -108,14 +118,10 @@ fn commit(dir: &Path, message: &str) {
             message,
         ],
     );
-
-    assert!(output.status.success(), "{}", stderr(&output));
 }
 
 fn rev(dir: &Path, spec: &str) -> String {
-    let output = git(dir, &["rev-parse", spec]);
-
-    assert!(output.status.success(), "{spec}: {}", stderr(&output));
+    let output = git_ok(dir, &["rev-parse", spec]);
 
     String::from_utf8(output.stdout).unwrap().trim().to_owned()
 }
@@ -405,7 +411,7 @@ fn empty_commit_message_in_range_fails() {
 fn range_without_merge_base_fails() {
     let dir = repo("range-unrelated", &["add(exe)[int]: one"]);
 
-    git(&dir, &["checkout", "-q", "--orphan", "other"]);
+    git_ok(&dir, &["checkout", "-q", "--orphan", "other"]);
     commit(&dir, "add(exe)[int]: unrelated");
 
     let output = lint_in(&dir, &["--from", "main", "--to", "other"], None);
@@ -511,4 +517,19 @@ fn range_with_an_invalid_config_fails() {
     );
 
     assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
+fn a_revision_is_never_read_as_an_option() {
+    let dir = repo("range-option-like", &["add(exe)[int]: one"]);
+
+    // Attached, since clap rejects a detached `-n1` as an option of
+    // its own. Reaching git, `-n1` would otherwise limit the log to
+    // one commit and pass, instead of failing as the unknown revision
+    // it is.
+    for args in [["--to=-n1"], ["--from=-n1"]] {
+        let output = lint_in(&dir, &args, None);
+
+        assert_eq!(output.status.code(), Some(1), "{args:?}");
+    }
 }
