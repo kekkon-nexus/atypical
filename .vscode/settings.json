@@ -4,13 +4,10 @@
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
-  "[javascript][typescript][json][jsonc]": {
+  "[javascript][typescript][json][jsonc][yaml]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[toml]": {
     "editor.defaultFormatter": "tombi-toml.tombi"
-  },
-  "[yaml]": {
-    "editor.defaultFormatter": "redhat.vscode-yaml"
   }
 }
