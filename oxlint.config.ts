@@ -3,4 +3,11 @@ import { defineConfig } from "oxlint";
 
 export default defineConfig({
   extends: [oxlint],
+  env: {
+    node: true,
+  },
+  options: {
+    typeAware: true,
+    typeCheck: true,
+  },
 });

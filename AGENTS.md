@@ -34,30 +34,56 @@ extend `Tokens`/`CommitConfig`, not add special-cased parsers.
 
 Headers follow [Standard Commits](https://github.com/standard-commits/standard-commits):
 
-```txt
-<keyword>[<modifier>][(<scope>)][<reason>]: <description>
+Each commit MUST have a `<verb>` and a `<summary>` but all the other fields are present on a case-by-case basis.
+
+Syntax Specification:
+
+```bnf
+<verb><importance?>(<scope?>)[<reason?>]: <summary>
+
+<body?>
+
+<footer?>
 ```
 
-The standard preset (also this repo's convention, pinned by the root
-`atypical.toml`):
+| 🔊 verb               | ⚠️ importance             | 🔖 scope                      | 💡 reason                |
+| --------------------- | ------------------------- | ----------------------------- | ------------------------ |
+| `add` (_add_)         | `?` (_possibly breaking_) | `exe` (_executable_)          | `int` (_introduction_)   |
+| `rem` (_remove_)      | `!` (_breaking_)          | `lib` (_backend library_)     | `pre` (_preliminary_)    |
+| `ref` (_refactor_)    | `!!`(_critical_)          | `test` (_testing_)            | `eff` (_efficiency_)     |
+| `fix` (_fix_)         |                           | `build` (_building_)          | `rel` (_reliability_)    |
+| `undo` (_undo_)       |                           | `doc` (_documentation_)       | `cmp` (_compatibility_)  |
+| `release` (_release_) |                           | `ci` (continuous integration) | `mnt` (_maintenance_)    |
+|                       |                           | `cd` (continuous delivery)    | `tmp` (_temporary_)      |
+|                       |                           |                               | `exp` (_experiment_)     |
+|                       |                           |                               | `sec` (_security_)       |
+|                       |                           |                               | `upg` (_upgrade_)        |
+|                       |                           |                               | `ux` (_user experience_) |
+|                       |                           |                               | `pol` (_policy_)         |
+|                       |                           |                               | `sty` (_styling_)        |
 
-- keywords: `add`, `rem`, `ref`, `fix`, `undo`, `release`
-- modifiers: `?`, `!`, `!!` (placed before the enclosures)
-- scope, in `(...)`: `exe`, `lib`, `test`, `build`, `doc`, `ci`, `cd`
-- reason, in `[...]`: `int`, `pre`, `eff`, `rel`, `cmp`, `mnt`, `tmp`,
-  `exp`, `sec`, `upg`, `ux`, `pol`, `sty`
-- scope must come before reason; both are optional; a space is
-  required after `:` and the description must be non-empty
+| 📝 summary                                                  | ℹ️ body                                                   | ⚙️ footer                                        |
+| ----------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------ |
+| Starts with a _lowercase letter_                            | Starts with an _uppercase letter_                         | Each tag on a new line, format: `<key>: <value>` |
+| _Concise_ and _descriptive_ of what the change does         | Expands on _why_ and _how_, not what (already in summary) | MUST be separated from body by a blank line      |
+| MUST _not repeat_ info from the structured fragment         | Organized in _short_, _clear_ paragraphs                  | `Breaking:` ─ describe breaking changes          |
+| ≤ _50 UTF-8 characters_ (_excluding_ the structured prefix) | Written in _imperative mood_                              | `Fixes: #N` ─ closes referenced issues           |
+| SHOULD use a subset of Markdown                             | SHOULD use a subset of Markdown                           | `Co-authored-by:` ─ attributes co-authorship     |
 
-Examples from history: `add(exe)[int]: initial commit linting`,
-`fix(ci): generate report when testing`, `ref(doc)[rel]: use workspace
-keywords and per crate's categories`. Releases use the plain
-`release: vX.Y.Z` form.
+Example:
 
-The `commit-msg` hook lints with **this repo's own `commit-lint`**
-(`cargo run -p atypical-commit -- <msg-file>`), so an invalid header is
-rejected locally. Conventional Commits style (`feat:`, `chore:` ...)
-will be rejected.
+```txt
+add!(lib/type-check)[rel]: enforce type checking in function calls
+
+Previously, the semantic analyzer allowed mismatched parameter types
+in function calls, leading to runtime errors. This fix implements
+strict type validation during the semantic analysis phase.
+
+Breaking: The `validateCall` function now returns `TypeMismatchError`
+  instead of returning a boolean, requiring updates in error handling.
+Fixes: #247
+Co-authored-by: Foo Bar <foo.bar@compiler.dev>
+```
 
 ## Toolchain & environment
 
@@ -65,46 +91,58 @@ will be rejected.
   clippy, llvm-tools, rustfmt). `.cargo/config.toml` passes nightly
   `-Z` rustflags and expects `clang` + `lld` on Linux/macOS; builds
   fail on stable, or at link time if those are missing.
-- [mise](https://mise.jdx.dev/) manages tools (`.config/mise.toml`):
-  `hk`, `hyperfine`, `cargo-nextest`, `tombi`, `yq`, `actionlint`,
-  `shellcheck`. Setup is `mise install`; git hooks install
-  automatically (`hk install --mise`).
-- [hk](https://hk.jdx.dev/) (`.config/hk.pkl`) runs the linters:
-  cargo clippy, cargo fmt, tombi (TOML), yq (YAML), actionlint.
+- Linters come from npm devDependencies (`bun install`): `tombi`
+  (TOML), `oxfmt` (YAML/JSON/TS), `v8r` (JSON Schema), `lefthook`.
+  `cargo-nextest` and `hyperfine` are not on npm and must be installed
+  separately (`cargo install cargo-nextest --locked`).
+- [lefthook](https://lefthook.dev/) (`.config/lefthook.yaml`) runs the
+  linters and installs the git hooks via its own postinstall. JS tools
+  are invoked through `bunx` because lefthook does not put
+  `node_modules/.bin` on `PATH`.
+- `v8r` resolves schemas from the schemastore.org catalog by filename,
+  so no schema is vendored here. It needs network on cache miss (HTTP
+  responses are cached for 600s), and `.v8rignore` drops `.vscode/`,
+  whose files have no catalog entry and would otherwise fail the run.
+  It also runs in CI through `bun run check`, covering unstaged
+  files.
 
 ## Commands
 
-| Task | Command |
-| --- | --- |
-| Lint (check only) | `hk check` |
-| Lint + autofix | `hk fix` |
-| Test | `mise run test:rust` (= `cargo nextest run --workspace`) |
-| Build release binary | `mise run build:rust` (= `cargo build --release -p atypical-commit`) |
-| Latency benchmarks | `mise run bench:latency` (receipts in `benches/results.md`) |
+| Task                 | Command                                                             |
+| -------------------- | ------------------------------------------------------------------- |
+| Lint (check only)    | `bun run check` (= `lefthook run check`)                            |
+| Lint + autofix       | `bun run fix` (= `lefthook run fix`)                                |
+| Test                 | `bun run test:rust` (= `cargo nextest run --workspace`)             |
+| Build release binary | `bun run build:rust` (= `cargo build --release -p atypical-commit`) |
+| Latency benchmarks   | `bun run bench:latency` (receipts in `benches/results.md`)          |
 
-Tests use **cargo-nextest**, not `cargo test`. Without mise/hk, the
+Tests use **cargo-nextest**, not `cargo test`. Without lefthook, the
 raw CI equivalents:
 
 ```sh
 cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo nextest run --workspace
 ```
 
 ## CI gates (all must pass)
 
-From `.github/workflows/ci.yaml`:
+`.github/workflows/ci.yaml` has two jobs:
 
-1. `cargo fmt --all --check`
-2. `cargo clippy --workspace --all-targets --all-features --locked
-   -- -D warnings`
-3. Coverage: `cargo llvm-cov nextest ... --fail-under-regions 90` —
+1. `qc` runs `bun ci` then `bun run check`, so the whole lefthook
+   `check` hook gates CI: rustfmt, clippy (`-D warnings`), tombi,
+   oxfmt, v8r, and oxlint.
+2. `cov` runs `cargo llvm-cov nextest ... --fail-under-regions 90`;
    **region coverage must stay at 90% or above**, so new code needs
-   tests.
+   tests. The Codecov uploads are skipped on tag runs.
 
-Tags matching `v*` additionally publish to crates.io, cut a GitHub
-release, and build `commit-lint` binaries for a six-target matrix
-(x86_64/aarch64 across Linux, macOS, and Windows).
+Publishing lives in `.github/workflows/publish.yaml`, triggered by
+`v*` tags. Its first job calls `ci.yaml` back through
+`workflow_call`, so all of CI must pass before anything ships. It
+then cuts a draft GitHub release, builds `commit-lint` binaries for
+an eight-target matrix (x86_64/aarch64 across Linux gnu, Linux musl,
+macOS, and Windows), undrafts the release, and publishes to
+crates.io and npm.
 
 ## Code style
 
@@ -113,7 +151,7 @@ release, and build `commit-lint` binaries for a six-target matrix
 - `max_width = 80` (markdown and TOML wrap at ~80 columns to match)
 - `merge_derives = false` — keep **separate `#[derive(...)]` lines**
   grouped as the surrounding code does (e.g. `#[derive(Debug, Clone,
-  PartialEq)]` on one line, `#[derive(serde::Deserialize)]` on the
+PartialEq)]` on one line, `#[derive(serde::Deserialize)]` on the
   next).
 - `group_imports = "StdExternalCrate"`, `imports_granularity = "Module"`
 - `use_field_init_shorthand = true`
@@ -156,8 +194,8 @@ Conventions visible in the code:
   replaces the one beneath it. Cycles and non-path values are errors
   (`Error::Cycle` / `Error::Extends`).
 - Config semantics: no `[commit]` section means nothing is linted
-  (exit 0 for any message); a declared section defaults *field by
-  field* to unrestricted (`#[serde(default)]` on `CommitConfig`);
+  (exit 0 for any message); a declared section defaults _field by
+  field_ to unrestricted (`#[serde(default)]` on `CommitConfig`);
   unknown keys are rejected (`deny_unknown_fields`); an enclosure
   without `allowed` is flexible (anything between the delimiters);
   `keywords`, `modifiers`, `separator`, and `modifier-sequence`
@@ -188,10 +226,15 @@ Conventions visible in the code:
 
 - The toolchain is pinned to **nightly**; don't "fix" builds by
   switching to stable.
-- TOML is formatted by **tombi** and YAML by **yq** via hk — run
-  `hk fix` after editing config/workflow files rather than
-  hand-styling them. `actionlint` checks workflows.
-- Tool configs are gathered under `.config/` (mise, hk, nextest,
+- TOML is formatted by **tombi** and YAML/JSON by **oxfmt** via
+  lefthook — run `bun run fix` after editing config/workflow files
+  rather than hand-styling them.
+- oxfmt also formats TOML and Markdown, and disagrees with tombi and
+  with the committed Markdown, so its globs are scoped to
+  `yml,yaml,json,ts` on purpose. Don't widen them to `.`.
+- lefthook only finds a `.config/` config named `lefthook.yaml`;
+  `.config/lefthook.yml` is silently ignored.
+- Tool configs are gathered under `.config/` (lefthook, nextest,
   tombi) rather than the repo root.
 - `benches/` is not `cargo bench`: it is a POSIX-sh hyperfine harness
   (`latency.sh`) comparing against a vendored commitlint.

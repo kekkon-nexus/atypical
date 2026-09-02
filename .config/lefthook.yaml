@@ -1,0 +1,99 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: rust
+      glob: "*.rs"
+      group:
+        piped: true
+        jobs:
+          - run: cargo fmt --all
+          - run: cargo clippy --workspace --all-targets --all-features --allow-staged --fix -- -D warnings
+      stage_fixed: true
+    - name: toml
+      glob: "*.toml"
+      group:
+        piped: true
+        jobs:
+          - run: bunx tombi format {staged_files}
+          - run: bunx tombi lint {staged_files}
+      stage_fixed: true
+    - name: v8r
+      glob: "*.{yml,yaml,json}"
+      group:
+        piped: true
+        jobs:
+          - run: bunx oxfmt {staged_files}
+          - run: bunx v8r {staged_files}
+      stage_fixed: true
+    - name: js
+      glob: "*.{js,ts}"
+      group:
+        piped: true
+        jobs:
+          - run: bunx oxfmt {staged_files}
+          - run: bunx oxlint --fix {staged_files}
+      stage_fixed: true
+
+commit-msg:
+  jobs:
+    - run: cargo run -p atypical-commit -- {1}
+
+check:
+  parallel: true
+  jobs:
+    - name: rust
+      group:
+        piped: true
+        jobs:
+          - run: cargo fmt --all --check
+          - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+    - name: tombi
+      glob: "*.toml"
+      group:
+        piped: true
+        jobs:
+          - run: bunx tombi format --check {staged_files}
+          - run: bunx tombi lint {staged_files}
+    - name: v8r
+      glob: "*.{yml,yaml,json}"
+      group:
+        piped: true
+        jobs:
+          - run: bunx oxfmt --check {staged_files}
+          - run: bunx v8r {staged_files}
+    - name: js
+      group:
+        piped: true
+        jobs:
+          - run: bunx oxfmt --check {staged_files}
+          - run: bunx oxlint {staged_files}
+
+fix:
+  parallel: true
+  jobs:
+    - name: rust
+      group:
+        piped: true
+        jobs:
+          - run: cargo fmt --all
+          - run: cargo clippy --workspace --all-targets --all-features --fix --allow-staged --allow-dirty
+    - name: tombi
+      glob: "*.toml"
+      group:
+        piped: true
+        jobs:
+          - run: bunx tombi format {staged_files}
+          - run: bunx tombi lint {staged_files}
+    - name: v8r
+      glob: "*.{yml,yaml,json}"
+      group:
+        piped: true
+        jobs:
+          - run: bunx oxfmt {staged_files}
+          - run: bunx v8r {staged_files}
+    - name: js
+      group:
+        piped: true
+        jobs:
+          - run: bunx oxfmt {staged_files}
+          - run: bunx oxlint --fix {staged_files}

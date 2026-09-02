@@ -5,10 +5,21 @@
     "benches",
     "npm"
   ],
+  "scripts": {
+    "check": "lefthook run check",
+    "fix": "lefthook run fix",
+    "build:rust": "cargo build --release -p atypical-commit",
+    "test:rust": "cargo nextest run --workspace",
+    "bench:latency": "sh benches/latency.sh"
+  },
   "devDependencies": {
     "@kekkon-nexus/config": "3.0.0",
     "@types/bun": "latest",
+    "@types/node": "^26.4.0",
+    "lefthook": "2.1.12",
     "oxfmt": "0.64.0",
-    "oxlint": "1.79.0"
+    "oxlint": "1.79.0",
+    "tombi": "1.5.0",
+    "v8r": "6.1.0"
   }
 }

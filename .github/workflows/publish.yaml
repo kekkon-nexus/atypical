@@ -1,0 +1,138 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - v*
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  qc:
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/ci.yaml
+
+  publish-draft:
+    needs:
+      - qc
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: taiki-e/create-gh-release-action@v1
+        with:
+          draft: true
+
+  publish-binaries:
+    needs:
+      - publish-draft
+    permissions:
+      id-token: write
+      contents: write
+      attestations: write
+      artifact-metadata: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-24.04-arm
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04-arm
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+          - target: aarch64-pc-windows-msvc
+            os: windows-11-arm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          target: ${{ matrix.target }}
+      - uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.target }}
+      - if: runner.os == 'macOS'
+        run: brew install lld
+      - uses: taiki-e/upload-rust-binary-action@v1
+        id: build
+        with:
+          bin: commit-lint
+          archive: atypical-commit-$tag-$target
+          package: atypical-commit
+          locked: true
+          target: ${{ matrix.target }}
+          checksum: sha256
+      - uses: actions/attest@v4
+        with:
+          subject-path: ${{ steps.build.outputs.archive }}.*
+
+  publish-release:
+    needs:
+      - publish-binaries
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$GITHUB_REF_NAME" --draft=false
+
+  publish-crates:
+    needs:
+      - publish-release
+    environment: publish
+    permissions:
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish --workspace --all-features --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
+  publish-npm:
+    needs:
+      - publish-release
+    environment: publish
+    permissions:
+      id-token: write
+    env:
+      NPM_CONFIG_PROVENANCE: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: latest
+          registry-url: https://registry.npmjs.org
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - run: bun npm/scripts/prepare.ts "${GITHUB_REF_NAME#v}"
+      - run: |
+          for pkg in ./npm/platforms/*; do
+            bunx npm publish "$pkg"
+          done
+          bunx npm publish ./npm
