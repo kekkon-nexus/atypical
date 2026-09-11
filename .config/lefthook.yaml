@@ -52,21 +52,23 @@ check:
       group:
         piped: true
         jobs:
-          - run: bunx tombi format --check {staged_files}
-          - run: bunx tombi lint {staged_files}
+          - run: bunx tombi format --check {all_files}
+          - run: bunx tombi lint {all_files}
     - name: v8r
       glob: "*.{yml,yaml,json}"
       group:
         piped: true
         jobs:
-          - run: bunx oxfmt --check {staged_files}
-          - run: bunx v8r {staged_files}
+          - run: bunx oxfmt --check {all_files}
+          - run: bunx v8r {all_files}
     - name: js
+      exclude:
+        - "*.toml"
       group:
         piped: true
         jobs:
-          - run: bunx oxfmt --check {staged_files}
-          - run: bunx oxlint {staged_files}
+          - run: bunx oxfmt --check {all_files}
+          - run: bunx oxlint {all_files}
 
 fix:
   parallel: true
@@ -82,18 +84,20 @@ fix:
       group:
         piped: true
         jobs:
-          - run: bunx tombi format {staged_files}
-          - run: bunx tombi lint {staged_files}
+          - run: bunx tombi format {all_files}
+          - run: bunx tombi lint {all_files}
     - name: v8r
       glob: "*.{yml,yaml,json}"
       group:
         piped: true
         jobs:
-          - run: bunx oxfmt {staged_files}
-          - run: bunx v8r {staged_files}
+          - run: bunx oxfmt {all_files}
+          - run: bunx v8r {all_files}
     - name: js
+      exclude:
+        - "*.toml"
       group:
         piped: true
         jobs:
-          - run: bunx oxfmt {staged_files}
-          - run: bunx oxlint --fix {staged_files}
+          - run: bunx oxfmt {all_files}
+          - run: bunx oxlint --fix {all_files}
