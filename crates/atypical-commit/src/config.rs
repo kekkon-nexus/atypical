@@ -1,5 +1,5 @@
-// The `[commit]` section of atypical.toml, lowered into `Tokens`;
-// unrestricted for every field left unset.
+// The `[commit]` section of atypical.toml, lowered into `Tokens`:
+// either a slot list, or the keys describing the fixed layout.
 
 use serde::Deserialize;
 
@@ -51,15 +51,55 @@ impl From<SeparatorConfig> for Values {
     }
 }
 
+/// What a bare slot's contents are made of.
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum KindConfig {
+    Word,
+    Symbols,
+    Symbol,
+}
+
+impl From<KindConfig> for Class {
+    fn from(kind: KindConfig) -> Self {
+        match kind {
+            KindConfig::Word => Class::Word,
+            KindConfig::Symbols => Class::Symbols,
+            KindConfig::Symbol => Class::Symbol,
+        }
+    }
+}
+
+fn anything() -> SetConfig {
+    SetConfig::Any(Any::Any)
+}
+
+/// One `[[commit.slots]]` entry: delimited when it has `delimiters`,
+/// bare when it has a `kind`.
+#[derive(Debug, Clone, PartialEq)]
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "kebab-case")]
+pub struct SlotConfig {
+    pub name: String,
+    pub kind: Option<KindConfig>,
+    pub delimiters: Option<DelimitedBy>,
+    #[serde(default = "anything")]
+    pub values: SetConfig,
+    #[serde(default)]
+    pub required: bool,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case", default)]
 pub struct CommitConfig {
-    pub keywords: SetConfig,
-    pub modifiers: SetConfig,
-    pub enclosures: Vec<EnclosureConfig>,
-    pub separator: SeparatorConfig,
-    pub modifier_sequence: Sequence,
+    pub slots: Option<Vec<SlotConfig>>,
+    pub keywords: Option<SetConfig>,
+    pub modifiers: Option<SetConfig>,
+    pub enclosures: Option<Vec<EnclosureConfig>>,
+    pub separator: Option<SeparatorConfig>,
+    pub modifier_sequence: Option<Sequence>,
     /// Skip machine-generated headers (merges, reverts, version
     /// bumps...); not part of the grammar, so absent from `Tokens`.
     pub default_ignores: bool,
@@ -74,90 +114,169 @@ pub struct EnclosureConfig {
     pub allowed: Option<Vec<String>>,
 }
 
-impl Default for CommitConfig {
-    /// Unrestricted; fields omitted from a `[commit]` section fall
-    /// back to this.
-    fn default() -> Self {
-        let flexible = |delimiters| EnclosureConfig {
-            delimiters,
-            allowed: None,
-        };
+/// A `[commit]` section that cannot be lowered into slots.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Invalid {
+    /// A slot list beside a key the list already says.
+    Mixed(&'static str),
+    /// A slot that is neither delimited nor bare, or both at once.
+    Shape(String),
+}
 
+impl core::fmt::Display for Invalid {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Invalid::Mixed(key) => write!(
+                f,
+                "`slots` and `{key}` describe the same thing; keep one"
+            ),
+            Invalid::Shape(name) => write!(
+                f,
+                "slot `{name}` needs either `kind` or `delimiters`, not both"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for Invalid {}
+
+impl Default for CommitConfig {
+    /// Every key unset, which lowers to the unrestricted grammar.
+    fn default() -> Self {
         Self {
-            keywords: SetConfig::Any(Any::Any),
-            modifiers: SetConfig::Any(Any::Any),
-            enclosures: vec![flexible(['(', ')']), flexible(['[', ']'])],
-            separator: SeparatorConfig::Any(Any::Any),
-            // `any` would put the same run in two slots, which is
-            // ambiguous, so the default picks a side.
-            modifier_sequence: Sequence::Post,
+            slots: None,
+            keywords: None,
+            modifiers: None,
+            enclosures: None,
+            separator: None,
+            modifier_sequence: None,
             default_ignores: true,
         }
     }
 }
 
-/// Today's fixed layout: keyword, modifier, enclosures, modifier,
+/// The fixed layout: keyword, modifier, enclosures, modifier,
 /// separator, with `modifier-sequence` deciding which modifier slots
 /// exist. Each slot is named after the key that declared it.
-impl From<&CommitConfig> for Tokens {
-    fn from(config: &CommitConfig) -> Self {
-        let slot = |name: String, shape, values, required| Slot {
-            name,
+pub(crate) fn fixed(config: &CommitConfig) -> Vec<Slot> {
+    let slot = |name: String, shape, values, required| Slot {
+        name,
+        shape,
+        values,
+        required,
+    };
+    let values = |set: Option<&SetConfig>| set.map_or(Values::Any, Into::into);
+    // `any` would put the same run in two slots, which is ambiguous,
+    // so an unset sequence picks a side.
+    let sequence = config.modifier_sequence.unwrap_or(Sequence::Post);
+    let (pre, post) = match sequence {
+        Sequence::Pre => (true, false),
+        Sequence::Post => (false, true),
+        Sequence::Any => (true, true),
+    };
+    let modifier = |name: String| {
+        let modifiers = values(config.modifiers.as_ref());
+
+        slot(name, Shape::Bare(Class::Symbols), modifiers, false)
+    };
+    // `any` spends one key on two slots, so each names the key to edit
+    // rather than the one that declared its contents.
+    let named = |side| {
+        if pre && post {
+            format!("modifier-sequence ({side})")
+        } else {
+            "modifiers".to_owned()
+        }
+    };
+    let flexible = |delimiters| EnclosureConfig {
+        delimiters,
+        allowed: None,
+    };
+    let enclosures = config
+        .enclosures
+        .clone()
+        .unwrap_or_else(|| vec![flexible(['(', ')']), flexible(['[', ']'])]);
+
+    let keywords = values(config.keywords.as_ref());
+    let mut slots = vec![slot(
+        "keywords".to_owned(),
+        Shape::Bare(Class::Word),
+        keywords,
+        true,
+    )];
+
+    slots.extend(pre.then(|| modifier(named("pre"))));
+    slots.extend(enclosures.iter().enumerate().map(|(index, enclosure)| {
+        let allowed =
+            enclosure.allowed.clone().map_or(Values::Any, Values::Set);
+
+        slot(
+            format!("enclosures[{index}]"),
+            Shape::Delimited(enclosure.delimiters),
+            allowed,
+            false,
+        )
+    }));
+    slots.extend(post.then(|| modifier(named("post"))));
+    slots.push(slot(
+        "separator".to_owned(),
+        Shape::Bare(Class::Symbol),
+        config.separator.map_or(Values::Any, Into::into),
+        true,
+    ));
+
+    slots
+}
+
+impl TryFrom<&SlotConfig> for Slot {
+    type Error = Invalid;
+
+    fn try_from(slot: &SlotConfig) -> Result<Self, Self::Error> {
+        let shape = match (slot.delimiters, slot.kind) {
+            (Some(delimiters), None) => Shape::Delimited(delimiters),
+            (None, Some(kind)) => Shape::Bare(kind.into()),
+            _ => return Err(Invalid::Shape(slot.name.clone())),
+        };
+
+        Ok(Self {
+            name: slot.name.clone(),
             shape,
-            values,
-            required,
-        };
-        let (pre, post) = match config.modifier_sequence {
-            Sequence::Pre => (true, false),
-            Sequence::Post => (false, true),
-            Sequence::Any => (true, true),
-        };
-        let modifier = |name: String| {
-            let values = (&config.modifiers).into();
+            values: (&slot.values).into(),
+            required: slot.required,
+        })
+    }
+}
 
-            slot(name, Shape::Bare(Class::Symbols), values, false)
+impl TryFrom<&CommitConfig> for Tokens {
+    type Error = Invalid;
+
+    fn try_from(config: &CommitConfig) -> Result<Self, Self::Error> {
+        let Some(slots) = &config.slots else {
+            return Ok(Self {
+                slots: fixed(config),
+            });
         };
-        // `any` spends one key on two slots, so each names the key to
-        // edit rather than the one that declared its contents.
-        let named = |side| {
-            if pre && post {
-                format!("modifier-sequence ({side})")
-            } else {
-                "modifiers".to_owned()
+
+        let replaced = [
+            ("keywords", config.keywords.is_some()),
+            ("modifiers", config.modifiers.is_some()),
+            ("enclosures", config.enclosures.is_some()),
+            ("separator", config.separator.is_some()),
+            ("modifier-sequence", config.modifier_sequence.is_some()),
+        ];
+
+        for (key, present) in replaced {
+            if present {
+                return Err(Invalid::Mixed(key));
             }
-        };
+        }
 
-        let keywords = (&config.keywords).into();
-        let mut slots = vec![slot(
-            "keywords".to_owned(),
-            Shape::Bare(Class::Word),
-            keywords,
-            true,
-        )];
-
-        slots.extend(pre.then(|| modifier(named("pre"))));
-        slots.extend(config.enclosures.iter().enumerate().map(
-            |(index, enclosure)| {
-                let values =
-                    enclosure.allowed.clone().map_or(Values::Any, Values::Set);
-
-                slot(
-                    format!("enclosures[{index}]"),
-                    Shape::Delimited(enclosure.delimiters),
-                    values,
-                    false,
-                )
-            },
-        ));
-        slots.extend(post.then(|| modifier(named("post"))));
-        slots.push(slot(
-            "separator".to_owned(),
-            Shape::Bare(Class::Symbol),
-            config.separator.into(),
-            true,
-        ));
-
-        Self { slots }
+        Ok(Self {
+            slots: slots
+                .iter()
+                .map(Slot::try_from)
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
@@ -169,9 +288,9 @@ mod tests {
     fn test_default_is_unrestricted() {
         let config = CommitConfig::default();
 
-        assert_eq!(config.keywords, SetConfig::Any(Any::Any));
-        assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
-        assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
+        assert!(config.keywords.is_none());
+        assert!(config.slots.is_none());
+        assert_eq!(Tokens::try_from(&config).unwrap(), Tokens::default());
     }
 
     #[test]
@@ -181,11 +300,11 @@ mod tests {
 
         assert_eq!(
             config.keywords,
-            SetConfig::OneOf(vec!["feat".into(), "fix".into()])
+            Some(SetConfig::OneOf(vec!["feat".into(), "fix".into()]))
         );
-        assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
-        assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
-        assert_eq!(config.modifier_sequence, Sequence::Post);
+        assert!(config.modifiers.is_none());
+        assert!(config.separator.is_none());
+        assert!(config.modifier_sequence.is_none());
     }
 
     #[test]
@@ -193,7 +312,7 @@ mod tests {
         let config: CommitConfig =
             toml::from_str(r#"keywords = "any""#).unwrap();
 
-        assert_eq!(config.keywords, SetConfig::Any(Any::Any));
+        assert_eq!(config.keywords, Some(SetConfig::Any(Any::Any)));
         assert!(
             toml::from_str::<CommitConfig>(r#"keywords = "some""#).is_err()
         );
@@ -201,24 +320,16 @@ mod tests {
     }
 
     #[test]
-    fn test_any_modifiers() {
-        let config: CommitConfig =
-            toml::from_str(r#"modifiers = "any""#).unwrap();
-
-        assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
-    }
-
-    #[test]
     fn test_any_separator() {
         let config: CommitConfig =
             toml::from_str(r#"separator = "any""#).unwrap();
 
-        assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
+        assert_eq!(config.separator, Some(SeparatorConfig::Any(Any::Any)));
 
         let config: CommitConfig =
             toml::from_str(r#"separator = ";""#).unwrap();
 
-        assert_eq!(config.separator, SeparatorConfig::Just(';'));
+        assert_eq!(config.separator, Some(SeparatorConfig::Just(';')));
 
         assert!(toml::from_str::<CommitConfig>(r#"separator = "ab""#).is_err());
     }
@@ -237,7 +348,7 @@ mod tests {
 
         assert_eq!(
             config.enclosures,
-            vec![
+            Some(vec![
                 EnclosureConfig {
                     delimiters: ['(', ')'],
                     allowed: Some(vec!["core".into()]),
@@ -246,7 +357,7 @@ mod tests {
                     delimiters: ['{', '}'],
                     allowed: None,
                 },
-            ]
+            ])
         );
     }
 
@@ -265,12 +376,7 @@ mod tests {
         let config: CommitConfig =
             toml::from_str(r#"modifier-sequence = "post""#).unwrap();
 
-        assert_eq!(config.modifier_sequence, Sequence::Post);
-
-        let config: CommitConfig =
-            toml::from_str(r#"modifier-sequence = "any""#).unwrap();
-
-        assert_eq!(config.modifier_sequence, Sequence::Any);
+        assert_eq!(config.modifier_sequence, Some(Sequence::Post));
 
         assert!(
             toml::from_str::<CommitConfig>(r#"modifier-sequence = "sideways""#)
@@ -283,5 +389,110 @@ mod tests {
         assert!(
             toml::from_str::<CommitConfig>(r#"keyword = ["typo"]"#).is_err()
         );
+    }
+
+    #[test]
+    fn test_slots_spell_out_the_fixed_layout() {
+        let keys: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            keywords = ["add"]
+            modifiers = ["!"]
+            modifier-sequence = "post"
+            separator = ":"
+
+            [[enclosures]]
+            delimiters = ["(", ")"]
+            allowed = ["lib"]
+        "#})
+        .unwrap();
+        let slots: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["add"]
+            required = true
+
+            [[slots]]
+            name = "enclosures[0]"
+            delimiters = ["(", ")"]
+            values = ["lib"]
+
+            [[slots]]
+            name = "modifiers"
+            kind = "symbols"
+            values = ["!"]
+
+            [[slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+        "#})
+        .unwrap();
+
+        assert_eq!(
+            Tokens::try_from(&keys).unwrap(),
+            Tokens::try_from(&slots).unwrap()
+        );
+    }
+
+    #[test]
+    fn test_slots_and_the_keys_they_replace_do_not_mix() {
+        let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            keywords = ["add"]
+
+            [[slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+        "#})
+        .unwrap();
+
+        assert_eq!(Tokens::try_from(&config), Err(Invalid::Mixed("keywords")));
+        assert_eq!(
+            Invalid::Mixed("keywords").to_string(),
+            "`slots` and `keywords` describe the same thing; keep one"
+        );
+    }
+
+    #[test]
+    fn test_a_slot_is_delimited_or_bare() {
+        let neither: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "scope"
+        "#})
+        .unwrap();
+        let both: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "scope"
+            kind = "word"
+            delimiters = ["(", ")"]
+        "#})
+        .unwrap();
+
+        for config in [neither, both] {
+            assert_eq!(
+                Tokens::try_from(&config),
+                Err(Invalid::Shape("scope".to_owned()))
+            );
+        }
+
+        assert_eq!(
+            Invalid::Shape("scope".to_owned()).to_string(),
+            "slot `scope` needs either `kind` or `delimiters`, not both"
+        );
+    }
+
+    #[test]
+    fn test_a_slot_defaults_to_anything_and_optional() {
+        let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+        "#})
+        .unwrap();
+        let slots = Tokens::try_from(&config).unwrap().slots;
+
+        assert_eq!(slots[0].values, Values::Any);
+        assert!(!slots[0].required);
     }
 }

@@ -155,7 +155,7 @@ fn lint(
 ) -> Result<Exit> {
     use chumsky::Parser;
 
-    let tokens = atypical_commit::Tokens::from(config);
+    let tokens = atypical_commit::Tokens::try_from(config)?;
     let parser = header_parser(&tokens)?;
     let mut failed = false;
 

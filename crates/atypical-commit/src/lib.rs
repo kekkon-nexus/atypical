@@ -89,7 +89,9 @@ impl Default for Tokens {
     /// `(...)`/`[...]` enclosures, and any single-symbol separator.
     /// Only the header shape itself is enforced.
     fn default() -> Self {
-        (&config::CommitConfig::default()).into()
+        Self {
+            slots: config::fixed(&config::CommitConfig::default()),
+        }
     }
 }
 

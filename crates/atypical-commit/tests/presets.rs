@@ -37,7 +37,7 @@ fn header_parser<'i>(
 }
 
 fn errors(config: &CommitConfig, header: &str) -> Vec<(Range<usize>, String)> {
-    let tokens = atypical_commit::Tokens::from(config);
+    let tokens = atypical_commit::Tokens::try_from(config).unwrap();
 
     header_parser(&tokens)
         .parse(header)
@@ -280,7 +280,7 @@ fn any_modifier() {
 #[test]
 fn modifier_on_either_side_is_rejected() {
     let config = preset("standard.toml", r#"modifier-sequence = "any""#);
-    let tokens = atypical_commit::Tokens::from(&config);
+    let tokens = atypical_commit::Tokens::try_from(&config).unwrap();
 
     assert_eq!(
         atypical_commit::ExtraContext::new(&tokens),
