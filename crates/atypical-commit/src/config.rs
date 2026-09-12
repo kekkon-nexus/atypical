@@ -170,7 +170,6 @@ mod tests {
         assert_eq!(config.keywords, SetConfig::Any(Any::Any));
         assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
         assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
-        assert_eq!(Tokens::from(&config), Tokens::default());
     }
 
     #[test]
@@ -193,8 +192,6 @@ mod tests {
             toml::from_str(r#"keywords = "any""#).unwrap();
 
         assert_eq!(config.keywords, SetConfig::Any(Any::Any));
-        assert_eq!(Tokens::from(&config).keywords, TokenSet::Any);
-
         assert!(
             toml::from_str::<CommitConfig>(r#"keywords = "some""#).is_err()
         );
@@ -207,7 +204,6 @@ mod tests {
             toml::from_str(r#"modifiers = "any""#).unwrap();
 
         assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
-        assert_eq!(Tokens::from(&config).modifiers, TokenSet::Any);
     }
 
     #[test]
@@ -216,7 +212,6 @@ mod tests {
             toml::from_str(r#"separator = "any""#).unwrap();
 
         assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
-        assert_eq!(Tokens::from(&config).separator, SeparatorToken::Any);
 
         let config: CommitConfig =
             toml::from_str(r#"separator = ";""#).unwrap();
@@ -227,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_enclosures_map_to_strict_and_flexible() {
+    fn test_enclosures_allowed_is_optional() {
         let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
             [[enclosures]]
             delimiters = ["(", ")"]
@@ -239,10 +234,16 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            Tokens::from(&config).enclosures,
+            config.enclosures,
             vec![
-                EnclosureToken::Strict(['(', ')'], vec!["core"]),
-                EnclosureToken::Flexible(['{', '}']),
+                EnclosureConfig {
+                    delimiters: ['(', ')'],
+                    allowed: Some(vec!["core".into()]),
+                },
+                EnclosureConfig {
+                    delimiters: ['{', '}'],
+                    allowed: None,
+                },
             ]
         );
     }

@@ -184,8 +184,8 @@ Conventions visible in the code:
   (`message_header` in `main.rs`). CRLF is tolerated.
 - The preset files in `presets/` (`standard.toml`, `conventional.toml`)
   are meant to be targeted by `extends`; `tests/presets.rs` in
-  `atypical-commit` pins `standard.toml` to `Tokens::preset_standard()`
-  and the headers each preset accepts — keep file and code in sync.
+  `atypical-commit` pins, per preset and config variant, the headers
+  accepted and the span and message of every error reported.
 - A top-level `extends` key (a path or an array of paths, relative to
   the extending file) is resolved by `atypical-config` before section
   lookup: extended documents apply one by one in declaration order,
@@ -211,9 +211,10 @@ Conventions visible in the code:
 
 ## Testing conventions
 
-- Unit tests live in-file under `#[cfg(test)] mod tests`; parser
-  tests bind the preset via
-  `.with_ctx(Tokens::preset_standard().into())`.
+- Unit tests live in-file under `#[cfg(test)] mod tests`. Parser
+  behavior is pinned in `tests/presets.rs` as `(header, expected
+  error)` rows driven by `CommitConfig` alone; no test names a
+  `Tokens` field.
 - Integration tests live in each crate's `tests/` (`cli.rs`,
   `load.rs`): `cli.rs` drives the real binary through
   `env!("CARGO_BIN_EXE_commit-lint")` and writes fixtures to
