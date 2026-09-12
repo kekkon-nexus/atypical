@@ -56,11 +56,7 @@ check:
           - run: bunx tombi lint {all_files}
     - name: v8r
       glob: "*.{yml,yaml,json}"
-      group:
-        piped: true
-        jobs:
-          - run: bunx oxfmt --check {all_files}
-          - run: bunx v8r {all_files}
+      run: bunx v8r {all_files}
     - name: js
       exclude:
         - "*.toml"
@@ -88,11 +84,7 @@ fix:
           - run: bunx tombi lint {all_files}
     - name: v8r
       glob: "*.{yml,yaml,json}"
-      group:
-        piped: true
-        jobs:
-          - run: bunx oxfmt {all_files}
-          - run: bunx v8r {all_files}
+      run: bunx v8r {all_files}
     - name: js
       exclude:
         - "*.toml"
