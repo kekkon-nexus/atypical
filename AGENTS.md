@@ -150,9 +150,8 @@ crates.io and npm.
 
 - `max_width = 80` (markdown and TOML wrap at ~80 columns to match)
 - `merge_derives = false` — keep **separate `#[derive(...)]` lines**
-  grouped as the surrounding code does (e.g. `#[derive(Debug, Clone,
-PartialEq)]` on one line, `#[derive(serde::Deserialize)]` on the
-  next).
+  grouped as the surrounding code does: `#[derive(Debug, Clone, PartialEq)]`
+  on one line, `#[derive(serde::Deserialize)]` on the next.
 - `group_imports = "StdExternalCrate"`, `imports_granularity = "Module"`
 - `use_field_init_shorthand = true`
 
