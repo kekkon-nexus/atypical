@@ -465,6 +465,25 @@ fn any_modifier_leaves_the_any_separator() {
 }
 
 #[test]
+fn a_run_without_a_separator_slot_is_refused() {
+    let mut slots = slots("standard.toml");
+
+    slots.retain(|slot| slot.name != "separator");
+
+    let modifiers = index(&slots, "modifiers");
+
+    slots[modifiers].values = anything();
+
+    check(
+        &grammar(slots),
+        &[(
+            "add!: x",
+            Err((3..3, "a modifier needs a separator after it")),
+        )],
+    );
+}
+
+#[test]
 fn presets_are_reachable_through_extends() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     let preset = Path::new(env!("CARGO_MANIFEST_DIR"))

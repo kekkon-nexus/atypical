@@ -231,8 +231,8 @@ Conventions visible in the code:
 ## Testing conventions
 
 - Unit tests live in-file under `#[cfg(test)] mod tests`. Parser
-  behavior is pinned in `tests/presets.rs` as `(header, expected
-  error)` rows driven by `CommitConfig` alone; no test names a
+  behavior is pinned in `tests/presets.rs` as rows of header and
+  expected error, driven by `CommitConfig` alone; no test names a
   `Tokens` field.
 - Integration tests live in each crate's `tests/` (`cli.rs`,
   `load.rs`): `cli.rs` drives the real binary through

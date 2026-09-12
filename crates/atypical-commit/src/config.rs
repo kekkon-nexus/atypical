@@ -326,6 +326,10 @@ mod tests {
 
         assert_eq!(config.separator, Some(SeparatorConfig::Any(Any::Any)));
 
+        let slots = Tokens::try_from(&config).unwrap().slots;
+
+        assert_eq!(slots.last().unwrap().values, Values::Any);
+
         let config: CommitConfig =
             toml::from_str(r#"separator = ";""#).unwrap();
 

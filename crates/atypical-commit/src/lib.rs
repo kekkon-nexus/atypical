@@ -694,6 +694,21 @@ mod tests {
     }
 
     #[test]
+    fn test_the_longer_spelling_may_come_second() {
+        assert_eq!(
+            context(vec![
+                slot("modifier", Shape::Bare(Class::Symbols), set(&["!"])),
+                slot("flag", Shape::Bare(Class::Symbols), set(&["!!"])),
+            ]),
+            Err(Ambiguous::Prefix {
+                first: "modifier".to_owned(),
+                second: "flag".to_owned(),
+                spelling: "!".to_owned(),
+            })
+        );
+    }
+
+    #[test]
     fn test_neighbouring_sets_may_not_share_a_prefix() {
         assert_eq!(
             context(vec![
