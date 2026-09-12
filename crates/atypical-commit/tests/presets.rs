@@ -10,8 +10,10 @@ use chumsky::Parser;
 
 type Row<'r> = (&'r str, Result<(), (Range<usize>, &'r str)>);
 
-/// A shipped preset's `[commit]` section, with `overrides` replacing its
-/// keys the way an extending file would.
+const STANDARD_KEYWORDS: &str = "release, undo, add, fix, ref, rem";
+
+/// A shipped preset's `[commit]` section, with each top-level key in
+/// `overrides` replacing the preset's outright, never merged into it.
 fn preset(name: &str, overrides: &str) -> CommitConfig {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../presets")
@@ -76,7 +78,7 @@ fn standard_preset() {
                 "",
                 Err((
                     0..0,
-                    "expected keyword, one of: release, undo, add, fix, ref, rem",
+                    &*format!("expected keyword, one of: {STANDARD_KEYWORDS}"),
                 )),
             ),
             (
@@ -99,21 +101,27 @@ fn standard_preset() {
                 "feat: x",
                 Err((
                     0..4,
-                    "unknown keyword `feat`, expected one of: release, undo, add, fix, ref, rem",
+                    &*format!(
+                        "unknown keyword `feat`, expected one of: {STANDARD_KEYWORDS}"
+                    ),
                 )),
             ),
             (
                 "Merge branch 'main'",
                 Err((
                     0..5,
-                    "unknown keyword `Merge`, expected one of: release, undo, add, fix, ref, rem",
+                    &*format!(
+                        "unknown keyword `Merge`, expected one of: {STANDARD_KEYWORDS}"
+                    ),
                 )),
             ),
             (
                 "añadir: x",
                 Err((
                     0..7,
-                    "unknown keyword `añadir`, expected one of: release, undo, add, fix, ref, rem",
+                    &*format!(
+                        "unknown keyword `añadir`, expected one of: {STANDARD_KEYWORDS}"
+                    ),
                 )),
             ),
             ("add??: x", Err((4..5, "found '?' expected ':'"))),
@@ -252,6 +260,14 @@ fn any_modifier() {
             ("add!(lib): x", Ok(())),
             ("add: x", Ok(())),
             ("add!!!: x", Ok(())),
+            // The modifier stops at an opener instead of eating it.
+            (
+                "add!(: x",
+                Err((
+                    5..5,
+                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                )),
+            ),
         ],
     );
 }
@@ -351,6 +367,7 @@ fn any_separator() {
             ("add; x", Ok(())),
             ("add> x", Ok(())),
             ("add x", Err((3..4, "expected a separator"))),
+            ("add : x", Err((3..4, "expected a separator"))),
         ],
     );
 }

@@ -92,37 +92,10 @@ pub struct Positional {
     pub modifier_sequence: Sequence,
 }
 
-impl Tokens<'_> {
-    pub fn preset_standard() -> Self {
-        Self {
-            keywords: TokenSet::OneOf(vec![
-                "add", "rem", "ref", "fix", "undo", "release",
-            ]),
-            modifiers: TokenSet::OneOf(vec!["?", "!", "!!"]),
-            enclosures: vec![
-                EnclosureToken::Strict(
-                    ['(', ')'],
-                    vec!["exe", "lib", "test", "build", "doc", "ci", "cd"],
-                ),
-                EnclosureToken::Strict(
-                    ['[', ']'],
-                    vec![
-                        "int", "pre", "eff", "rel", "cmp", "mnt", "tmp", "exp",
-                        "sec", "upg", "ux", "pol", "sty",
-                    ],
-                ),
-            ],
-            separator: SeparatorToken::Just(':'),
-            modifier_sequence: Sequence::Pre,
-        }
-    }
-}
-
 impl Default for Tokens<'_> {
     /// Unrestricted: any keyword, any modifier on either side of
     /// free-form `(...)`/`[...]` enclosures, and any single-symbol
-    /// separator. Only the header shape itself is enforced. Fields
-    /// omitted from a `[commit]` section fall back to this.
+    /// separator. Only the header shape itself is enforced.
     fn default() -> Self {
         Self {
             keywords: TokenSet::Any,

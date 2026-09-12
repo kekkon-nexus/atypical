@@ -26,17 +26,6 @@ pub enum SetConfig {
     OneOf(Vec<String>),
 }
 
-impl From<&TokenSet<'_>> for SetConfig {
-    fn from(set: &TokenSet<'_>) -> Self {
-        match set {
-            TokenSet::Any => SetConfig::Any(Any::Any),
-            TokenSet::OneOf(v) => {
-                SetConfig::OneOf(v.iter().map(ToString::to_string).collect())
-            }
-        }
-    }
-}
-
 impl<'i> From<&'i SetConfig> for TokenSet<'i> {
     fn from(set: &'i SetConfig) -> Self {
         match set {
@@ -55,15 +44,6 @@ impl<'i> From<&'i SetConfig> for TokenSet<'i> {
 pub enum SeparatorConfig {
     Any(Any),
     Just(char),
-}
-
-impl From<SeparatorToken> for SeparatorConfig {
-    fn from(separator: SeparatorToken) -> Self {
-        match separator {
-            SeparatorToken::Any => SeparatorConfig::Any(Any::Any),
-            SeparatorToken::Just(c) => SeparatorConfig::Just(c),
-        }
-    }
 }
 
 impl From<SeparatorConfig> for SeparatorToken {
@@ -99,35 +79,20 @@ pub struct EnclosureConfig {
 }
 
 impl Default for CommitConfig {
+    /// Unrestricted, as `Tokens::default()`. Fields omitted from a
+    /// `[commit]` section fall back to this.
     fn default() -> Self {
-        (&Tokens::default()).into()
-    }
-}
-
-impl From<&Tokens<'_>> for CommitConfig {
-    fn from(tokens: &Tokens<'_>) -> Self {
-        fn owned(v: &[&str]) -> Vec<String> {
-            v.iter().map(ToString::to_string).collect()
-        }
+        let flexible = |delimiters| EnclosureConfig {
+            delimiters,
+            allowed: None,
+        };
 
         Self {
-            keywords: (&tokens.keywords).into(),
-            modifiers: (&tokens.modifiers).into(),
-            enclosures: tokens
-                .enclosures
-                .iter()
-                .map(|enclosure| EnclosureConfig {
-                    delimiters: enclosure.delimiters(),
-                    allowed: match enclosure {
-                        EnclosureToken::Flexible(_) => None,
-                        EnclosureToken::Strict(_, allowed) => {
-                            Some(owned(allowed))
-                        }
-                    },
-                })
-                .collect(),
-            separator: tokens.separator.into(),
-            modifier_sequence: tokens.modifier_sequence,
+            keywords: SetConfig::Any(Any::Any),
+            modifiers: SetConfig::Any(Any::Any),
+            enclosures: vec![flexible(['(', ')']), flexible(['[', ']'])],
+            separator: SeparatorConfig::Any(Any::Any),
+            modifier_sequence: Sequence::Any,
             default_ignores: true,
         }
     }

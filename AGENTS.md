@@ -14,7 +14,7 @@ toolchain, resolver 3) with two crates:
   (`src/lib.rs`), rendering diagnostics with `ariadne`. Without a
   `[commit]` section there is nothing to enforce and every message
   passes. The section schema lives in `src/config.rs`; fields left
-  unset are unrestricted (`Tokens::default()`): any keyword, any
+  unset are unrestricted (`CommitConfig::default()`): any keyword, any
   modifiers in either position, any single-symbol separator,
   free-form `(...)`/`[...]` enclosures.
 - `crates/atypical-config` — discovery (`find`, walking ancestors for
@@ -183,7 +183,8 @@ Conventions visible in the code:
   lines are skipped; the first remaining line is the header
   (`message_header` in `main.rs`). CRLF is tolerated.
 - The preset files in `presets/` (`standard.toml`, `conventional.toml`)
-  are meant to be targeted by `extends`; `tests/presets.rs` in
+  are meant to be targeted by `extends`, and are the only definition
+  of each preset: no copy lives in code. `tests/presets.rs` in
   `atypical-commit` pins, per preset and config variant, the headers
   accepted and the span and message of every error reported.
 - A top-level `extends` key (a path or an array of paths, relative to
