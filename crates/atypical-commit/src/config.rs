@@ -88,7 +88,9 @@ impl Default for CommitConfig {
             modifiers: SetConfig::Any(Any::Any),
             enclosures: vec![flexible(['(', ')']), flexible(['[', ']'])],
             separator: SeparatorConfig::Any(Any::Any),
-            modifier_sequence: Sequence::Any,
+            // `any` would put the same run in two slots, which is
+            // ambiguous, so the default picks a side.
+            modifier_sequence: Sequence::Post,
             default_ignores: true,
         }
     }
@@ -96,45 +98,60 @@ impl Default for CommitConfig {
 
 /// Today's fixed layout: keyword, modifier, enclosures, modifier,
 /// separator, with `modifier-sequence` deciding which modifier slots
-/// exist.
+/// exist. Each slot is named after the key that declared it.
 impl From<&CommitConfig> for Tokens {
     fn from(config: &CommitConfig) -> Self {
-        let slot = |name: &str, shape, values, required| Slot {
-            name: name.to_owned(),
+        let slot = |name: String, shape, values, required| Slot {
+            name,
             shape,
             values,
             required,
-        };
-        let modifier = || {
-            let values = (&config.modifiers).into();
-
-            slot("modifier", Shape::Bare(Class::Symbols), values, false)
         };
         let (pre, post) = match config.modifier_sequence {
             Sequence::Pre => (true, false),
             Sequence::Post => (false, true),
             Sequence::Any => (true, true),
         };
+        let modifier = |name: String| {
+            let values = (&config.modifiers).into();
+
+            slot(name, Shape::Bare(Class::Symbols), values, false)
+        };
+        // `any` spends one key on two slots, so each names the key to
+        // edit rather than the one that declared its contents.
+        let named = |side| {
+            if pre && post {
+                format!("modifier-sequence ({side})")
+            } else {
+                "modifiers".to_owned()
+            }
+        };
 
         let keywords = (&config.keywords).into();
-        let mut slots =
-            vec![slot("keyword", Shape::Bare(Class::Word), keywords, true)];
+        let mut slots = vec![slot(
+            "keywords".to_owned(),
+            Shape::Bare(Class::Word),
+            keywords,
+            true,
+        )];
 
-        slots.extend(pre.then(modifier));
-        slots.extend(config.enclosures.iter().map(|enclosure| {
-            let values =
-                enclosure.allowed.clone().map_or(Values::Any, Values::Set);
+        slots.extend(pre.then(|| modifier(named("pre"))));
+        slots.extend(config.enclosures.iter().enumerate().map(
+            |(index, enclosure)| {
+                let values =
+                    enclosure.allowed.clone().map_or(Values::Any, Values::Set);
 
-            slot(
-                "enclosure",
-                Shape::Delimited(enclosure.delimiters),
-                values,
-                false,
-            )
-        }));
-        slots.extend(post.then(modifier));
+                slot(
+                    format!("enclosures[{index}]"),
+                    Shape::Delimited(enclosure.delimiters),
+                    values,
+                    false,
+                )
+            },
+        ));
+        slots.extend(post.then(|| modifier(named("post"))));
         slots.push(slot(
-            "separator",
+            "separator".to_owned(),
             Shape::Bare(Class::Symbol),
             config.separator.into(),
             true,
@@ -168,7 +185,7 @@ mod tests {
         );
         assert_eq!(config.modifiers, SetConfig::Any(Any::Any));
         assert_eq!(config.separator, SeparatorConfig::Any(Any::Any));
-        assert_eq!(config.modifier_sequence, Sequence::Any);
+        assert_eq!(config.modifier_sequence, Sequence::Post);
     }
 
     #[test]

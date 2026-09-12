@@ -208,7 +208,12 @@ fn unrestricted() {
             ("yolo(whatever)> ship it", Ok(())),
             ("wip!!~ kitchen sink", Ok(())),
             ("añadir: x", Ok(())),
-            ("feat!(api): x", Ok(())),
+            // The modifier slot sits after the enclosures, so one
+            // before them is read as the separator.
+            (
+                "feat!(api): x",
+                Err((6..13, "expected a space before the description")),
+            ),
             ("add! x", Ok(())),
             ("add!!; x", Ok(())),
             (
@@ -273,14 +278,18 @@ fn any_modifier() {
 }
 
 #[test]
-fn modifier_on_either_side() {
-    check(
-        &preset("standard.toml", r#"modifier-sequence = "any""#),
-        &[
-            ("add!(lib): x", Ok(())),
-            ("add(lib)!: x", Ok(())),
-            ("add!(lib)!: x", Ok(())),
-        ],
+fn modifier_on_either_side_is_rejected() {
+    let config = preset("standard.toml", r#"modifier-sequence = "any""#);
+    let tokens = atypical_commit::Tokens::from(&config);
+
+    assert_eq!(
+        atypical_commit::ExtraContext::new(&tokens),
+        // One key fills both slots, so they hold the same spellings.
+        Err(atypical_commit::Ambiguous::Prefix {
+            first: "modifier-sequence (pre)".to_owned(),
+            second: "modifier-sequence (post)".to_owned(),
+            spelling: "?".to_owned(),
+        })
     );
 }
 

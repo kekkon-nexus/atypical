@@ -70,7 +70,8 @@ pub enum Values {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Slot {
-    /// Names the slot in diagnostics.
+    /// Points at the config that declared it, for errors the user can
+    /// act on; diagnostics use the shape's noun instead.
     pub name: String,
     pub shape: Shape,
     pub values: Values,
@@ -84,9 +85,9 @@ pub struct Tokens {
 }
 
 impl Default for Tokens {
-    /// Unrestricted: any keyword, any modifier on either side of
-    /// free-form `(...)`/`[...]` enclosures, and any single-symbol
-    /// separator. Only the header shape itself is enforced.
+    /// Unrestricted: any keyword, any modifier after free-form
+    /// `(...)`/`[...]` enclosures, and any single-symbol separator.
+    /// Only the header shape itself is enforced.
     fn default() -> Self {
         (&config::CommitConfig::default()).into()
     }
@@ -139,49 +140,62 @@ impl core::error::Error for Ambiguous {}
 /// A bare slot is only locatable because its alphabet is disjoint from
 /// its neighbour's, so the pairs are checked before any input is seen.
 fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
-    for pair in slots.windows(2) {
-        let [first, second] = pair else { continue };
+    for (index, first) in slots.iter().enumerate() {
+        // An optional slot can be absent, which makes the slot behind
+        // it a neighbour too, up to the first required one.
+        for second in &slots[index + 1..] {
+            if let Some(ambiguous) = ambiguous_pair(first, second) {
+                return Some(ambiguous);
+            }
 
-        let (Shape::Bare(class), Shape::Bare(next)) =
-            (first.shape, second.shape)
-        else {
-            continue;
-        };
+            if second.required {
+                break;
+            }
+        }
+    }
 
-        let eats_run = matches!(
-            (class, &first.values),
-            (Class::Word, _) | (Class::Symbols, Values::Any)
-        );
+    None
+}
 
-        if eats_run && class == next {
-            return Some(Ambiguous::Run {
+fn ambiguous_pair(first: &Slot, second: &Slot) -> Option<Ambiguous> {
+    let (Shape::Bare(class), Shape::Bare(next)) = (first.shape, second.shape)
+    else {
+        return None;
+    };
+
+    let eats_run = matches!(
+        (class, &first.values),
+        (Class::Word, _) | (Class::Symbols, Values::Any)
+    );
+
+    if eats_run && class == next {
+        return Some(Ambiguous::Run {
+            first: first.name.clone(),
+            second: second.name.clone(),
+        });
+    }
+
+    let (Values::Set(spellings), Values::Set(next_spellings)) =
+        (&first.values, &second.values)
+    else {
+        return None;
+    };
+
+    for spelling in spellings {
+        for next_spelling in next_spellings {
+            let shared = if spelling.starts_with(next_spelling.as_str()) {
+                next_spelling
+            } else if next_spelling.starts_with(spelling.as_str()) {
+                spelling
+            } else {
+                continue;
+            };
+
+            return Some(Ambiguous::Prefix {
                 first: first.name.clone(),
                 second: second.name.clone(),
+                spelling: shared.clone(),
             });
-        }
-
-        let (Values::Set(spellings), Values::Set(next_spellings)) =
-            (&first.values, &second.values)
-        else {
-            continue;
-        };
-
-        for spelling in spellings {
-            for next_spelling in next_spellings {
-                let shared = if spelling.starts_with(next_spelling.as_str()) {
-                    next_spelling
-                } else if next_spelling.starts_with(spelling.as_str()) {
-                    spelling
-                } else {
-                    continue;
-                };
-
-                return Some(Ambiguous::Prefix {
-                    first: first.name.clone(),
-                    second: second.name.clone(),
-                    spelling: shared.clone(),
-                });
-            }
         }
     }
 
@@ -212,9 +226,13 @@ impl ExtraContext {
 }
 
 impl Default for ExtraContext {
+    /// Empty, and never parsed against: chumsky builds one of these per
+    /// `parse` call, and `with_ctx` replaces it. Validation happens in
+    /// `new`, which can fail, so it cannot happen here.
     fn default() -> Self {
-        Self::new(&Tokens::default())
-            .expect("the unrestricted grammar is unambiguous")
+        Self {
+            tokens: Tokens { slots: Vec::new() },
+        }
     }
 }
 
@@ -239,6 +257,16 @@ fn ident<'i>(
 /// A visible char that can't belong to a keyword or a description.
 fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
+}
+
+/// The word diagnostics use for a slot of this shape.
+fn noun(shape: Shape) -> &'static str {
+    match shape {
+        Shape::Bare(Class::Word) => "keyword",
+        Shape::Bare(Class::Symbols) => "modifier",
+        Shape::Bare(Class::Symbol) => "separator",
+        Shape::Delimited(_) => "enclosure",
+    }
 }
 
 fn expected_one_of(found: &str, kind: &str, expected: &[String]) -> String {
@@ -267,7 +295,8 @@ fn word<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let Slot { name, values, .. } = slot.clone();
+    let noun = noun(slot.shape);
+    let Slot { values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let (s, span) = ident(i);
@@ -275,11 +304,11 @@ fn word<'i>(
         match &values {
             Values::Any if !s.is_empty() => Ok(s),
             Values::Any => {
-                Err(Rich::custom(span, format!("expected a {name}")))
+                Err(Rich::custom(span, format!("expected a {noun}")))
             }
             Values::Set(set) if set.iter().any(|value| value == s) => Ok(s),
             Values::Set(set) => {
-                let message = expected_one_of(s, &name, set);
+                let message = expected_one_of(s, noun, set);
 
                 Err(Rich::custom(span, message))
             }
@@ -296,7 +325,8 @@ fn symbols<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let Slot { name, values, .. } = slot.clone();
+    let noun = noun(slot.shape);
+    let Slot { values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         if let Values::Set(set) = &values {
@@ -309,7 +339,7 @@ fn symbols<'i>(
         // would eat the rest of the header.
         let Some(separator) = &separator else {
             let span = i.span_since(&before);
-            let message = format!("a {name} needs a separator after it");
+            let message = format!("a {noun} needs a separator after it");
 
             return Err(Rich::custom(span, message));
         };
@@ -346,7 +376,7 @@ fn symbols<'i>(
         if s.is_empty() {
             let span = i.span_since(&before);
 
-            return Err(Rich::custom(span, format!("expected a {name}")));
+            return Err(Rich::custom(span, format!("expected a {noun}")));
         }
 
         Ok(s)
@@ -358,7 +388,8 @@ fn symbol<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let Slot { name, values, .. } = slot.clone();
+    let noun = noun(slot.shape);
+    let Slot { values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         if let Values::Set(set) = &values {
@@ -375,7 +406,7 @@ fn symbol<'i>(
             }
             _ => Err(Rich::custom(
                 i.span_since(&before),
-                format!("expected a {name}"),
+                format!("expected a {noun}"),
             )),
         }
     })
@@ -415,7 +446,7 @@ fn enclosures<'i>(
                 .boxed(),
             Values::Set(allowed) => {
                 let allowed = allowed.clone();
-                let name = slot.name.clone();
+                let noun = noun(slot.shape);
 
                 custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
                     let (s, span) = ident(i);
@@ -424,7 +455,7 @@ fn enclosures<'i>(
                         return Ok(s);
                     }
 
-                    let message = expected_one_of(s, &name, &allowed);
+                    let message = expected_one_of(s, noun, &allowed);
 
                     Err(Rich::custom(span, message))
                 })
@@ -680,14 +711,46 @@ mod tests {
     }
 
     #[test]
-    fn test_a_delimited_slot_separates_two_runs() {
+    fn test_a_required_slot_separates_two_runs() {
+        let mut scope =
+            slot("enclosures[0]", Shape::Delimited(['(', ')']), Values::Any);
+
+        scope.required = true;
+
         assert!(
             context(vec![
-                slot("keyword", Shape::Bare(Class::Word), Values::Any),
-                slot("scope", Shape::Delimited(['(', ')']), Values::Any),
+                slot("keywords", Shape::Bare(Class::Word), Values::Any),
+                scope,
                 slot("reason", Shape::Bare(Class::Word), Values::Any),
             ])
             .is_ok()
+        );
+    }
+
+    #[test]
+    fn test_an_optional_slot_between_separates_nothing() {
+        assert_eq!(
+            context(vec![
+                slot(
+                    "modifiers (pre)",
+                    Shape::Bare(Class::Symbols),
+                    Values::Any
+                ),
+                slot(
+                    "enclosures[0]",
+                    Shape::Delimited(['(', ')']),
+                    Values::Any
+                ),
+                slot(
+                    "modifiers (post)",
+                    Shape::Bare(Class::Symbols),
+                    Values::Any
+                ),
+            ]),
+            Err(Ambiguous::Run {
+                first: "modifiers (pre)".to_owned(),
+                second: "modifiers (post)".to_owned(),
+            })
         );
     }
 }

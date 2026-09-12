@@ -533,3 +533,22 @@ fn a_revision_is_never_read_as_an_option() {
         assert_eq!(output.status.code(), Some(1), "{args:?}");
     }
 }
+
+#[test]
+fn slots_that_cannot_be_told_apart_fail() {
+    // Modifiers on either side, with no enclosure between them.
+    let config = fixture(
+        "ambiguous.toml",
+        "[commit]\nmodifier-sequence = \"any\"\nenclosures = []\n",
+    );
+
+    let output = lint(
+        &["--config", config.to_str().unwrap(), "-"],
+        Some("add: message\n"),
+    );
+    let stderr = stderr(&output);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr.contains("takes the whole run"), "{stderr}");
+    assert!(stderr.contains("modifier-sequence (pre)"), "{stderr}");
+}

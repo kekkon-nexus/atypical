@@ -15,7 +15,7 @@ toolchain, resolver 3) with two crates:
   `[commit]` section there is nothing to enforce and every message
   passes. The section schema lives in `src/config.rs`; fields left
   unset are unrestricted (`CommitConfig::default()`): any keyword, any
-  modifiers in either position, any single-symbol separator,
+  modifiers after the enclosures, any single-symbol separator,
   free-form `(...)`/`[...]` enclosures.
 - `crates/atypical-config` — discovery (`find`, walking ancestors for
   `atypical.toml`) and loading (`section`/`load`/`resolve`) of
@@ -198,8 +198,9 @@ Conventions visible in the code:
   field_ to unrestricted (`#[serde(default)]` on `CommitConfig`);
   unknown keys are rejected (`deny_unknown_fields`); an enclosure
   without `allowed` is flexible (anything between the delimiters);
-  `keywords`, `modifiers`, `separator`, and `modifier-sequence`
-  accept the literal string `"any"`.
+  `keywords`, `modifiers` and `separator` accept the literal string
+  `"any"`; `modifier-sequence = "any"` still parses but is then
+  rejected as ambiguous, since one key would fill two slots.
 - Enclosure order is positional: each `[[commit.enclosures]]` entry
   may appear at most once, in declaration order.
 - Machine-generated headers — merges, reverts, `fixup!`/`squash!`/
@@ -209,12 +210,15 @@ Conventions visible in the code:
 - `ExtraContext::new` sorts every bare slot's set longest-first so
   that e.g. `!!` wins over `!`. Delimited slots match whole, so their
   sets keep declaration order, which is the order diagnostics list.
-- `ExtraContext::new` rejects (`Ambiguous`) neighbouring bare slots
-  that cannot be told apart: one that takes a whole run in front of
-  one needing the same run (word then word, or an unrestricted symbol
-  run then another run), and two whose spellings share a prefix. A
-  single-symbol slot may follow a run: the last symbol of the run is
-  the separator.
+- `ExtraContext::new` rejects (`Ambiguous`) bare slots that cannot be
+  told apart: one that takes a whole run in front of one needing the
+  same run (word then word, or an unrestricted symbol run then another
+  run), and two whose spellings share a prefix. A single-symbol slot
+  may follow a run: the last symbol of the run is the separator.
+  Optional slots between two others do not separate them, so every
+  slot up to the first required one is a neighbour. Slots are named
+  after the config key to edit, so the error points at something the
+  user can act on; diagnostics use the shape's noun instead.
 
 ## Testing conventions
 
