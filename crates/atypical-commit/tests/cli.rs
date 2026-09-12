@@ -1,4 +1,4 @@
-use std::io::Write;
+use std::io::{ErrorKind, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 
@@ -26,12 +26,14 @@ fn lint_in(dir: &Path, args: &[&str], stdin: Option<&str>) -> Output {
         .unwrap();
 
     if let Some(input) = stdin {
-        child
-            .stdin
-            .take()
-            .unwrap()
-            .write_all(input.as_bytes())
-            .unwrap();
+        let written = child.stdin.take().unwrap().write_all(input.as_bytes());
+
+        // A usage error exits before reading, closing the pipe, so
+        // whether the write lands at all is a matter of timing.
+        match written {
+            Err(error) if error.kind() == ErrorKind::BrokenPipe => {}
+            written => written.unwrap(),
+        }
     }
 
     child.wait_with_output().unwrap()
