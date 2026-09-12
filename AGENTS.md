@@ -201,6 +201,14 @@ Conventions visible in the code:
   `keywords`, `modifiers` and `separator` accept the literal string
   `"any"`; `modifier-sequence = "any"` still parses but is then
   rejected as ambiguous, since one key would fill two slots.
+- The grammar has two spellings: `[[commit.slots]]`, an ordered list
+  where each entry has a `name` and either a `kind` (`word`,
+  `symbols`, `symbol`) or `delimiters`, plus optional `values` and
+  `required`; or the fixed-layout keys (`keywords`, `modifiers`,
+  `modifier-sequence`, `enclosures`, `separator`). Setting both is
+  `Invalid::Mixed`, since a slot list already says what those keys
+  say. `default-ignores` is not grammar and belongs to either.
+  The shipped presets use the slot form.
 - Enclosure order is positional: each `[[commit.enclosures]]` entry
   may appear at most once, in declaration order.
 - Machine-generated headers — merges, reverts, `fixup!`/`squash!`/

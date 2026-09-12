@@ -362,6 +362,41 @@ mod tests {
     }
 
     #[test]
+    fn test_modifier_sequence_places_the_slot() {
+        let names = |section: &str| {
+            let config: CommitConfig = toml::from_str(section).unwrap();
+
+            Tokens::try_from(&config)
+                .unwrap()
+                .slots
+                .into_iter()
+                .map(|slot| slot.name)
+                .collect::<Vec<_>>()
+        };
+
+        assert_eq!(
+            names(r#"modifier-sequence = "pre""#),
+            [
+                "keywords",
+                "modifiers",
+                "enclosures[0]",
+                "enclosures[1]",
+                "separator"
+            ]
+        );
+        assert_eq!(
+            names(r#"modifier-sequence = "post""#),
+            [
+                "keywords",
+                "enclosures[0]",
+                "enclosures[1]",
+                "modifiers",
+                "separator"
+            ]
+        );
+    }
+
+    #[test]
     fn test_default_ignores_is_on_unless_disabled() {
         assert!(CommitConfig::default().default_ignores);
 

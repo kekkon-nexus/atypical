@@ -1,7 +1,12 @@
 # Conventional Commits: https://www.conventionalcommits.org/en/v1.0.0/
 
 [commit]
-keywords = [
+default-ignores = true
+
+[[commit.slots]]
+name = "keywords"
+kind = "word"
+values = [
   "build",
   "chore",
   "ci",
@@ -14,10 +19,19 @@ keywords = [
   "style",
   "test",
 ]
-modifiers = ["!"]
-modifier-sequence = "post"
-separator = ":"
-default-ignores = true
+required = true
 
-[[commit.enclosures]]
+[[commit.slots]]
+name = "scope"
 delimiters = ["(", ")"]
+
+[[commit.slots]]
+name = "modifiers"
+kind = "symbols"
+values = ["!"]
+
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+values = [":"]
+required = true

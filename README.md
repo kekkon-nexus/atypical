@@ -35,6 +35,11 @@ Available configuration in `[commit]`:
 | `separator`         | Symbol between header and subject             | `"any"`, or single-symbol string         | `:`, `-`, `/`              |
 | `default-ignores`   | Skips merge, revert, and fixup commits        | `true` (default), `false`                | —                          |
 | `enclosures[]`      | Enclosures, as `[[commit.enclosures]]`        | Table: `delimiters` + optional `allowed` | `delimiters = ["(", ")"]`  |
+| `slots[]`           | The whole grammar, as `[[commit.slots]]`      | Table: `name`, `kind` or `delimiters`    | `kind = "word"`            |
+
+A slot list says everything the grammar keys above say, in header
+order, so a section sets one or the other and never both. The shipped
+presets are slot lists.
 
 ## Presets
 

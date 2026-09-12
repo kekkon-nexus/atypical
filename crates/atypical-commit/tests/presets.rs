@@ -5,27 +5,43 @@
 use std::ops::Range;
 use std::path::{Path, PathBuf};
 
-use atypical_commit::config::{self, CommitConfig};
+use atypical_commit::config::{self, Any, CommitConfig, SetConfig, SlotConfig};
 use chumsky::Parser;
 
 type Row<'r> = (&'r str, Result<(), (Range<usize>, &'r str)>);
 
 const STANDARD_KEYWORDS: &str = "release, undo, add, fix, ref, rem";
 
-/// A shipped preset's `[commit]` section, with each top-level key in
-/// `overrides` replacing the preset's outright, never merged into it.
-fn preset(name: &str, overrides: &str) -> CommitConfig {
+/// A shipped preset's `[commit]` section.
+fn preset(name: &str) -> CommitConfig {
     let path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../presets")
         .join(name);
 
-    let mut section: toml::Table = atypical_config::load(path, config::SECTION)
+    atypical_config::load(path, config::SECTION)
         .unwrap()
-        .unwrap();
+        .unwrap()
+}
 
-    section.extend(toml::from_str::<toml::Table>(overrides).unwrap());
+/// A preset's slots, for a variant to rearrange: a TOML array cannot be
+/// patched in place, so a variant edits the list rather than the file.
+fn slots(name: &str) -> Vec<SlotConfig> {
+    preset(name).slots.unwrap()
+}
 
-    toml::Value::Table(section).try_into().unwrap()
+fn grammar(slots: Vec<SlotConfig>) -> CommitConfig {
+    CommitConfig {
+        slots: Some(slots),
+        ..CommitConfig::default()
+    }
+}
+
+fn index(slots: &[SlotConfig], name: &str) -> usize {
+    slots.iter().position(|slot| slot.name == name).unwrap()
+}
+
+fn anything() -> SetConfig {
+    SetConfig::Any(Any::Any)
 }
 
 fn header_parser<'i>(
@@ -64,7 +80,7 @@ fn check(config: &CommitConfig, rows: &[Row]) {
 #[test]
 fn standard_preset() {
     check(
-        &preset("standard.toml", ""),
+        &preset("standard.toml"),
         &[
             ("add: x", Ok(())),
             ("rem?(lib): x", Ok(())),
@@ -166,7 +182,7 @@ fn standard_preset() {
 #[test]
 fn conventional_preset() {
     check(
-        &preset("conventional.toml", ""),
+        &preset("conventional.toml"),
         &[
             ("feat: an endpoint", Ok(())),
             ("fix(parser): handle empty input", Ok(())),
@@ -244,8 +260,13 @@ fn unrestricted() {
 
 #[test]
 fn any_keyword() {
+    let mut slots = slots("standard.toml");
+    let keywords = index(&slots, "keywords");
+
+    slots[keywords].values = anything();
+
     check(
-        &preset("standard.toml", r#"keywords = "any""#),
+        &grammar(slots),
         &[
             ("feat: x", Ok(())),
             ("añadir: x", Ok(())),
@@ -257,8 +278,13 @@ fn any_keyword() {
 
 #[test]
 fn any_modifier() {
+    let mut slots = slots("standard.toml");
+    let modifiers = index(&slots, "modifiers");
+
+    slots[modifiers].values = anything();
+
     check(
-        &preset("standard.toml", r#"modifiers = "any""#),
+        &grammar(slots),
         &[
             ("add??: x", Ok(())),
             ("add~+!: x", Ok(())),
@@ -279,15 +305,25 @@ fn any_modifier() {
 
 #[test]
 fn modifier_on_either_side_is_rejected() {
-    let config = preset("standard.toml", r#"modifier-sequence = "any""#);
-    let tokens = atypical_commit::Tokens::try_from(&config).unwrap();
+    let mut slots = slots("standard.toml");
+    let modifiers = index(&slots, "modifiers");
+    let mut post = slots[modifiers].clone();
+
+    slots[modifiers].name = "modifiers (pre)".to_owned();
+    post.name = "modifiers (post)".to_owned();
+
+    let separator = index(&slots, "separator");
+
+    slots.insert(separator, post);
+
+    let tokens = atypical_commit::Tokens::try_from(&grammar(slots)).unwrap();
 
     assert_eq!(
         atypical_commit::ExtraContext::new(&tokens),
-        // One key fills both slots, so they hold the same spellings.
+        // The same spellings in both slots, so they share a prefix.
         Err(atypical_commit::Ambiguous::Prefix {
-            first: "modifier-sequence (pre)".to_owned(),
-            second: "modifier-sequence (post)".to_owned(),
+            first: "modifiers (pre)".to_owned(),
+            second: "modifiers (post)".to_owned(),
             spelling: "?".to_owned(),
         })
     );
@@ -295,8 +331,14 @@ fn modifier_on_either_side_is_rejected() {
 
 #[test]
 fn modifier_after_the_enclosures() {
+    let mut slots = slots("standard.toml");
+    let modifiers = slots.remove(index(&slots, "modifiers"));
+    let separator = index(&slots, "separator");
+
+    slots.insert(separator, modifiers);
+
     check(
-        &preset("standard.toml", r#"modifier-sequence = "post""#),
+        &grammar(slots),
         &[
             ("add(lib)!: x", Ok(())),
             (
@@ -309,10 +351,17 @@ fn modifier_after_the_enclosures() {
 
 #[test]
 fn flexible_enclosure() {
-    let overrides = r#"enclosures = [{ delimiters = ["(", ")"] }]"#;
+    let mut slots = slots("standard.toml");
+    let reason = index(&slots, "reason");
+
+    slots.remove(reason);
+
+    let scope = index(&slots, "scope");
+
+    slots[scope].values = anything();
 
     check(
-        &preset("standard.toml", overrides),
+        &grammar(slots),
         &[
             ("add(anything goes): x", Ok(())),
             ("add(): x", Ok(())),
@@ -337,13 +386,16 @@ fn flexible_enclosure() {
 
 #[test]
 fn strict_and_flexible_enclosures() {
-    let overrides = r#"enclosures = [
-        { delimiters = ["(", ")"], allowed = ["core"] },
-        { delimiters = ["{", "}"] },
-    ]"#;
+    let mut slots = slots("standard.toml");
+    let scope = index(&slots, "scope");
+    let reason = index(&slots, "reason");
+
+    slots[scope].values = SetConfig::OneOf(vec!["core".to_owned()]);
+    slots[reason].delimiters = Some(['{', '}']);
+    slots[reason].values = anything();
 
     check(
-        &preset("standard.toml", overrides),
+        &grammar(slots),
         &[
             ("add(core){any thing}: x", Ok(())),
             ("add{free}: x", Ok(())),
@@ -358,8 +410,13 @@ fn strict_and_flexible_enclosures() {
 
 #[test]
 fn another_separator() {
+    let mut slots = slots("standard.toml");
+    let separator = index(&slots, "separator");
+
+    slots[separator].values = SetConfig::OneOf(vec![";".to_owned()]);
+
     check(
-        &preset("standard.toml", r#"separator = ";""#),
+        &grammar(slots),
         &[
             ("add; x", Ok(())),
             ("add: x", Err((3..4, "found ':' expected '!', '?', or ';'"))),
@@ -369,8 +426,13 @@ fn another_separator() {
 
 #[test]
 fn any_separator() {
+    let mut slots = slots("standard.toml");
+    let separator = index(&slots, "separator");
+
+    slots[separator].values = anything();
+
     check(
-        &preset("standard.toml", r#"separator = "any""#),
+        &grammar(slots),
         &[
             ("add: x", Ok(())),
             ("add; x", Ok(())),
@@ -383,10 +445,15 @@ fn any_separator() {
 
 #[test]
 fn any_modifier_leaves_the_any_separator() {
-    let overrides = "modifiers = \"any\"\nseparator = \"any\"";
+    let mut slots = slots("standard.toml");
+    let modifiers = index(&slots, "modifiers");
+    let separator = index(&slots, "separator");
+
+    slots[modifiers].values = anything();
+    slots[separator].values = anything();
 
     check(
-        &preset("standard.toml", overrides),
+        &grammar(slots),
         &[
             ("add!!; x", Ok(())),
             ("add; x", Ok(())),

@@ -1,19 +1,28 @@
 # Standard Commits: https://github.com/standard-commits/standard-commits
 
 [commit]
-keywords = ["add", "rem", "ref", "fix", "undo", "release"]
-modifiers = ["?", "!", "!!"]
-modifier-sequence = "pre"
-separator = ":"
 default-ignores = true
 
-[[commit.enclosures]]
-delimiters = ["(", ")"]
-allowed = ["exe", "lib", "test", "build", "doc", "ci", "cd"]
+[[commit.slots]]
+name = "keywords"
+kind = "word"
+values = ["add", "rem", "ref", "fix", "undo", "release"]
+required = true
 
-[[commit.enclosures]]
+[[commit.slots]]
+name = "modifiers"
+kind = "symbols"
+values = ["?", "!", "!!"]
+
+[[commit.slots]]
+name = "scope"
+delimiters = ["(", ")"]
+values = ["exe", "lib", "test", "build", "doc", "ci", "cd"]
+
+[[commit.slots]]
+name = "reason"
 delimiters = ["[", "]"]
-allowed = [
+values = [
   "int",
   "pre",
   "eff",
@@ -28,3 +37,9 @@ allowed = [
   "pol",
   "sty",
 ]
+
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+values = [":"]
+required = true
