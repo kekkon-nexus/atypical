@@ -83,10 +83,6 @@ pub struct Tokens {
     pub slots: Vec<Slot>,
 }
 
-pub struct Positional {
-    pub modifier_sequence: Sequence,
-}
-
 impl Default for Tokens {
     /// Unrestricted: any keyword, any modifier on either side of
     /// free-form `(...)`/`[...]` enclosures, and any single-symbol
@@ -224,20 +220,27 @@ fn symbols<'i>(
 
         let before = i.cursor();
 
+        // Without a separator there is nothing to stop the run, so it
+        // would eat the rest of the header.
+        let Some(separator) = &separator else {
+            let span = i.span_since(&before);
+            let message = format!("a {name} needs a separator after it");
+
+            return Err(Rich::custom(span, message));
+        };
+
         while let Some(c) = i.peek() {
             if !is_symbol(c) || openers.contains(&c) {
                 break;
             }
 
-            match &separator {
-                Some(Values::Set(set))
-                    if set.iter().any(|s| s.starts_with(c)) =>
-                {
+            match separator {
+                Values::Set(set) if set.iter().any(|s| s.starts_with(c)) => {
                     break;
                 }
                 // With an unrestricted separator, the last symbol
                 // of the run is the separator, not the modifier.
-                Some(Values::Any) => {
+                Values::Any => {
                     let checkpoint = i.save();
 
                     i.next();
@@ -247,7 +250,7 @@ fn symbols<'i>(
                         break;
                     }
                 }
-                _ => {
+                Values::Set(_) => {
                     i.next();
                 }
             }
