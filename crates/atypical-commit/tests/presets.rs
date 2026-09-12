@@ -29,7 +29,7 @@ fn preset(name: &str, overrides: &str) -> CommitConfig {
 }
 
 fn header_parser<'i>(
-    tokens: &'i atypical_commit::Tokens<'i>,
+    tokens: &atypical_commit::Tokens,
 ) -> impl Parser<'i, &'i str, atypical_commit::Header<'i>, atypical_commit::Extra<'i>>
 {
     atypical_commit::header()

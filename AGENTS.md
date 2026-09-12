@@ -23,12 +23,12 @@ toolchain, resolver 3) with two crates:
   and deserializes it from here.
 
 The design principle is **grammar-as-data**: the entire commit syntax
-(keywords, modifiers, enclosures, separator, ordering) lives in one
-`Tokens` struct, populated from a preset or the `[commit]`
-section of `atypical.toml`. Parsers read it at runtime via chumsky's
-context (`ExtraContext`), so nothing about the grammar is hardcoded
-into parser structure. Preserve this: new syntax features should
-extend `Tokens`/`CommitConfig`, not add special-cased parsers.
+lives in `Tokens` as an ordered list of slots (keyword, modifiers,
+enclosures, separator), lowered from a preset or the `[commit]`
+section of `atypical.toml`. `prefix()` walks the slots at runtime via
+chumsky's context (`ExtraContext`), so nothing about the grammar is
+hardcoded into parser structure. Preserve this: new syntax features
+should extend `Slot`/`CommitConfig`, not add special-cased parsers.
 
 ## Commit messages (you will be linted)
 
@@ -206,9 +206,9 @@ Conventions visible in the code:
   `amend!`, semver release bumps — exit 0 without linting
   (`src/ignore.rs`, mirroring commitlint's default ignores) unless
   `default-ignores = false` is set in `[commit]`.
-- `ExtraContext::new` sorts keywords/modifiers longest-first so that
-  e.g. `!!` wins over `!`. Any new token class with overlapping
-  prefixes needs the same treatment.
+- `ExtraContext::new` sorts every bare slot's set longest-first so
+  that e.g. `!!` wins over `!`. Delimited slots match whole, so their
+  sets keep declaration order, which is the order diagnostics list.
 
 ## Testing conventions
 

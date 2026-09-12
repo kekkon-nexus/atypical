@@ -43,70 +43,56 @@ pub enum Sequence {
     Any,
 }
 
+/// What a bare slot's contents are made of.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Class {
+    /// A run of alphanumerics and `_`.
+    Word,
+    /// A run of symbols.
+    Symbols,
+    /// Exactly one symbol.
+    Symbol,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Shape {
+    Delimited(DelimitedBy),
+    Bare(Class),
+}
+
 /// A restrictable set of accepted spellings: anything, or a closed
 /// list.
 #[derive(Debug, Clone, PartialEq)]
-pub enum TokenSet<'i> {
+pub enum Values {
     Any,
-    OneOf(Vec<&'i str>),
-}
-
-pub type KeywordToken<'i> = TokenSet<'i>;
-
-pub type ModifierToken<'i> = TokenSet<'i>;
-
-/// The separator: one specific character, or any single symbol.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum SeparatorToken {
-    Any,
-    Just(char),
+    Set(Vec<String>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum EnclosureToken<'i> {
-    Flexible(DelimitedBy),
-    Strict(DelimitedBy, Vec<&'i str>),
+pub struct Slot {
+    /// Names the slot in diagnostics.
+    pub name: String,
+    pub shape: Shape,
+    pub values: Values,
+    pub required: bool,
 }
 
-impl<'i> EnclosureToken<'i> {
-    #[inline]
-    pub fn delimiters(&self) -> DelimitedBy {
-        match self {
-            EnclosureToken::Flexible(delimiters) => *delimiters,
-            EnclosureToken::Strict(delimiters, _) => *delimiters,
-        }
-    }
-}
-
+/// The header grammar: its slots, in header order.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Tokens<'i> {
-    pub keywords: KeywordToken<'i>,
-    pub modifiers: ModifierToken<'i>,
-    pub enclosures: Vec<EnclosureToken<'i>>,
-    pub separator: SeparatorToken,
-
-    pub modifier_sequence: Sequence,
+pub struct Tokens {
+    pub slots: Vec<Slot>,
 }
 
 pub struct Positional {
     pub modifier_sequence: Sequence,
 }
 
-impl Default for Tokens<'_> {
+impl Default for Tokens {
     /// Unrestricted: any keyword, any modifier on either side of
     /// free-form `(...)`/`[...]` enclosures, and any single-symbol
     /// separator. Only the header shape itself is enforced.
     fn default() -> Self {
-        Self {
-            keywords: TokenSet::Any,
-            modifiers: TokenSet::Any,
-            enclosures: vec![
-                EnclosureToken::Flexible(['(', ')']),
-                EnclosureToken::Flexible(['[', ']']),
-            ],
-            separator: SeparatorToken::Any,
-            modifier_sequence: Sequence::Any,
-        }
+        (&config::CommitConfig::default()).into()
     }
 }
 
@@ -116,42 +102,43 @@ pub type ExtraState<'i> = ();
 
 #[doc(alias("Config", "Settings"))]
 #[derive(Debug, Clone, PartialEq)]
-pub struct ExtraContext<'i> {
-    pub tokens: Tokens<'i>,
+pub struct ExtraContext {
+    pub tokens: Tokens,
 }
 
-impl<'i> ExtraContext<'i> {
-    pub fn new(tokens: &Tokens<'i>) -> Self {
-        fn sort(set: &mut TokenSet<'_>) {
-            if let TokenSet::OneOf(v) = set {
-                v.sort_unstable_by(|a, b| b.len().cmp(&a.len()).then(a.cmp(b)));
-            }
-        }
-
+impl ExtraContext {
+    pub fn new(tokens: &Tokens) -> Self {
         let mut tokens = tokens.clone();
 
-        sort(&mut tokens.keywords);
-        sort(&mut tokens.modifiers);
+        // Bare slots match by prefix, so `!!` must be tried before `!`.
+        for slot in &mut tokens.slots {
+            if let (Shape::Bare(_), Values::Set(set)) =
+                (slot.shape, &mut slot.values)
+            {
+                set.sort_unstable_by(|a, b| {
+                    b.len().cmp(&a.len()).then(a.cmp(b))
+                });
+            }
+        }
 
         Self { tokens }
     }
 }
 
-impl<'i> Default for ExtraContext<'i> {
+impl Default for ExtraContext {
     fn default() -> Self {
         Self::new(&Tokens::default())
     }
 }
 
-impl<'i> From<Tokens<'i>> for ExtraContext<'i> {
-    fn from(val: Tokens<'i>) -> Self {
+impl From<Tokens> for ExtraContext {
+    fn from(val: Tokens) -> Self {
         ExtraContext::new(&val)
     }
 }
 
 #[doc(alias("Config", "Settings"))]
-pub type Extra<'i> =
-    extra::Full<ExtraError<'i>, ExtraState<'i>, ExtraContext<'i>>;
+pub type Extra<'i> = extra::Full<ExtraError<'i>, ExtraState<'i>, ExtraContext>;
 
 fn ident<'i>(
     i: &mut chumsky::input::InputRef<'i, '_, &'i str, Extra<'i>>,
@@ -173,7 +160,7 @@ fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
 }
 
-fn expected_one_of(found: &str, kind: &str, expected: &[&str]) -> String {
+fn expected_one_of(found: &str, kind: &str, expected: &[String]) -> String {
     let expected = expected.join(", ");
 
     if found.is_empty() {
@@ -183,18 +170,35 @@ fn expected_one_of(found: &str, kind: &str, expected: &[&str]) -> String {
     }
 }
 
-pub fn keyword<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
+fn one_of<'i>(
+    set: &[String],
+) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
+    let parsers = set
+        .iter()
+        .map(|token| just(token.clone()))
+        .collect::<Vec<_>>();
+
+    choice(parsers).to_slice()
+}
+
+fn word<'i>(
+    slot: &Slot,
+) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+    let Slot { name, values, .. } = slot.clone();
+
+    custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let (s, span) = ident(i);
 
-        match &i.ctx().tokens.keywords {
-            TokenSet::Any if !s.is_empty() => Ok(s),
-            TokenSet::Any => Err(Rich::custom(span, "expected a keyword")),
-            TokenSet::OneOf(keywords) if keywords.contains(&s) => Ok(s),
-            TokenSet::OneOf(keywords) => {
-                let message = expected_one_of(s, "keyword", keywords);
+        match &values {
+            Values::Any if !s.is_empty() => Ok(s),
+            Values::Any => {
+                Err(Rich::custom(span, format!("expected a {name}")))
+            }
+            Values::Set(set) if set.iter().any(|value| value == s) => Ok(s),
+            Values::Set(set) => {
+                let message = expected_one_of(s, &name, set);
 
                 Err(Rich::custom(span, message))
             }
@@ -202,28 +206,21 @@ pub fn keyword<'i>() -> impl Parser<'i, &'i str, Keyword<'i>, Extra<'i>> {
     })
 }
 
-pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
+/// A run of symbols that leaves the separator and every enclosure
+/// opener to the slots around it.
+fn symbols<'i>(
+    slot: &Slot,
+    separator: Option<Values>,
+    openers: Vec<char>,
+) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        if let TokenSet::OneOf(modifiers) = &i.ctx().tokens.modifiers {
-            let parsers = modifiers
-                .iter()
-                .map(|&token| just(token))
-                .collect::<Vec<_>>();
+    let Slot { name, values, .. } = slot.clone();
 
-            return i.parse(choice(parsers));
+    custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
+        if let Values::Set(set) = &values {
+            return i.parse(one_of(set));
         }
-
-        // Any: the longest run of symbols that leaves the separator
-        // and the enclosure openers untouched.
-        let tokens = &i.ctx().tokens;
-        let separator = tokens.separator;
-        let openers = tokens
-            .enclosures
-            .iter()
-            .map(|enclosure| enclosure.delimiters()[0])
-            .collect::<Vec<_>>();
 
         let before = i.cursor();
 
@@ -232,14 +229,15 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
                 break;
             }
 
-            match separator {
-                SeparatorToken::Just(s) if c == s => break,
-                SeparatorToken::Just(_) => {
-                    i.next();
+            match &separator {
+                Some(Values::Set(set))
+                    if set.iter().any(|s| s.starts_with(c)) =>
+                {
+                    break;
                 }
                 // With an unrestricted separator, the last symbol
                 // of the run is the separator, not the modifier.
-                SeparatorToken::Any => {
+                Some(Values::Any) => {
                     let checkpoint = i.save();
 
                     i.next();
@@ -249,6 +247,9 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
                         break;
                     }
                 }
+                _ => {
+                    i.next();
+                }
             }
         }
 
@@ -257,40 +258,85 @@ pub fn modifier<'i>() -> impl Parser<'i, &'i str, Modifier<'i>, Extra<'i>> {
         if s.is_empty() {
             let span = i.span_since(&before);
 
-            return Err(Rich::custom(span, "expected a modifier"));
+            return Err(Rich::custom(span, format!("expected a {name}")));
         }
 
         Ok(s)
     })
 }
 
-pub fn enclosures<'i>()
--> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
+fn symbol<'i>(
+    slot: &Slot,
+) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
+    use chumsky::input::InputRef;
+
+    let Slot { name, values, .. } = slot.clone();
+
+    custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
+        if let Values::Set(set) = &values {
+            return i.parse(one_of(set));
+        }
+
+        let before = i.cursor();
+
+        match i.peek() {
+            Some(c) if is_symbol(c) => {
+                i.next();
+
+                Ok(i.slice_since(&before..))
+            }
+            _ => Err(Rich::custom(
+                i.span_since(&before),
+                format!("expected a {name}"),
+            )),
+        }
+    })
+}
+
+fn bare<'i>(
+    class: Class,
+    slot: &Slot,
+    separator: &Option<Values>,
+    openers: &[char],
+) -> Boxed<'i, 'i, &'i str, &'i str, Extra<'i>> {
+    match class {
+        Class::Word => word(slot).boxed(),
+        Class::Symbols => {
+            symbols(slot, separator.clone(), openers.to_vec()).boxed()
+        }
+        Class::Symbol => symbol(slot).boxed(),
+    }
+}
+
+/// A run of delimited slots, each optional and at most once, in order.
+fn enclosures<'i>(
+    run: Vec<(DelimitedBy, Slot)>,
+) -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
     use chumsky::input::InputRef;
 
     fn parser<'i>(
-        token: &EnclosureToken<'i>,
+        [start, end]: DelimitedBy,
+        slot: &Slot,
     ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra<'i>> {
-        match *token {
-            EnclosureToken::Flexible([start, end]) => {
-                none_of::<'i, _, _, Extra>([start, end])
-                    .repeated()
-                    .to_slice()
-                    .delimited_by(just(start), just(end))
-                    .map(move |s| (s, [start, end]))
-                    .boxed()
-            }
-            EnclosureToken::Strict([start, end], ref allowed) => {
+        match &slot.values {
+            Values::Any => none_of::<'i, _, _, Extra>([start, end])
+                .repeated()
+                .to_slice()
+                .delimited_by(just(start), just(end))
+                .map(move |s| (s, [start, end]))
+                .boxed(),
+            Values::Set(allowed) => {
                 let allowed = allowed.clone();
+                let name = slot.name.clone();
 
                 custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
                     let (s, span) = ident(i);
 
-                    if allowed.contains(&s) {
+                    if allowed.iter().any(|value| value == s) {
                         return Ok(s);
                     }
 
-                    let message = expected_one_of(s, "enclosure", &allowed);
+                    let message = expected_one_of(s, &name, &allowed);
 
                     Err(Rich::custom(span, message))
                 })
@@ -301,80 +347,35 @@ pub fn enclosures<'i>()
         }
     }
 
-    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        let ctx = i.ctx();
-        let delimiters = ctx.tokens.enclosures.clone();
+    custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let mut index = 0;
         let mut results = Vec::new();
 
-        loop {
-            if index >= delimiters.len() {
-                break;
-            }
-
+        while index < run.len() {
             let next = i.peek();
-            let is_open = delimiters[index..]
+            let is_open = run[index..]
                 .iter()
-                .any(|enclosure| Some(enclosure.delimiters()[0]) == next);
+                .any(|([open, _], _)| Some(*open) == next);
 
             if !is_open {
                 break;
             }
 
-            let parsers =
-                delimiters[index..].iter().map(parser).collect::<Vec<_>>();
+            let parsers = run[index..]
+                .iter()
+                .map(|(delimiters, slot)| parser(*delimiters, slot))
+                .collect::<Vec<_>>();
 
             let (content, delimited_by) = i.parse(choice(parsers))?;
-            let position = delimiters
+            let position = run
                 .iter()
-                .position(|enclosure| enclosure.delimiters() == delimited_by)
+                .position(|(delimiters, _)| *delimiters == delimited_by)
                 .unwrap();
             index += position + 1;
             results.push((content, delimited_by));
         }
 
         Ok(results)
-    })
-}
-
-pub fn separator<'i>() -> impl Parser<'i, &'i str, char, Extra<'i>> {
-    use chumsky::input::InputRef;
-
-    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
-        match i.ctx().tokens.separator {
-            SeparatorToken::Just(separator) => i.parse(just(separator)),
-            SeparatorToken::Any => {
-                let before = i.cursor();
-
-                match i.peek() {
-                    Some(c) if is_symbol(c) => {
-                        i.next();
-
-                        Ok(c)
-                    }
-                    _ => Err(Rich::custom(
-                        i.span_since(&before),
-                        "expected a separator",
-                    )),
-                }
-            }
-        }
-    })
-}
-
-pub fn modifier_when<'i>(
-    sequence: Sequence,
-) -> impl Parser<'i, &'i str, Option<Modifier<'i>>, Extra<'i>> {
-    use chumsky::input::InputRef;
-
-    custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
-        let position = i.ctx().tokens.modifier_sequence;
-
-        if position != sequence && position != Sequence::Any {
-            return Ok(None);
-        }
-
-        i.parse(modifier().or_not())
     })
 }
 
@@ -413,24 +414,66 @@ pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
     })
 }
 
+/// Walks the slots in header order.
 pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
-    let keyword = keyword();
+    use chumsky::input::InputRef;
 
-    let modifier_pre = modifier_when(Sequence::Pre);
+    custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
+        let slots = i.ctx().tokens.slots.clone();
+        let separator = slots
+            .iter()
+            .find(|slot| slot.shape == Shape::Bare(Class::Symbol))
+            .map(|slot| slot.values.clone());
+        let openers = slots
+            .iter()
+            .filter_map(|slot| match slot.shape {
+                Shape::Delimited([open, _]) => Some(open),
+                Shape::Bare(_) => None,
+            })
+            .collect::<Vec<_>>();
 
-    let enclosures = enclosures();
+        let mut prefix = Prefix {
+            keyword: "",
+            modifier: None,
+            enclosures: Vec::new(),
+        };
+        let mut rest = slots.as_slice();
 
-    let modifier_post = modifier_when(Sequence::Post);
+        while let Some(slot) = rest.first() {
+            let Shape::Bare(class) = slot.shape else {
+                let run = rest
+                    .iter()
+                    .map_while(|slot| match slot.shape {
+                        Shape::Delimited(delimiters) => {
+                            Some((delimiters, slot.clone()))
+                        }
+                        Shape::Bare(_) => None,
+                    })
+                    .collect::<Vec<_>>();
 
-    let separator = separator();
+                rest = &rest[run.len()..];
+                prefix.enclosures.extend(i.parse(enclosures(run))?);
+                continue;
+            };
 
-    group((keyword, modifier_pre, enclosures, modifier_post, separator)).map(
-        |(keyword, modifier_pre, enclosures, modifier_post, _)| Prefix {
-            keyword,
-            modifier: modifier_pre.or(modifier_post),
-            enclosures,
-        },
-    )
+            let parser = bare(class, slot, &separator, &openers);
+            let s = if slot.required {
+                Some(i.parse(parser)?)
+            } else {
+                i.parse(parser.or_not())?
+            };
+
+            match class {
+                Class::Word => prefix.keyword = s.unwrap_or_default(),
+                Class::Symbols => prefix.modifier = prefix.modifier.or(s),
+                Class::Symbol => {}
+            }
+
+            rest = &rest[1..];
+        }
+
+        Ok(prefix)
+    })
 }
 
 pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {

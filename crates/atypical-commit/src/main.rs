@@ -100,7 +100,7 @@ fn message_header(input: &str) -> Option<(usize, &str)> {
 }
 
 fn header_parser<'i>(
-    tokens: &'i atypical_commit::Tokens<'i>,
+    tokens: &atypical_commit::Tokens,
 ) -> impl chumsky::Parser<
     'i,
     &'i str,

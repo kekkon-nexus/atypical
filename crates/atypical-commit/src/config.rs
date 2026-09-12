@@ -1,11 +1,9 @@
-// The `[commit]` section of atypical.toml: an owned mirror of
-// `Tokens`, unrestricted for every field left unset.
+// The `[commit]` section of atypical.toml, lowered into `Tokens`;
+// unrestricted for every field left unset.
 
 use serde::Deserialize;
 
-use crate::{
-    DelimitedBy, EnclosureToken, SeparatorToken, Sequence, TokenSet, Tokens,
-};
+use crate::{Class, DelimitedBy, Sequence, Shape, Slot, Tokens, Values};
 
 pub const SECTION: &str = "commit";
 
@@ -26,13 +24,11 @@ pub enum SetConfig {
     OneOf(Vec<String>),
 }
 
-impl<'i> From<&'i SetConfig> for TokenSet<'i> {
-    fn from(set: &'i SetConfig) -> Self {
+impl From<&SetConfig> for Values {
+    fn from(set: &SetConfig) -> Self {
         match set {
-            SetConfig::Any(_) => TokenSet::Any,
-            SetConfig::OneOf(v) => {
-                TokenSet::OneOf(v.iter().map(String::as_str).collect())
-            }
+            SetConfig::Any(_) => Values::Any,
+            SetConfig::OneOf(v) => Values::Set(v.clone()),
         }
     }
 }
@@ -46,11 +42,11 @@ pub enum SeparatorConfig {
     Just(char),
 }
 
-impl From<SeparatorConfig> for SeparatorToken {
+impl From<SeparatorConfig> for Values {
     fn from(separator: SeparatorConfig) -> Self {
         match separator {
-            SeparatorConfig::Any(_) => SeparatorToken::Any,
-            SeparatorConfig::Just(c) => SeparatorToken::Just(c),
+            SeparatorConfig::Any(_) => Values::Any,
+            SeparatorConfig::Just(c) => Values::Set(vec![c.to_string()]),
         }
     }
 }
@@ -79,8 +75,8 @@ pub struct EnclosureConfig {
 }
 
 impl Default for CommitConfig {
-    /// Unrestricted, as `Tokens::default()`. Fields omitted from a
-    /// `[commit]` section fall back to this.
+    /// Unrestricted; fields omitted from a `[commit]` section fall
+    /// back to this.
     fn default() -> Self {
         let flexible = |delimiters| EnclosureConfig {
             delimiters,
@@ -98,29 +94,53 @@ impl Default for CommitConfig {
     }
 }
 
-impl<'i> From<&'i CommitConfig> for Tokens<'i> {
-    fn from(config: &'i CommitConfig) -> Self {
-        fn borrowed(v: &[String]) -> Vec<&str> {
-            v.iter().map(String::as_str).collect()
-        }
+/// Today's fixed layout: keyword, modifier, enclosures, modifier,
+/// separator, with `modifier-sequence` deciding which modifier slots
+/// exist.
+impl From<&CommitConfig> for Tokens {
+    fn from(config: &CommitConfig) -> Self {
+        let slot = |name: &str, shape, values, required| Slot {
+            name: name.to_owned(),
+            shape,
+            values,
+            required,
+        };
+        let modifier = || {
+            let values = (&config.modifiers).into();
 
-        Self {
-            keywords: (&config.keywords).into(),
-            modifiers: (&config.modifiers).into(),
-            enclosures: config
-                .enclosures
-                .iter()
-                .map(|enclosure| match &enclosure.allowed {
-                    None => EnclosureToken::Flexible(enclosure.delimiters),
-                    Some(allowed) => EnclosureToken::Strict(
-                        enclosure.delimiters,
-                        borrowed(allowed),
-                    ),
-                })
-                .collect(),
-            separator: config.separator.into(),
-            modifier_sequence: config.modifier_sequence,
-        }
+            slot("modifier", Shape::Bare(Class::Symbols), values, false)
+        };
+        let (pre, post) = match config.modifier_sequence {
+            Sequence::Pre => (true, false),
+            Sequence::Post => (false, true),
+            Sequence::Any => (true, true),
+        };
+
+        let keywords = (&config.keywords).into();
+        let mut slots =
+            vec![slot("keyword", Shape::Bare(Class::Word), keywords, true)];
+
+        slots.extend(pre.then(modifier));
+        slots.extend(config.enclosures.iter().map(|enclosure| {
+            let values =
+                enclosure.allowed.clone().map_or(Values::Any, Values::Set);
+
+            slot(
+                "enclosure",
+                Shape::Delimited(enclosure.delimiters),
+                values,
+                false,
+            )
+        }));
+        slots.extend(post.then(modifier));
+        slots.push(slot(
+            "separator",
+            Shape::Bare(Class::Symbol),
+            config.separator.into(),
+            true,
+        ));
+
+        Self { slots }
     }
 }
 
