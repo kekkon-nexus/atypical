@@ -229,9 +229,9 @@ Conventions visible in the code:
 - TOML is formatted by **tombi** and YAML/JSON by **oxfmt** via
   lefthook — run `bun run fix` after editing config/workflow files
   rather than hand-styling them.
-- oxfmt also formats TOML and Markdown, and disagrees with tombi and
-  with the committed Markdown, so its globs are scoped to
-  `yml,yaml,json,ts` on purpose. Don't widen them to `.`.
+- oxfmt also formats TOML, which tombi owns, so the `js` jobs in
+  `check` and `fix` carry `exclude: "*.toml"`. Everything else it
+  supports, Markdown included, is oxfmt's; don't hand-style it.
 - lefthook only finds a `.config/` config named `lefthook.yaml`;
   `.config/lefthook.yml` is silently ignored.
 - Tool configs are gathered under `.config/` (lefthook, nextest,
