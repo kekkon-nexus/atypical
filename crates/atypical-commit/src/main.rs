@@ -101,16 +101,19 @@ fn message_header(input: &str) -> Option<(usize, &str)> {
 
 fn header_parser<'i>(
     tokens: &atypical_commit::Tokens,
-) -> impl chumsky::Parser<
-    'i,
-    &'i str,
-    atypical_commit::Header<'i>,
-    atypical_commit::Extra<'i>,
+) -> Result<
+    impl chumsky::Parser<
+        'i,
+        &'i str,
+        atypical_commit::Header<'i>,
+        atypical_commit::Extra<'i>,
+    > + use<'i>,
 > {
     use chumsky::Parser;
 
-    atypical_commit::header()
-        .with_ctx(atypical_commit::ExtraContext::new(tokens))
+    let context = atypical_commit::ExtraContext::new(tokens)?;
+
+    Ok(atypical_commit::header().with_ctx(context))
 }
 
 fn report<'i>(
@@ -153,6 +156,7 @@ fn lint(
     use chumsky::Parser;
 
     let tokens = atypical_commit::Tokens::from(config);
+    let parser = header_parser(&tokens)?;
     let mut failed = false;
 
     for (name, message) in messages {
@@ -167,7 +171,7 @@ fn lint(
             continue;
         }
 
-        let result = header_parser(&tokens).parse(header);
+        let result = parser.parse(header);
 
         if result.has_errors() {
             report(name, message, offset, header, result.errors(), to)?;

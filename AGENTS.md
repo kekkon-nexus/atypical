@@ -209,6 +209,12 @@ Conventions visible in the code:
 - `ExtraContext::new` sorts every bare slot's set longest-first so
   that e.g. `!!` wins over `!`. Delimited slots match whole, so their
   sets keep declaration order, which is the order diagnostics list.
+- `ExtraContext::new` rejects (`Ambiguous`) neighbouring bare slots
+  that cannot be told apart: one that takes a whole run in front of
+  one needing the same run (word then word, or an unrestricted symbol
+  run then another run), and two whose spellings share a prefix. A
+  single-symbol slot may follow a run: the last symbol of the run is
+  the separator.
 
 ## Testing conventions
 

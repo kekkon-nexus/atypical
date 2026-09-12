@@ -33,7 +33,7 @@ fn header_parser<'i>(
 ) -> impl Parser<'i, &'i str, atypical_commit::Header<'i>, atypical_commit::Extra<'i>>
 {
     atypical_commit::header()
-        .with_ctx(atypical_commit::ExtraContext::new(tokens))
+        .with_ctx(atypical_commit::ExtraContext::new(tokens).unwrap())
 }
 
 fn errors(config: &CommitConfig, header: &str) -> Vec<(Range<usize>, String)> {

@@ -102,8 +102,98 @@ pub struct ExtraContext {
     pub tokens: Tokens,
 }
 
+/// A pair of neighbouring slots that cannot be told apart.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Ambiguous {
+    /// One takes the whole run the other needs.
+    Run { first: String, second: String },
+    /// Their spellings share a prefix.
+    Prefix {
+        first: String,
+        second: String,
+        spelling: String,
+    },
+}
+
+impl core::fmt::Display for Ambiguous {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Ambiguous::Run { first, second } => write!(
+                f,
+                "`{first}` takes the whole run, leaving nothing for `{second}`"
+            ),
+            Ambiguous::Prefix {
+                first,
+                second,
+                spelling,
+            } => write!(
+                f,
+                "`{first}` and `{second}` both start with `{spelling}`"
+            ),
+        }
+    }
+}
+
+impl core::error::Error for Ambiguous {}
+
+/// A bare slot is only locatable because its alphabet is disjoint from
+/// its neighbour's, so the pairs are checked before any input is seen.
+fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
+    for pair in slots.windows(2) {
+        let [first, second] = pair else { continue };
+
+        let (Shape::Bare(class), Shape::Bare(next)) =
+            (first.shape, second.shape)
+        else {
+            continue;
+        };
+
+        let eats_run = matches!(
+            (class, &first.values),
+            (Class::Word, _) | (Class::Symbols, Values::Any)
+        );
+
+        if eats_run && class == next {
+            return Some(Ambiguous::Run {
+                first: first.name.clone(),
+                second: second.name.clone(),
+            });
+        }
+
+        let (Values::Set(spellings), Values::Set(next_spellings)) =
+            (&first.values, &second.values)
+        else {
+            continue;
+        };
+
+        for spelling in spellings {
+            for next_spelling in next_spellings {
+                let shared = if spelling.starts_with(next_spelling.as_str()) {
+                    next_spelling
+                } else if next_spelling.starts_with(spelling.as_str()) {
+                    spelling
+                } else {
+                    continue;
+                };
+
+                return Some(Ambiguous::Prefix {
+                    first: first.name.clone(),
+                    second: second.name.clone(),
+                    spelling: shared.clone(),
+                });
+            }
+        }
+    }
+
+    None
+}
+
 impl ExtraContext {
-    pub fn new(tokens: &Tokens) -> Self {
+    pub fn new(tokens: &Tokens) -> Result<Self, Ambiguous> {
+        if let Some(ambiguous) = ambiguity(&tokens.slots) {
+            return Err(ambiguous);
+        }
+
         let mut tokens = tokens.clone();
 
         // Bare slots match by prefix, so `!!` must be tried before `!`.
@@ -117,19 +207,14 @@ impl ExtraContext {
             }
         }
 
-        Self { tokens }
+        Ok(Self { tokens })
     }
 }
 
 impl Default for ExtraContext {
     fn default() -> Self {
         Self::new(&Tokens::default())
-    }
-}
-
-impl From<Tokens> for ExtraContext {
-    fn from(val: Tokens) -> Self {
-        ExtraContext::new(&val)
+            .expect("the unrestricted grammar is unambiguous")
     }
 }
 
@@ -484,4 +569,125 @@ pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
         prefix,
         description,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn slot(name: &str, shape: Shape, values: Values) -> Slot {
+        Slot {
+            name: name.to_owned(),
+            shape,
+            values,
+            required: false,
+        }
+    }
+
+    fn set(spellings: &[&str]) -> Values {
+        Values::Set(spellings.iter().map(|s| (*s).to_owned()).collect())
+    }
+
+    fn context(slots: Vec<Slot>) -> Result<ExtraContext, Ambiguous> {
+        ExtraContext::new(&Tokens { slots })
+    }
+
+    #[test]
+    fn test_lowered_layouts_are_unambiguous() {
+        assert!(ExtraContext::new(&Tokens::default()).is_ok());
+    }
+
+    #[test]
+    fn test_ambiguity_says_which_pair() {
+        let run = Ambiguous::Run {
+            first: "modifier".to_owned(),
+            second: "flag".to_owned(),
+        };
+
+        assert_eq!(
+            run.to_string(),
+            "`modifier` takes the whole run, leaving nothing for `flag`"
+        );
+
+        let prefix = Ambiguous::Prefix {
+            first: "modifier".to_owned(),
+            second: "separator".to_owned(),
+            spelling: "!".to_owned(),
+        };
+
+        assert_eq!(
+            prefix.to_string(),
+            "`modifier` and `separator` both start with `!`"
+        );
+    }
+
+    #[test]
+    fn test_a_word_leaves_nothing_for_a_word() {
+        assert_eq!(
+            context(vec![
+                slot("keyword", Shape::Bare(Class::Word), Values::Any),
+                slot("scope", Shape::Bare(Class::Word), set(&["lib"])),
+            ]),
+            Err(Ambiguous::Run {
+                first: "keyword".to_owned(),
+                second: "scope".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn test_an_unrestricted_run_leaves_nothing_for_a_run() {
+        assert_eq!(
+            context(vec![
+                slot("modifier", Shape::Bare(Class::Symbols), Values::Any),
+                slot("flag", Shape::Bare(Class::Symbols), set(&["~"])),
+            ]),
+            Err(Ambiguous::Run {
+                first: "modifier".to_owned(),
+                second: "flag".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn test_a_single_symbol_may_follow_a_run() {
+        assert!(
+            context(vec![
+                slot("modifier", Shape::Bare(Class::Symbols), Values::Any),
+                slot("separator", Shape::Bare(Class::Symbol), Values::Any),
+            ])
+            .is_ok()
+        );
+    }
+
+    #[test]
+    fn test_neighbouring_sets_may_not_share_a_prefix() {
+        assert_eq!(
+            context(vec![
+                slot(
+                    "modifier",
+                    Shape::Bare(Class::Symbols),
+                    set(&["!", "!!"])
+                ),
+                slot("separator", Shape::Bare(Class::Symbol), set(&["!"])),
+            ]),
+            Err(Ambiguous::Prefix {
+                first: "modifier".to_owned(),
+                second: "separator".to_owned(),
+                spelling: "!".to_owned(),
+            })
+        );
+    }
+
+    #[test]
+    fn test_a_delimited_slot_separates_two_runs() {
+        assert!(
+            context(vec![
+                slot("keyword", Shape::Bare(Class::Word), Values::Any),
+                slot("scope", Shape::Delimited(['(', ')']), Values::Any),
+                slot("reason", Shape::Bare(Class::Word), Values::Any),
+            ])
+            .is_ok()
+        );
+    }
 }
