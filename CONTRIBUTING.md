@@ -2,28 +2,31 @@
 
 ## Setup
 
-This project uses [mise](https://mise.jdx.dev/) for the toolchain and
-[hk](https://hk.jdx.dev/) for linting and git hooks. Install mise, then:
+Linters and git hooks come from npm via
+[lefthook](https://lefthook.dev/); the Rust toolchain comes from
+`rust-toolchain.toml`. Install [bun](https://bun.sh/) and
+[rustup](https://rustup.rs/), then:
 
 ```sh
-mise install
+bun install
+cargo install cargo-nextest --locked
 ```
 
-The git hooks are installed automatically.
+The git hooks are installed automatically by lefthook's postinstall.
 
 ## Workflow
 
 ```sh
-hk check
-hk fix
-mise run test:rust
+bun run check
+bun run fix
+bun run test:rust
 ```
 
-The `pre-commit` hook runs `hk fix` on staged files.
+The `pre-commit` hook runs the same linters on staged files.
 
-`mise run bench:latency` writes per-invocation latency receipts to
-`benches/results.md`; `bun install` first to include the commitlint
-head-to-head.
+`bun run bench:latency` writes per-invocation latency receipts to
+`benches/results.md`; it needs
+[hyperfine](https://github.com/sharkdp/hyperfine) on `PATH`.
 
 ## Commits
 
