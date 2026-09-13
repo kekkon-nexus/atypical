@@ -116,6 +116,14 @@ pub enum Ambiguous {
         second: String,
         spelling: String,
     },
+    /// One holds spellings the other would take anyway.
+    Shadowed { first: String, second: String },
+    /// Two delimited slots open the same way.
+    Delimiters {
+        first: String,
+        second: String,
+        open: char,
+    },
 }
 
 impl core::fmt::Display for Ambiguous {
@@ -133,6 +141,15 @@ impl core::fmt::Display for Ambiguous {
                 f,
                 "`{first}` and `{second}` both start with `{spelling}`"
             ),
+            Ambiguous::Shadowed { first, second } => write!(
+                f,
+                "`{second}` takes anything, `{first}`'s spellings included"
+            ),
+            Ambiguous::Delimiters {
+                first,
+                second,
+                open,
+            } => write!(f, "`{first}` and `{second}` both open with `{open}`"),
         }
     }
 }
@@ -154,6 +171,23 @@ fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
                 break;
             }
         }
+
+        // Delimiters are matched wherever they sit, so a repeat is
+        // unreachable however far away it is.
+        let Shape::Delimited([open, _]) = first.shape else {
+            continue;
+        };
+        let repeat = slots[index + 1..]
+            .iter()
+            .find(|second| second.shape == first.shape);
+
+        if let Some(second) = repeat {
+            return Some(Ambiguous::Delimiters {
+                first: first.name.clone(),
+                second: second.name.clone(),
+                open,
+            });
+        }
     }
 
     None
@@ -172,6 +206,27 @@ fn ambiguous_pair(first: &Slot, second: &Slot) -> Option<Ambiguous> {
 
     if eats_run && class == next {
         return Some(Ambiguous::Run {
+            first: first.name.clone(),
+            second: second.name.clone(),
+        });
+    }
+
+    // Symbols and symbol share an alphabet, so a closed set in front of
+    // one that takes anything has no spelling of its own.
+    let alike = matches!(
+        (class, next),
+        (Class::Word, Class::Word)
+            | (
+                Class::Symbols | Class::Symbol,
+                Class::Symbols | Class::Symbol
+            )
+    );
+
+    if alike
+        && matches!(first.values, Values::Set(_))
+        && matches!(second.values, Values::Any)
+    {
+        return Some(Ambiguous::Shadowed {
             first: first.name.clone(),
             second: second.name.clone(),
         });
@@ -228,12 +283,13 @@ impl ExtraContext {
 }
 
 impl Default for ExtraContext {
-    /// Empty, and never parsed against: chumsky builds one of these per
-    /// `parse` call, and `with_ctx` replaces it. Validation happens in
-    /// `new`, which can fail, so it cannot happen here.
+    /// The unrestricted grammar, which chumsky builds per `parse` call
+    /// and `with_ctx` replaces. It skips `new`, whose validation can
+    /// fail, and has nothing to validate or sort: every slot takes
+    /// anything.
     fn default() -> Self {
         Self {
-            tokens: Tokens { slots: Vec::new() },
+            tokens: Tokens::default(),
         }
     }
 }
@@ -257,7 +313,7 @@ fn ident<'i>(
 }
 
 /// A visible char that can't belong to a keyword or a description.
-fn is_symbol(c: char) -> bool {
+pub(crate) fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
 }
 
@@ -473,6 +529,7 @@ fn enclosures<'i>(
         let mut results = Vec::new();
 
         while index < run.len() {
+            let before = i.cursor();
             let next = i.peek();
             let is_open = run[index..]
                 .iter()
@@ -488,12 +545,33 @@ fn enclosures<'i>(
                 .collect::<Vec<_>>();
 
             let (content, delimited_by) = i.parse(choice(parsers))?;
-            let position = run
+            // The position is within what is left of the run, since
+            // everything before `index` is already spoken for.
+            let position = run[index..]
                 .iter()
                 .position(|(delimiters, _)| *delimiters == delimited_by)
                 .unwrap();
+            let skipped = run[index..index + position]
+                .iter()
+                .find(|(_, slot)| slot.required);
+
+            if let Some(([open, _], _)) = skipped {
+                let message = format!("expected an opening `{open}`");
+
+                return Err(Rich::custom(i.span_since(&before), message));
+            }
+
             index += position + 1;
             results.push((content, delimited_by));
+        }
+
+        if let Some(([open, _], _)) =
+            run[index..].iter().find(|(_, slot)| slot.required)
+        {
+            let here = i.cursor();
+            let message = format!("expected an opening `{open}`");
+
+            return Err(Rich::custom(i.span_since(&here), message));
         }
 
         Ok(results)
@@ -626,6 +704,12 @@ mod tests {
     }
 
     #[test]
+    fn test_the_default_context_is_unrestricted() {
+        assert_eq!(ExtraContext::default().tokens, Tokens::default());
+        assert!(!header().parse("add(lib)!: x").has_errors());
+    }
+
+    #[test]
     fn test_lowered_layouts_are_unambiguous() {
         assert!(ExtraContext::new(&Tokens::default()).is_ok());
     }
@@ -651,6 +735,27 @@ mod tests {
         assert_eq!(
             prefix.to_string(),
             "`modifier` and `separator` both start with `!`"
+        );
+
+        let shadowed = Ambiguous::Shadowed {
+            first: "modifiers".to_owned(),
+            second: "separator".to_owned(),
+        };
+
+        assert_eq!(
+            shadowed.to_string(),
+            "`separator` takes anything, `modifiers`'s spellings included"
+        );
+
+        let delimiters = Ambiguous::Delimiters {
+            first: "scope".to_owned(),
+            second: "reason".to_owned(),
+            open: '(',
+        };
+
+        assert_eq!(
+            delimiters.to_string(),
+            "`scope` and `reason` both open with `(`"
         );
     }
 

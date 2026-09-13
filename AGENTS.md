@@ -207,8 +207,11 @@ Conventions visible in the code:
   `required`; or the fixed-layout keys (`keywords`, `modifiers`,
   `modifier-sequence`, `enclosures`, `separator`). Setting both is
   `Invalid::Mixed`, since a slot list already says what those keys
-  say. `default-ignores` is not grammar and belongs to either.
-  The shipped presets use the slot form.
+  say. `default-ignores` is not grammar and belongs to either. A slot
+  with neither `kind` nor `delimiters`, or with both, is
+  `Invalid::Shape`; a spelling its kind can never match, such as `::`
+  for a `symbol`, is `Invalid::Spelling`. The shipped presets use the
+  slot form.
 - Enclosure order is positional: each `[[commit.enclosures]]` entry
   may appear at most once, in declaration order.
 - Machine-generated headers — merges, reverts, `fixup!`/`squash!`/
@@ -224,9 +227,15 @@ Conventions visible in the code:
   run), and two whose spellings share a prefix. A single-symbol slot
   may follow a run: the last symbol of the run is the separator.
   Optional slots between two others do not separate them, so every
-  slot up to the first required one is a neighbour. Slots are named
-  after the config key to edit, so the error points at something the
-  user can act on; diagnostics use the shape's noun instead.
+  slot up to the first required one is a neighbour. A closed set in
+  front of a slot taking anything of the same alphabet is rejected as
+  well, since its spellings would serve the other, and so are two
+  delimited slots opening the same way, since the later one is
+  unreachable. Slots are named after the config key to edit, so the
+  error points at something the user can act on; diagnostics use the
+  shape's noun instead.
+- A delimited slot marked `required` must appear: the walker refuses a
+  header that skips it, naming the opener it wanted.
 
 ## Testing conventions
 

@@ -425,8 +425,30 @@ fn another_separator() {
 }
 
 #[test]
+fn a_set_before_an_unrestricted_separator_is_rejected() {
+    let mut slots = slots("standard.toml");
+    let separator = index(&slots, "separator");
+
+    slots[separator].values = anything();
+
+    let tokens = atypical_commit::Tokens::try_from(&grammar(slots)).unwrap();
+
+    assert_eq!(
+        atypical_commit::ExtraContext::new(&tokens),
+        // Every modifier spelling would serve as the separator too.
+        Err(atypical_commit::Ambiguous::Shadowed {
+            first: "modifiers".to_owned(),
+            second: "separator".to_owned(),
+        })
+    );
+}
+
+#[test]
 fn any_separator() {
     let mut slots = slots("standard.toml");
+
+    slots.retain(|slot| slot.name != "modifiers");
+
     let separator = index(&slots, "separator");
 
     slots[separator].values = anything();
@@ -437,8 +459,8 @@ fn any_separator() {
             ("add: x", Ok(())),
             ("add; x", Ok(())),
             ("add> x", Ok(())),
-            ("add x", Err((3..4, "expected a separator"))),
-            ("add : x", Err((3..4, "expected a separator"))),
+            ("add x", Err((3..3, "expected a separator"))),
+            ("add : x", Err((3..3, "expected a separator"))),
         ],
     );
 }
@@ -461,6 +483,70 @@ fn any_modifier_leaves_the_any_separator() {
             // A lone symbol is the separator, not a modifier.
             ("add! x", Ok(())),
         ],
+    );
+}
+
+#[test]
+fn every_enclosure_in_a_row_is_reachable() {
+    let mut slots = slots("standard.toml");
+    let separator = index(&slots, "separator");
+
+    slots.insert(
+        separator,
+        SlotConfig {
+            name: "extra".to_owned(),
+            kind: None,
+            delimiters: Some(['{', '}']),
+            values: anything(),
+            required: false,
+        },
+    );
+
+    check(
+        &grammar(slots),
+        &[
+            ("add(lib)[int]{third}: x", Ok(())),
+            ("add(lib){third}: x", Ok(())),
+            ("add[int]{third}: x", Ok(())),
+            ("add{third}: x", Ok(())),
+        ],
+    );
+}
+
+#[test]
+fn a_required_enclosure_is_demanded() {
+    let mut slots = slots("standard.toml");
+    let scope = index(&slots, "scope");
+
+    slots[scope].required = true;
+
+    check(
+        &grammar(slots),
+        &[
+            ("add(lib): x", Ok(())),
+            ("add: x", Err((3..4, "expected an opening `(`"))),
+            ("add[int]: x", Err((3..4, "expected an opening `(`"))),
+        ],
+    );
+}
+
+#[test]
+fn enclosures_may_not_share_delimiters() {
+    let mut slots = slots("standard.toml");
+    let scope = index(&slots, "scope");
+    let reason = index(&slots, "reason");
+
+    slots[reason].delimiters = slots[scope].delimiters;
+
+    let tokens = atypical_commit::Tokens::try_from(&grammar(slots)).unwrap();
+
+    assert_eq!(
+        atypical_commit::ExtraContext::new(&tokens),
+        Err(atypical_commit::Ambiguous::Delimiters {
+            first: "scope".to_owned(),
+            second: "reason".to_owned(),
+            open: '(',
+        })
     );
 }
 

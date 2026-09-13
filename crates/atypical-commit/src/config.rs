@@ -121,6 +121,12 @@ pub enum Invalid {
     Mixed(&'static str),
     /// A slot that is neither delimited nor bare, or both at once.
     Shape(String),
+    /// A spelling the slot's kind can never match.
+    Spelling {
+        slot: String,
+        spelling: String,
+        kind: &'static str,
+    },
 }
 
 impl core::fmt::Display for Invalid {
@@ -134,6 +140,44 @@ impl core::fmt::Display for Invalid {
                 f,
                 "slot `{name}` needs either `kind` or `delimiters`, not both"
             ),
+            Invalid::Spelling {
+                slot,
+                spelling,
+                kind,
+            } => write!(
+                f,
+                "slot `{slot}` is {kind}, so it cannot match `{spelling}`"
+            ),
+        }
+    }
+}
+
+/// What a slot's kind is called in TOML, for diagnostics.
+fn kind(shape: Shape) -> &'static str {
+    match shape {
+        Shape::Delimited(_) => "delimited",
+        Shape::Bare(Class::Word) => "a `word`",
+        Shape::Bare(Class::Symbols) => "`symbols`",
+        Shape::Bare(Class::Symbol) => "a `symbol`",
+    }
+}
+
+/// Whether a slot of this shape could ever match this spelling. A
+/// delimited slot reads its contents as one word, as a bare word slot
+/// does.
+fn fits(shape: Shape, spelling: &str) -> bool {
+    let word = |c: char| c.is_alphanumeric() || c == '_';
+    let mut chars = spelling.chars();
+
+    match shape {
+        Shape::Delimited(_) | Shape::Bare(Class::Word) => {
+            !spelling.is_empty() && spelling.chars().all(word)
+        }
+        Shape::Bare(Class::Symbols) => {
+            !spelling.is_empty() && spelling.chars().all(crate::is_symbol)
+        }
+        Shape::Bare(Class::Symbol) => {
+            chars.next().is_some_and(crate::is_symbol) && chars.next().is_none()
         }
     }
 }
@@ -251,33 +295,49 @@ impl TryFrom<&CommitConfig> for Tokens {
     type Error = Invalid;
 
     fn try_from(config: &CommitConfig) -> Result<Self, Self::Error> {
-        let Some(slots) = &config.slots else {
-            return Ok(Self {
-                slots: fixed(config),
-            });
-        };
+        let slots = self::slots(config)?;
 
-        let replaced = [
-            ("keywords", config.keywords.is_some()),
-            ("modifiers", config.modifiers.is_some()),
-            ("enclosures", config.enclosures.is_some()),
-            ("separator", config.separator.is_some()),
-            ("modifier-sequence", config.modifier_sequence.is_some()),
-        ];
+        for slot in &slots {
+            let Values::Set(spellings) = &slot.values else {
+                continue;
+            };
+            let unmatchable = spellings
+                .iter()
+                .find(|spelling| !fits(slot.shape, spelling));
 
-        for (key, present) in replaced {
-            if present {
-                return Err(Invalid::Mixed(key));
+            if let Some(spelling) = unmatchable {
+                return Err(Invalid::Spelling {
+                    slot: slot.name.clone(),
+                    spelling: spelling.clone(),
+                    kind: kind(slot.shape),
+                });
             }
         }
 
-        Ok(Self {
-            slots: slots
-                .iter()
-                .map(Slot::try_from)
-                .collect::<Result<_, _>>()?,
-        })
+        Ok(Self { slots })
     }
+}
+
+fn slots(config: &CommitConfig) -> Result<Vec<Slot>, Invalid> {
+    let Some(slots) = &config.slots else {
+        return Ok(fixed(config));
+    };
+
+    let replaced = [
+        ("keywords", config.keywords.is_some()),
+        ("modifiers", config.modifiers.is_some()),
+        ("enclosures", config.enclosures.is_some()),
+        ("separator", config.separator.is_some()),
+        ("modifier-sequence", config.modifier_sequence.is_some()),
+    ];
+
+    for (key, present) in replaced {
+        if present {
+            return Err(Invalid::Mixed(key));
+        }
+    }
+
+    slots.iter().map(Slot::try_from).collect()
 }
 
 #[cfg(test)]
@@ -519,6 +579,60 @@ mod tests {
             Invalid::Shape("scope".to_owned()).to_string(),
             "slot `scope` needs either `kind` or `delimiters`, not both"
         );
+    }
+
+    #[test]
+    fn test_a_spelling_must_fit_the_kind() {
+        let separator: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "separator"
+            kind = "symbol"
+            values = ["::"]
+            required = true
+        "#})
+        .unwrap();
+        let invalid = Invalid::Spelling {
+            slot: "separator".to_owned(),
+            spelling: "::".to_owned(),
+            kind: "a `symbol`",
+        };
+
+        assert_eq!(Tokens::try_from(&separator), Err(invalid.clone()));
+        assert_eq!(
+            invalid.to_string(),
+            "slot `separator` is a `symbol`, so it cannot match `::`"
+        );
+
+        let worded: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "modifiers"
+            kind = "symbols"
+            values = ["ab"]
+        "#})
+        .unwrap();
+        let spaced: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            values = ["two words"]
+        "#})
+        .unwrap();
+
+        let keyword: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["two words"]
+            required = true
+        "#})
+        .unwrap();
+
+        for config in [worded, spaced, keyword] {
+            assert!(matches!(
+                Tokens::try_from(&config),
+                Err(Invalid::Spelling { .. })
+            ));
+        }
     }
 
     #[test]

@@ -31,7 +31,7 @@ Available configuration in `[commit]`:
 | ------------------- | --------------------------------------------- | ---------------------------------------- | -------------------------- |
 | `keywords`          | Allowed keywords                              | `"any"`, or list of strings              | `feat`, `wip`, `create`    |
 | `modifiers`         | Allowed modifier symbols                      | `"any"`, or list of strings              | `!`, `*`, `+`              |
-| `modifier-sequence` | Modifier position, before or after enclosures | `"any"`, or `"pre"`, `"post"`            | `feat!(api)`, `feat(api)!` |
+| `modifier-sequence` | Modifier position, before or after enclosures | `"pre"` or `"post"`; `"any"` is rejected | `feat!(api)`, `feat(api)!` |
 | `separator`         | Symbol between header and subject             | `"any"`, or single-symbol string         | `:`, `-`, `/`              |
 | `default-ignores`   | Skips merge, revert, and fixup commits        | `true` (default), `false`                | —                          |
 | `enclosures[]`      | Enclosures, as `[[commit.enclosures]]`        | Table: `delimiters` + optional `allowed` | `delimiters = ["(", ")"]`  |
