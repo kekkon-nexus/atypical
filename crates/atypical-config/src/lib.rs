@@ -136,6 +136,21 @@ fn merge(base: &mut toml::Table, layer: toml::Table) {
             {
                 merge_named(base, layer);
             }
+            // Nothing beneath it to merge into, so it lands as it is.
+            // It may still hold directives that must not reach a
+            // section schema, though, so it is merged onto nothing.
+            (_, toml::Value::Table(layer)) => {
+                let mut onto = toml::Table::new();
+
+                merge(&mut onto, layer);
+                base.insert(key, toml::Value::Table(onto));
+            }
+            (_, toml::Value::Array(layer)) if named(&layer) => {
+                let mut onto = Vec::new();
+
+                merge_named(&mut onto, layer);
+                base.insert(key, toml::Value::Array(onto));
+            }
             (_, value) => {
                 base.insert(key, value);
             }
@@ -153,14 +168,27 @@ fn named(array: &[toml::Value]) -> bool {
     !array.is_empty() && array.iter().all(|entry| name_of(entry).is_some())
 }
 
+/// Whether this entry says to remove the one it names, consuming the
+/// directive so it never reaches a section schema. A `drop` that is not
+/// a boolean is left where it is, so the schema reports it rather than
+/// it quietly meaning `false`.
+fn dropped(entry: &mut toml::Value) -> bool {
+    let Some(fields) = entry.as_table_mut() else {
+        return false;
+    };
+
+    match fields.get("drop") {
+        Some(&toml::Value::Boolean(flag)) => {
+            fields.remove("drop");
+            flag
+        }
+        _ => false,
+    }
+}
+
 fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
     for mut entry in layer {
-        let dropped = entry
-            .as_table_mut()
-            .and_then(|fields| fields.remove("drop"))
-            .and_then(|flag| flag.as_bool())
-            .unwrap_or_default();
-
+        let dropped = dropped(&mut entry);
         let name = name_of(&entry).unwrap_or_default().to_owned();
         let at = base.iter().position(|it| name_of(it) == Some(&*name));
 

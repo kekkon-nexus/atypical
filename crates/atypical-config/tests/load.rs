@@ -312,6 +312,56 @@ fn named_entries_merge_along_a_chain() {
     );
 }
 
+#[test]
+fn a_named_array_is_normalised_without_a_base() {
+    let root = tree("named-standalone");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            drop = false
+
+            [[commit.slots]]
+            name = "gone"
+            kind = "word"
+            drop = true
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![slot("keywords", "word", false)]
+        })
+    );
+}
+
+#[test]
+fn a_drop_that_is_not_a_boolean_is_left_for_the_schema() {
+    let root = tree("named-drop-invalid");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "separator"
+            drop = "true"
+        "#},
+    )
+    .unwrap();
+
+    assert!(atypical_config::load::<Slots>(&file, "commit").is_err());
+}
+
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct Keywords {
     keywords: Vec<String>,
