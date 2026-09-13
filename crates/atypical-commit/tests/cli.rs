@@ -275,7 +275,18 @@ fn unreadable_file_fails() {
 fn config_flag_overrides_the_keywords() {
     let config = fixture(
         "keywords.toml",
-        "[commit]\nkeywords = [\"feat\", \"fix\"]\n",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["feat", "fix"]
+            required = true
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            required = true
+        "#},
     );
     let config = config.to_str().unwrap();
 
@@ -296,7 +307,18 @@ fn config_is_discovered_from_the_working_directory() {
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(
         dir.join("atypical.toml"),
-        "[commit]\nkeywords = [\"feat\"]\n",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["feat"]
+            required = true
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            required = true
+        "#},
     )
     .unwrap();
 
@@ -566,7 +588,25 @@ fn slots_that_cannot_be_told_apart_fail() {
     // Modifiers on either side, with no enclosure between them.
     let config = fixture(
         "ambiguous.toml",
-        "[commit]\nmodifier-sequence = \"any\"\nenclosures = []\n",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+
+            [[commit.slots]]
+            name = "modifiers-pre"
+            kind = "symbols"
+
+            [[commit.slots]]
+            name = "modifiers-post"
+            kind = "symbols"
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            required = true
+        "#},
     );
 
     let output = lint(
@@ -577,5 +617,5 @@ fn slots_that_cannot_be_told_apart_fail() {
 
     assert_eq!(output.status.code(), Some(1));
     assert!(stderr.contains("takes the whole run"), "{stderr}");
-    assert!(stderr.contains("modifier-sequence (pre)"), "{stderr}");
+    assert!(stderr.contains("modifiers-pre"), "{stderr}");
 }

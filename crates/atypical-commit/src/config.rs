@@ -458,6 +458,19 @@ mod tests {
                 "separator"
             ]
         );
+        // Both sides, so each names the key to edit rather than the one
+        // that declared its contents. Rejected later as ambiguous.
+        assert_eq!(
+            names(r#"modifier-sequence = "any""#),
+            [
+                "keywords",
+                "modifier-sequence (pre)",
+                "enclosures[0]",
+                "enclosures[1]",
+                "modifier-sequence (post)",
+                "separator"
+            ]
+        );
     }
 
     #[test]
