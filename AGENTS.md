@@ -204,24 +204,23 @@ Conventions visible in the code:
 - Config semantics: no `[commit]` section means nothing is linted
   (exit 0 for any message); a declared section defaults _field by
   field_ to unrestricted (`#[serde(default)]` on `CommitConfig`);
-  unknown keys are rejected (`deny_unknown_fields`); an enclosure
-  without `allowed` is flexible (anything between the delimiters);
-  `keywords`, `modifiers` and `separator` accept the literal string
-  `"any"`; `modifier-sequence = "any"` still parses but is then
-  rejected as ambiguous, since one key would fill two slots.
-- The grammar has two spellings: `[[commit.slots]]`, an ordered list
+  unknown keys are rejected (`deny_unknown_fields`); a slot without
+  `values` is flexible; `values` accepts the literal string `"any"`.
+  A section with no `slots` lowers to `Tokens::default()`.
+- The grammar has one spelling: `[[commit.slots]]`, an ordered list
   where each entry has a `name` and either a `kind` (`word`,
   `symbols`, `symbol`) or `delimiters`, plus optional `values` and
-  `required`; or the fixed-layout keys (`keywords`, `modifiers`,
-  `modifier-sequence`, `enclosures`, `separator`). Setting both is
-  `Invalid::Mixed`, since a slot list already says what those keys
-  say. `default-ignores` is not grammar and belongs to either. A slot
-  with neither `kind` nor `delimiters`, or with both, is
+  `required`. `default-ignores` is not grammar and sits beside the
+  list. A slot with neither `kind` nor `delimiters`, or with both, is
   `Invalid::Shape`; a spelling its kind can never match, such as `::`
-  for a `symbol`, is `Invalid::Spelling`. The shipped presets use the
-  slot form.
-- Enclosure order is positional: each `[[commit.enclosures]]` entry
-  may appear at most once, in declaration order.
+  for a `symbol`, is `Invalid::Spelling`.
+- The fixed-layout keys (`keywords`, `modifiers`, `modifier-sequence`,
+  `enclosures`, `separator`) are removed, but still deserialize into a
+  discarded value so that using one is `Invalid::Removed`, naming
+  `[[commit.slots]]`, rather than serde's unknown-field error. Drop
+  that after a release.
+- Slot order is positional: where a slot sits in the list is where it
+  sits in the header.
 - Machine-generated headers — merges, reverts, `fixup!`/`squash!`/
   `amend!`, semver release bumps — exit 0 without linting
   (`src/ignore.rs`, mirroring commitlint's default ignores) unless
@@ -240,9 +239,10 @@ Conventions visible in the code:
   well, since its spellings would serve the other, and so are two
   delimited slots carrying the same pair of delimiters, since the later
   one is unreachable. Sharing only an opener is fine: the closer still
-  tells them apart. Slots are named after the config key to edit, so the
-  error points at something the user can act on; diagnostics use the
-  shape's noun instead.
+  tells them apart. A slot carries the `name` its config gave it, so the
+  error points at the entry to edit; diagnostics use the shape's noun
+  instead. `Tokens::default()` has no config behind it, so its slots are
+  named for what they are.
 - A delimited slot marked `required` must appear: the walker refuses a
   header that skips it, naming the opener it wanted.
 

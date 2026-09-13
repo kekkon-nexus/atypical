@@ -603,3 +603,42 @@ fn presets_are_reachable_through_extends() {
     assert!(errors(&config, "feat: through the preset").is_empty());
     assert!(!errors(&config, "add: standard style").is_empty());
 }
+
+#[test]
+fn a_preset_slot_is_narrowed_without_restating_the_rest() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+    let preset = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../presets/conventional.toml");
+    let file = dir.join("extends-narrowed.toml");
+
+    std::fs::write(
+        &file,
+        format!(
+            indoc::indoc! {r#"
+                extends = '{}'
+
+                [[commit.slots]]
+                name = "keywords"
+                values = ["feat", "fix", "docs"]
+            "#},
+            preset.display()
+        ),
+    )
+    .unwrap();
+
+    let config: CommitConfig = atypical_config::load(&file, config::SECTION)
+        .unwrap()
+        .unwrap();
+
+    assert!(errors(&config, "docs: narrowed").is_empty());
+    // The slots the override never named are still the preset's.
+    assert!(errors(&config, "feat(api)!: untouched").is_empty());
+    assert_eq!(
+        errors(&config, "chore: dropped by the override"),
+        [(
+            0..5,
+            "unknown keyword `chore`, expected one of: docs, feat, fix"
+                .to_owned()
+        )]
+    );
+}

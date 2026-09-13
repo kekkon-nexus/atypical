@@ -39,30 +39,46 @@ Exit codes: `0` valid, `1` failed linting (or unreadable input),
 
 Every part of the syntax comes from the `[commit]` section of the
 nearest `atypical.toml`, found from the working directory upward
-(or passed with `--config <FILE>`). If no config is found, or keys are
-omitted, the standard preset is used (shown here in full):
+(or passed with `--config <FILE>`). Without one, nothing is linted.
+
+The grammar is the slot list: one `[[commit.slots]]` entry per part of
+the header, in the order they appear. A slot is either `delimiters` or
+a `kind` (`word`, `symbols`, `symbol`), and takes anything unless
+`values` narrows it:
 
 ```toml
 [commit]
-keywords = ["add", "rem", "ref", "fix", "undo", "release"]
-modifiers = ["?", "!", "!!"]
-separator = ":"
-modifier-sequence = "pre" # before the enclosures, or "post"
-default-ignores = true    # skip machine-generated headers
+default-ignores = true # skip machine-generated headers
 
-# Scopes; omit `allowed` to accept anything between the delimiters.
-[[commit.enclosures]]
+[[commit.slots]]
+name = "keywords"
+kind = "word"
+values = ["add", "rem", "ref", "fix", "undo", "release"]
+required = true
+
+[[commit.slots]]
+name = "modifiers"
+kind = "symbols"
+values = ["?", "!", "!!"]
+
+# Scopes; omit `values` to accept anything between the delimiters.
+[[commit.slots]]
+name = "scope"
 delimiters = ["(", ")"]
-allowed = ["exe", "lib", "test", "build", "doc", "ci", "cd"]
+values = ["exe", "lib", "test", "build", "doc", "ci", "cd"]
 
-# Reasons.
-[[commit.enclosures]]
-delimiters = ["[", "]"]
-allowed = [
-  "int", "pre", "eff", "rel", "cmp", "mnt", "tmp",
-  "exp", "sec", "upg", "ux", "pol", "sty",
-]
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+values = [":"]
+required = true
 ```
+
+That is the standard preset, minus its reason slot. Both presets ship
+in full at
+[`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
+and are meant to be reached through `extends`, which merges slots by
+`name` so narrowing one leaves the rest alone.
 
 ### Default ignores
 

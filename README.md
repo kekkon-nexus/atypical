@@ -27,19 +27,54 @@ or without a `[commit]` section. Unset fields stay unrestricted.
 
 Available configuration in `[commit]`:
 
-| Key                 | Explanation                                   | Values                                   | Eg                         |
-| ------------------- | --------------------------------------------- | ---------------------------------------- | -------------------------- |
-| `keywords`          | Allowed keywords                              | `"any"`, or list of strings              | `feat`, `wip`, `create`    |
-| `modifiers`         | Allowed modifier symbols                      | `"any"`, or list of strings              | `!`, `*`, `+`              |
-| `modifier-sequence` | Modifier position, before or after enclosures | `"pre"` or `"post"`; `"any"` is rejected | `feat!(api)`, `feat(api)!` |
-| `separator`         | Symbol between header and subject             | `"any"`, or single-symbol string         | `:`, `-`, `/`              |
-| `default-ignores`   | Skips merge, revert, and fixup commits        | `true` (default), `false`                | —                          |
-| `enclosures[]`      | Enclosures, as `[[commit.enclosures]]`        | Table: `delimiters` + optional `allowed` | `delimiters = ["(", ")"]`  |
-| `slots[]`           | The whole grammar, as `[[commit.slots]]`      | Table: `name`, `kind` or `delimiters`    | `kind = "word"`            |
+| Key               | Explanation                            | Values                    |
+| ----------------- | -------------------------------------- | ------------------------- |
+| `slots[]`         | The grammar, as `[[commit.slots]]`     | Tables, in header order   |
+| `default-ignores` | Skips merge, revert, and fixup commits | `true` (default), `false` |
 
-A slot list says everything the grammar keys above say, in header
-order, so a section sets one or the other and never both. The shipped
-presets are slot lists.
+The whole grammar is the slot list: one entry per part of the header,
+in the order they appear. Each entry takes:
+
+| Field        | Explanation                         | Values                                  |
+| ------------ | ----------------------------------- | --------------------------------------- |
+| `name`       | Labels the slot in errors           | Any string                              |
+| `kind`       | What an undelimited slot is made of | `"word"`, `"symbols"`, `"symbol"`       |
+| `delimiters` | What a delimited slot sits between  | Pair of strings, eg `["(", ")"]`        |
+| `values`     | Accepted spellings                  | `"any"` (default), or a list of strings |
+| `required`   | Whether a header may leave it out   | `false` (default), `true`               |
+
+A slot is `kind` or `delimiters`, never both. Order is position, so
+where a slot sits in the list is where it sits in the header:
+
+```toml
+[[commit.slots]]
+name = "keyword"
+kind = "word"
+values = ["feat", "fix"]
+required = true
+
+[[commit.slots]]
+name = "scope"
+delimiters = ["(", ")"]
+
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+values = [":"]
+required = true
+```
+
+### Coming from the fixed-layout keys
+
+They are gone; each is a slot now.
+
+| Was                 | Now                                                |
+| ------------------- | -------------------------------------------------- |
+| `keywords`          | A `kind = "word"` slot's `values`                  |
+| `modifiers`         | A `kind = "symbols"` slot's `values`               |
+| `modifier-sequence` | Where the modifier slot sits in the list           |
+| `separator`         | A `kind = "symbol"` slot's `values`                |
+| `enclosures[]`      | One slot per enclosure, `delimiters` plus `values` |
 
 ## Presets
 
@@ -60,12 +95,17 @@ To use:
 ```toml
 extends = "conventional.toml"
 
-[commit]
-keywords = ["feat", "fix", "docs"]
+# Narrows the preset's keyword slot; every other slot is left alone.
+[[commit.slots]]
+name = "keywords"
+values = ["feat", "fix", "docs"]
 ```
 
 `extends` also takes an array of paths. They apply in order and can be
-overridden by setting custom configuration locally.
+overridden by setting custom configuration locally. Slots are matched
+by `name`, so adjusting one does not mean restating the rest; an
+unmatched name adds a slot at the end, and `drop = true` removes the
+one it names.
 
 ## Contributing
 
