@@ -362,6 +362,32 @@ fn a_drop_that_is_not_a_boolean_is_left_for_the_schema() {
     assert!(atypical_config::load::<Slots>(&file, "commit").is_err());
 }
 
+#[test]
+fn an_entry_whose_name_is_not_a_string_is_not_merged() {
+    let root = tree("named-not-a-string");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = 1
+        "#},
+    )
+    .unwrap();
+
+    let table = atypical_config::resolve(&file).unwrap();
+    let slots = table["commit"]["slots"].as_array().unwrap();
+
+    // Replaced wholesale: with no name to match on, there is nothing to
+    // merge entry by entry.
+    assert_eq!(slots.len(), 1);
+    assert_eq!(slots[0]["name"].as_integer(), Some(1));
+}
+
 #[derive(Debug, PartialEq, serde::Deserialize)]
 struct Keywords {
     keywords: Vec<String>,

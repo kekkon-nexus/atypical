@@ -128,38 +128,56 @@ fn resolve_into(
 fn merge(base: &mut toml::Table, layer: toml::Table) {
     for (key, value) in layer {
         match (base.get_mut(&key), value) {
-            (Some(toml::Value::Table(base)), toml::Value::Table(layer)) => {
-                merge(base, layer);
-            }
-            (Some(toml::Value::Array(base)), toml::Value::Array(layer))
-                if named(base) && named(&layer) =>
-            {
-                merge_named(base, layer);
-            }
-            // Nothing beneath it to merge into, so it lands as it is.
-            // It may still hold directives that must not reach a
-            // section schema, though, so it is merged onto nothing.
-            (_, toml::Value::Table(layer)) => {
-                let mut onto = toml::Table::new();
-
-                merge(&mut onto, layer);
-                base.insert(key, toml::Value::Table(onto));
-            }
-            (_, toml::Value::Array(layer)) if named(&layer) => {
-                let mut onto = Vec::new();
-
-                merge_named(&mut onto, layer);
-                base.insert(key, toml::Value::Array(onto));
-            }
-            (_, value) => {
-                base.insert(key, value);
+            (Some(base), value) => merge_value(base, value),
+            (None, value) => {
+                base.insert(key, normalised(value));
             }
         }
     }
 }
 
+fn merge_value(base: &mut toml::Value, layer: toml::Value) {
+    match (base, layer) {
+        (toml::Value::Table(base), toml::Value::Table(layer)) => {
+            merge(base, layer);
+        }
+        (toml::Value::Array(base), toml::Value::Array(layer))
+            if named(base) && named(&layer) =>
+        {
+            merge_named(base, layer);
+        }
+        (base, layer) => *base = normalised(layer),
+    }
+}
+
+/// What a value looks like with nothing beneath it to merge into: as it
+/// was, except that the directives its entries carry are consumed here
+/// rather than left to reach a section schema.
+fn normalised(layer: toml::Value) -> toml::Value {
+    match layer {
+        toml::Value::Table(layer) => {
+            let mut onto = toml::Table::new();
+
+            merge(&mut onto, layer);
+            toml::Value::Table(onto)
+        }
+        toml::Value::Array(layer) if named(&layer) => {
+            let mut onto = Vec::new();
+
+            merge_named(&mut onto, layer);
+            toml::Value::Array(onto)
+        }
+        layer => layer,
+    }
+}
+
 fn name_of(entry: &toml::Value) -> Option<&str> {
-    entry.as_table()?.get("name")?.as_str()
+    match entry {
+        toml::Value::Table(fields) => {
+            fields.get("name").and_then(toml::Value::as_str)
+        }
+        _ => None,
+    }
 }
 
 /// Whether every entry carries a `name` to be matched on, which is what
@@ -173,17 +191,18 @@ fn named(array: &[toml::Value]) -> bool {
 /// a boolean is left where it is, so the schema reports it rather than
 /// it quietly meaning `false`.
 fn dropped(entry: &mut toml::Value) -> bool {
-    let Some(fields) = entry.as_table_mut() else {
-        return false;
-    };
+    let flag = entry
+        .as_table()
+        .and_then(|fields| fields.get("drop"))
+        .and_then(toml::Value::as_bool);
 
-    match fields.get("drop") {
-        Some(&toml::Value::Boolean(flag)) => {
-            fields.remove("drop");
-            flag
-        }
-        _ => false,
+    if let (Some(flag), Some(fields)) = (flag, entry.as_table_mut()) {
+        fields.remove("drop");
+
+        return flag;
     }
+
+    false
 }
 
 fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
@@ -196,18 +215,10 @@ fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
             (Some(at), true) => {
                 base.remove(at);
             }
-            (Some(at), false) => merge_entry(&mut base[at], entry),
+            (Some(at), false) => merge_value(&mut base[at], entry),
             (None, true) => {}
-            (None, false) => base.push(entry),
+            (None, false) => base.push(normalised(entry)),
         }
-    }
-}
-
-fn merge_entry(base: &mut toml::Value, layer: toml::Value) {
-    if let (Some(base), toml::Value::Table(layer)) =
-        (base.as_table_mut(), layer)
-    {
-        merge(base, layer);
     }
 }
 
