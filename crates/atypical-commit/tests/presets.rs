@@ -531,6 +531,24 @@ fn a_required_enclosure_is_demanded() {
 }
 
 #[test]
+fn enclosures_may_share_an_opener() {
+    let mut slots = slots("standard.toml");
+    let reason = index(&slots, "reason");
+
+    slots[reason].delimiters = Some(['(', ']']);
+    slots[reason].values = anything();
+
+    check(
+        &grammar(slots),
+        &[
+            ("add(lib): x", Ok(())),
+            ("add(free]: x", Ok(())),
+            ("add(lib)(free]: x", Ok(())),
+        ],
+    );
+}
+
+#[test]
 fn enclosures_may_not_share_delimiters() {
     let mut slots = slots("standard.toml");
     let scope = index(&slots, "scope");
@@ -545,7 +563,6 @@ fn enclosures_may_not_share_delimiters() {
         Err(atypical_commit::Ambiguous::Delimiters {
             first: "scope".to_owned(),
             second: "reason".to_owned(),
-            open: '(',
         })
     );
 }

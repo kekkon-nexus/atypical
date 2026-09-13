@@ -230,8 +230,9 @@ Conventions visible in the code:
   slot up to the first required one is a neighbour. A closed set in
   front of a slot taking anything of the same alphabet is rejected as
   well, since its spellings would serve the other, and so are two
-  delimited slots opening the same way, since the later one is
-  unreachable. Slots are named after the config key to edit, so the
+  delimited slots carrying the same pair of delimiters, since the later
+  one is unreachable. Sharing only an opener is fine: the closer still
+  tells them apart. Slots are named after the config key to edit, so the
   error points at something the user can act on; diagnostics use the
   shape's noun instead.
 - A delimited slot marked `required` must appear: the walker refuses a

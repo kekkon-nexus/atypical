@@ -118,12 +118,8 @@ pub enum Ambiguous {
     },
     /// One holds spellings the other would take anyway.
     Shadowed { first: String, second: String },
-    /// Two delimited slots open the same way.
-    Delimiters {
-        first: String,
-        second: String,
-        open: char,
-    },
+    /// Two delimited slots carry the same pair of delimiters.
+    Delimiters { first: String, second: String },
 }
 
 impl core::fmt::Display for Ambiguous {
@@ -145,11 +141,9 @@ impl core::fmt::Display for Ambiguous {
                 f,
                 "`{second}` takes anything, `{first}`'s spellings included"
             ),
-            Ambiguous::Delimiters {
-                first,
-                second,
-                open,
-            } => write!(f, "`{first}` and `{second}` both open with `{open}`"),
+            Ambiguous::Delimiters { first, second } => {
+                write!(f, "`{first}` and `{second}` carry the same delimiters")
+            }
         }
     }
 }
@@ -173,10 +167,12 @@ fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
         }
 
         // Delimiters are matched wherever they sit, so a repeat is
-        // unreachable however far away it is.
-        let Shape::Delimited([open, _]) = first.shape else {
+        // unreachable however far away it is. A shared opener with its
+        // own closer still tells them apart.
+        if !matches!(first.shape, Shape::Delimited(_)) {
             continue;
-        };
+        }
+
         let repeat = slots[index + 1..]
             .iter()
             .find(|second| second.shape == first.shape);
@@ -185,7 +181,6 @@ fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
             return Some(Ambiguous::Delimiters {
                 first: first.name.clone(),
                 second: second.name.clone(),
-                open,
             });
         }
     }
@@ -750,12 +745,11 @@ mod tests {
         let delimiters = Ambiguous::Delimiters {
             first: "scope".to_owned(),
             second: "reason".to_owned(),
-            open: '(',
         };
 
         assert_eq!(
             delimiters.to_string(),
-            "`scope` and `reason` both open with `(`"
+            "`scope` and `reason` carry the same delimiters"
         );
     }
 
