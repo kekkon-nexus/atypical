@@ -559,17 +559,12 @@ fn a_revision_is_never_read_as_an_option() {
 }
 
 #[test]
-fn a_section_saying_the_grammar_twice_fails() {
+fn a_section_using_a_removed_key_fails() {
     let config = fixture(
-        "mixed.toml",
+        "removed.toml",
         indoc::indoc! {r#"
             [commit]
             keywords = ["add"]
-
-            [[commit.slots]]
-            name = "keywords"
-            kind = "word"
-            required = true
         "#},
     );
 
@@ -580,7 +575,7 @@ fn a_section_saying_the_grammar_twice_fails() {
     let stderr = stderr(&output);
 
     assert_eq!(output.status.code(), Some(1));
-    assert!(stderr.contains("describe the same thing"), "{stderr}");
+    assert!(stderr.contains("is now a slot"), "{stderr}");
 }
 
 #[test]

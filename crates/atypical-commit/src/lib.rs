@@ -33,16 +33,6 @@ pub struct Header<'i> {
     pub description: Description<'i>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum Sequence {
-    Pre,
-    Post,
-    /// Either position.
-    Any,
-}
-
 /// What a bare slot's contents are made of.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Class {
@@ -87,10 +77,24 @@ pub struct Tokens {
 impl Default for Tokens {
     /// Unrestricted: any keyword, any modifier after free-form
     /// `(...)`/`[...]` enclosures, and any single-symbol separator.
-    /// Only the header shape itself is enforced.
+    /// Only the header shape itself is enforced. Nothing declared these
+    /// slots, so each is named for what it is.
     fn default() -> Self {
+        let slot = |name: &str, shape, required| Slot {
+            name: name.to_owned(),
+            shape,
+            values: Values::Any,
+            required,
+        };
+
         Self {
-            slots: config::fixed(&config::CommitConfig::default()),
+            slots: vec![
+                slot("keyword", Shape::Bare(Class::Word), true),
+                slot("(...)", Shape::Delimited(['(', ')']), false),
+                slot("[...]", Shape::Delimited(['[', ']']), false),
+                slot("modifier", Shape::Bare(Class::Symbols), false),
+                slot("separator", Shape::Bare(Class::Symbol), true),
+            ],
         }
     }
 }
