@@ -193,6 +193,14 @@ Conventions visible in the code:
   the extending file last; tables merge key-by-key, any other value
   replaces the one beneath it. Cycles and non-path values are errors
   (`Error::Cycle` / `Error::Extends`).
+- An array whose every entry carries a `name` is the exception: it
+  merges entry by entry rather than being replaced, so `[[commit.slots]]`
+  can be adjusted without restating the grammar. A matched entry merges
+  field by field, an unmatched one appends after the base order, and
+  `drop = true` removes the entry it names. `drop` is stripped before
+  the section schema sees it, so `deny_unknown_fields` still holds. This
+  is schema-free like the rest of the crate: it applies to any tool's
+  section.
 - Config semantics: no `[commit]` section means nothing is linted
   (exit 0 for any message); a declared section defaults _field by
   field_ to unrestricted (`#[serde(default)]` on `CommitConfig`);

@@ -73,7 +73,12 @@ pub fn section<T: DeserializeOwned>(
 /// `extends` key (a path or an array of paths, relative to the
 /// extending file). Extended documents are applied one by one in
 /// declaration order, the extending document last: tables merge
-/// key-by-key, any other value replaces the one beneath it.
+/// key-by-key, arrays whose every entry carries a `name` merge by that
+/// name, any other value replaces the one beneath it.
+///
+/// A named entry matching one beneath it merges into it field by field;
+/// an unmatched one appends, keeping base order; `drop = true` removes
+/// the entry it names. The `drop` key never reaches the section schema.
 pub fn resolve(path: impl AsRef<Path>) -> Result<toml::Table, Error> {
     resolve_into(path.as_ref(), &mut Vec::new())
 }
@@ -126,10 +131,55 @@ fn merge(base: &mut toml::Table, layer: toml::Table) {
             (Some(toml::Value::Table(base)), toml::Value::Table(layer)) => {
                 merge(base, layer);
             }
+            (Some(toml::Value::Array(base)), toml::Value::Array(layer))
+                if named(base) && named(&layer) =>
+            {
+                merge_named(base, layer);
+            }
             (_, value) => {
                 base.insert(key, value);
             }
         }
+    }
+}
+
+fn name_of(entry: &toml::Value) -> Option<&str> {
+    entry.as_table()?.get("name")?.as_str()
+}
+
+/// Whether every entry carries a `name` to be matched on, which is what
+/// makes an array mergeable entry by entry rather than wholesale.
+fn named(array: &[toml::Value]) -> bool {
+    !array.is_empty() && array.iter().all(|entry| name_of(entry).is_some())
+}
+
+fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
+    for mut entry in layer {
+        let dropped = entry
+            .as_table_mut()
+            .and_then(|fields| fields.remove("drop"))
+            .and_then(|flag| flag.as_bool())
+            .unwrap_or_default();
+
+        let name = name_of(&entry).unwrap_or_default().to_owned();
+        let at = base.iter().position(|it| name_of(it) == Some(&*name));
+
+        match (at, dropped) {
+            (Some(at), true) => {
+                base.remove(at);
+            }
+            (Some(at), false) => merge_entry(&mut base[at], entry),
+            (None, true) => {}
+            (None, false) => base.push(entry),
+        }
+    }
+}
+
+fn merge_entry(base: &mut toml::Value, layer: toml::Value) {
+    if let (Some(base), toml::Value::Table(layer)) =
+        (base.as_table_mut(), layer)
+    {
+        merge(base, layer);
     }
 }
 

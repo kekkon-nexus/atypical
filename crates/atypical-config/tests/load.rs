@@ -136,6 +136,211 @@ fn extends_may_share_a_common_base() {
     );
 }
 
+#[derive(Debug, Default, PartialEq, serde::Deserialize)]
+#[serde(default, deny_unknown_fields)]
+struct Slot {
+    name: String,
+    kind: String,
+    required: bool,
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct Slots {
+    slots: Vec<Slot>,
+}
+
+fn slot(name: &str, kind: &str, required: bool) -> Slot {
+    Slot {
+        name: name.into(),
+        kind: kind.into(),
+        required,
+    }
+}
+
+/// Two named entries, in this order, for an extending file to adjust.
+fn base(root: &std::path::Path) {
+    std::fs::write(
+        root.join("base.toml"),
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keyword"
+            kind = "word"
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+        "#},
+    )
+    .unwrap();
+}
+
+#[test]
+fn named_entries_merge_field_by_field() {
+    let root = tree("named-merge");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "keyword"
+            required = true
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("keyword", "word", true),
+                slot("separator", "symbol", false),
+            ]
+        })
+    );
+}
+
+#[test]
+fn an_unmatched_named_entry_appends() {
+    let root = tree("named-append");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "scope"
+            kind = "word"
+            drop = false
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("keyword", "word", false),
+                slot("separator", "symbol", false),
+                slot("scope", "word", false),
+            ]
+        })
+    );
+}
+
+#[test]
+fn drop_removes_the_entry_it_names() {
+    let root = tree("named-drop");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "separator"
+            drop = true
+
+            [[commit.slots]]
+            name = "nowhere"
+            drop = true
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![slot("keyword", "word", false)]
+        })
+    );
+}
+
+#[test]
+fn named_entries_merge_along_a_chain() {
+    let root = tree("named-chain");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        root.join("middle.toml"),
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "separator"
+            required = true
+
+            [[commit.slots]]
+            name = "scope"
+            kind = "word"
+        "#},
+    )
+    .unwrap();
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "middle.toml"
+
+            [[commit.slots]]
+            name = "keyword"
+            drop = true
+
+            [[commit.slots]]
+            name = "scope"
+            required = true
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("separator", "symbol", true),
+                slot("scope", "word", true),
+            ]
+        })
+    );
+}
+
+#[derive(Debug, PartialEq, serde::Deserialize)]
+struct Keywords {
+    keywords: Vec<String>,
+}
+
+#[test]
+fn an_array_without_names_still_replaces() {
+    let root = tree("array-replaced");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(
+        root.join("preset.toml"),
+        "[commit]\nkeywords = [\"add\", \"fix\"]\n",
+    )
+    .unwrap();
+    std::fs::write(
+        &file,
+        "extends = \"preset.toml\"\n[commit]\nkeywords = [\"ref\"]\n",
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Keywords>(&file, "commit").unwrap(),
+        Some(Keywords {
+            keywords: vec!["ref".into()]
+        })
+    );
+}
+
 #[test]
 fn resolve_strips_the_extends_key() {
     let root = tree("extends-stripped");
