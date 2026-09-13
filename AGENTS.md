@@ -215,10 +215,9 @@ Conventions visible in the code:
   `Invalid::Shape`; a spelling its kind can never match, such as `::`
   for a `symbol`, is `Invalid::Spelling`.
 - The fixed-layout keys (`keywords`, `modifiers`, `modifier-sequence`,
-  `enclosures`, `separator`) are removed, but still deserialize into a
-  discarded value so that using one is `Invalid::Removed`, naming
-  `[[commit.slots]]`, rather than serde's unknown-field error. Drop
-  that after a release.
+  `enclosures`, `separator`) are gone, with no migration path in code:
+  they are unknown keys like any other typo. The slot list never
+  shipped, so there was never a release where both spellings worked.
 - Slot order is positional: where a slot sits in the list is where it
   sits in the header.
 - Machine-generated headers — merges, reverts, `fixup!`/`squash!`/

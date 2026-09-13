@@ -223,8 +223,14 @@ mod tests {
 
     #[test]
     fn a_diagnostic_that_cannot_be_written_fails() {
-        let config: CommitConfig =
-            toml::from_str("keywords = ['add']").unwrap();
+        let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["add"]
+            required = true
+        "#})
+        .unwrap();
 
         // A `&mut [u8]` fails once it is full, and an empty one is.
         let mut full: &mut [u8] = &mut [];

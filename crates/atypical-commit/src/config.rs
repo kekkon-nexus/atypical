@@ -32,19 +32,6 @@ impl From<&SetConfig> for Values {
     }
 }
 
-/// A key the slot list replaced. Its contents no longer mean anything,
-/// so they are read and discarded; naming it is what matters.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Removed;
-
-impl<'de> Deserialize<'de> for Removed {
-    fn deserialize<D: serde::Deserializer<'de>>(
-        deserializer: D,
-    ) -> Result<Self, D::Error> {
-        serde::de::IgnoredAny::deserialize(deserializer).map(|_| Removed)
-    }
-}
-
 /// What a bare slot's contents are made of.
 #[derive(Debug, Clone, Copy, PartialEq)]
 #[derive(Deserialize)]
@@ -92,18 +79,11 @@ pub struct CommitConfig {
     /// Skip machine-generated headers (merges, reverts, version
     /// bumps...); not part of the grammar, so absent from `Tokens`.
     pub default_ignores: bool,
-    pub keywords: Option<Removed>,
-    pub modifiers: Option<Removed>,
-    pub enclosures: Option<Removed>,
-    pub separator: Option<Removed>,
-    pub modifier_sequence: Option<Removed>,
 }
 
 /// A `[commit]` section that cannot be lowered into slots.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Invalid {
-    /// A key the slot list replaced.
-    Removed(&'static str),
     /// A slot that is neither delimited nor bare, or both at once.
     Shape(String),
     /// A spelling the slot's kind can never match.
@@ -117,9 +97,6 @@ pub enum Invalid {
 impl core::fmt::Display for Invalid {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Invalid::Removed(key) => {
-                write!(f, "`{key}` is now a slot; see `[[commit.slots]]`")
-            }
             Invalid::Shape(name) => write!(
                 f,
                 "slot `{name}` needs either `kind` or `delimiters`, not both"
@@ -174,11 +151,6 @@ impl Default for CommitConfig {
         Self {
             slots: None,
             default_ignores: true,
-            keywords: None,
-            modifiers: None,
-            enclosures: None,
-            separator: None,
-            modifier_sequence: None,
         }
     }
 }
@@ -230,20 +202,6 @@ impl TryFrom<&CommitConfig> for Tokens {
 }
 
 fn slots(config: &CommitConfig) -> Result<Vec<Slot>, Invalid> {
-    let removed = [
-        ("keywords", config.keywords.is_some()),
-        ("modifiers", config.modifiers.is_some()),
-        ("enclosures", config.enclosures.is_some()),
-        ("separator", config.separator.is_some()),
-        ("modifier-sequence", config.modifier_sequence.is_some()),
-    ];
-
-    for (key, present) in removed {
-        if present {
-            return Err(Invalid::Removed(key));
-        }
-    }
-
     let Some(slots) = &config.slots else {
         return Ok(Tokens::default().slots);
     };
@@ -259,7 +217,6 @@ mod tests {
     fn test_default_is_unrestricted() {
         let config = CommitConfig::default();
 
-        assert!(config.keywords.is_none());
         assert!(config.slots.is_none());
         assert_eq!(Tokens::try_from(&config).unwrap(), Tokens::default());
     }
@@ -314,34 +271,21 @@ mod tests {
 
     #[test]
     fn test_unknown_fields_are_rejected() {
-        assert!(
-            toml::from_str::<CommitConfig>(r#"keyword = ["typo"]"#).is_err()
-        );
-    }
-
-    #[test]
-    fn test_removed_keys_point_at_slots() {
-        // Whatever they held no longer parses into anything, so they
-        // are read only far enough to be named.
+        // The keys the slot list replaced are unknown like any other
+        // typo now.
         for section in [
+            r#"keyword = ["typo"]"#,
             r#"keywords = ["add"]"#,
             r#"modifiers = "any""#,
             r#"separator = ":""#,
-            r#"modifier-sequence = "sideways""#,
+            r#"modifier-sequence = "post""#,
             "enclosures = []",
         ] {
-            let config: CommitConfig = toml::from_str(section).unwrap();
-
             assert!(
-                matches!(Tokens::try_from(&config), Err(Invalid::Removed(_))),
+                toml::from_str::<CommitConfig>(section).is_err(),
                 "{section}"
             );
         }
-
-        assert_eq!(
-            Invalid::Removed("keywords").to_string(),
-            "`keywords` is now a slot; see `[[commit.slots]]`"
-        );
     }
 
     #[test]

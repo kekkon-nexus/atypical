@@ -559,26 +559,6 @@ fn a_revision_is_never_read_as_an_option() {
 }
 
 #[test]
-fn a_section_using_a_removed_key_fails() {
-    let config = fixture(
-        "removed.toml",
-        indoc::indoc! {r#"
-            [commit]
-            keywords = ["add"]
-        "#},
-    );
-
-    let output = lint(
-        &["--config", config.to_str().unwrap(), "-"],
-        Some("add: message\n"),
-    );
-    let stderr = stderr(&output);
-
-    assert_eq!(output.status.code(), Some(1));
-    assert!(stderr.contains("is now a slot"), "{stderr}");
-}
-
-#[test]
 fn slots_that_cannot_be_told_apart_fail() {
     // Modifiers on either side, with no enclosure between them.
     let config = fixture(
