@@ -1,6 +1,10 @@
 // Discovery and loading of `atypical.toml`: each tool owns its own
 // section schema and deserializes it from here. A top-level `extends`
 // key layers other config files beneath the extending one.
+//
+// Schema-free but not key-free: within a named array, `name`, `drop`
+// and `before` are reserved directives, consumed here before any
+// section schema sees them.
 
 use std::path::{Path, PathBuf};
 
@@ -78,7 +82,9 @@ pub fn section<T: DeserializeOwned>(
 ///
 /// A named entry matching one beneath it merges into it field by field;
 /// an unmatched one appends, keeping base order; `drop = true` removes
-/// the entry it names. The `drop` key never reaches the section schema.
+/// the entry it names; `before = "other"` places the entry ahead of the
+/// one named, moving it if it was already there. Neither directive ever
+/// reaches the section schema.
 pub fn resolve(path: impl AsRef<Path>) -> Result<toml::Table, Error> {
     resolve_into(path.as_ref(), &mut Vec::new())
 }
@@ -186,6 +192,10 @@ fn named(array: &[toml::Value]) -> bool {
     !array.is_empty() && array.iter().all(|entry| name_of(entry).is_some())
 }
 
+fn position(base: &[toml::Value], name: &str) -> Option<usize> {
+    base.iter().position(|entry| name_of(entry) == Some(name))
+}
+
 /// Whether this entry says to remove the one it names, consuming the
 /// directive so it never reaches a section schema. A `drop` that is not
 /// a boolean is left where it is, so the schema reports it rather than
@@ -205,19 +215,51 @@ fn dropped(entry: &mut toml::Value) -> bool {
     false
 }
 
+/// Which entry this one says to sit ahead of, consuming the directive
+/// so it never reaches a section schema. Like `drop`, a `before` that
+/// is not a string is left where it is for the schema to report.
+fn before(entry: &mut toml::Value) -> Option<String> {
+    let name = entry
+        .as_table()
+        .and_then(|fields| fields.get("before"))
+        .and_then(toml::Value::as_str)
+        .map(str::to_owned)?;
+
+    entry.as_table_mut()?.remove("before");
+
+    Some(name)
+}
+
 fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
     for mut entry in layer {
         let dropped = dropped(&mut entry);
+        let before = before(&mut entry);
         let name = name_of(&entry).unwrap_or_default().to_owned();
-        let at = base.iter().position(|it| name_of(it) == Some(&*name));
 
-        match (at, dropped) {
+        match (position(base, &name), dropped) {
             (Some(at), true) => {
                 base.remove(at);
             }
-            (Some(at), false) => merge_value(&mut base[at], entry),
+            (Some(at), false) => {
+                merge_value(&mut base[at], entry);
+
+                let to = before.and_then(|name| position(base, &name));
+
+                if let Some(to) = to {
+                    let entry = base.remove(at);
+
+                    base.insert(to - usize::from(to > at), entry);
+                }
+            }
             (None, true) => {}
-            (None, false) => base.push(normalised(entry)),
+            (None, false) => {
+                let entry = normalised(entry);
+
+                match before.and_then(|name| position(base, &name)) {
+                    Some(to) => base.insert(to, entry),
+                    None => base.push(entry),
+                }
+            }
         }
     }
 }

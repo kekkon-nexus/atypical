@@ -235,6 +235,98 @@ fn an_unmatched_named_entry_appends() {
 }
 
 #[test]
+fn before_places_a_new_entry_ahead_of_the_one_it_names() {
+    let root = tree("named-before");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "gitmoji"
+            kind = "word"
+            before = "keyword"
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("gitmoji", "word", false),
+                slot("keyword", "word", false),
+                slot("separator", "symbol", false),
+            ]
+        })
+    );
+}
+
+#[test]
+fn before_moves_an_entry_that_is_already_there() {
+    let root = tree("named-before-move");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "separator"
+            required = true
+            before = "keyword"
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("separator", "symbol", true),
+                slot("keyword", "word", false),
+            ]
+        })
+    );
+}
+
+#[test]
+fn before_naming_nothing_present_appends() {
+    let root = tree("named-before-missing");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "gitmoji"
+            kind = "word"
+            before = "nowhere"
+        "#},
+    )
+    .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("keyword", "word", false),
+                slot("separator", "symbol", false),
+                slot("gitmoji", "word", false),
+            ]
+        })
+    );
+}
+
+#[test]
 fn drop_removes_the_entry_it_names() {
     let root = tree("named-drop");
     let file = root.join(atypical_config::FILE_NAME);

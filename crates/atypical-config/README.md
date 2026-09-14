@@ -4,7 +4,9 @@
 [![docs.rs](https://img.shields.io/docsrs/atypical-config)](https://docs.rs/atypical-config)
 
 Discovery and loading of `atypical.toml`. This crate is schema-free:
-each tool owns its own section and deserializes it from here.
+each tool owns its own section and deserializes it from here. It is
+not key-free, though: inside an array whose entries all carry a `name`,
+`name`, `drop` and `before` are merge directives the crate consumes.
 
 ## Usage
 
