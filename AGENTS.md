@@ -199,18 +199,20 @@ Conventions visible in the code:
   field by field, an unmatched one appends after the base order, and
   `drop = true` removes the entry it names. `before = "other"` places an
   entry ahead of the one it names instead of at the end, moving it if it
-  was already there; a `before` naming no entry is `Error::Before` rather
-  than an append, since position is part of the grammar and the fallback
-  would write a different one. Two entries of one array sharing a `name`
-  is `Error::Duplicate`: the second would merge into the first instead of
+  was already there; a `before` naming no other entry, whether a typo or
+  the entry itself, is `Error::Before` rather than a silent append or
+  no-op, since position is part of the grammar and anywhere else is a
+  different grammar. Two entries of one array sharing a `name` is
+  `Error::Duplicate`: the second would merge into the first instead of
   being a slot of its own. `drop` and `before` are stripped before the
   section schema sees them, so `deny_unknown_fields` still holds —
   including for a named array with nothing beneath it, which is merged
-  onto nothing so that it is normalised the same way. A `drop` that is not a boolean,
-  or a `before` that is not a string, is deliberately left in place so
-  the schema reports it instead of it quietly meaning nothing. The
-  crate is schema-free but not key-free: `name`, `drop` and `before`
-  are reserved inside a named array, for any tool's section.
+  onto nothing so that it is normalised the same way. A `drop` that is
+  not a boolean, or a `before` that is not a string, is deliberately
+  left in place so the schema reports it instead of it quietly meaning
+  nothing. The crate is schema-free but not key-free: `name`, `drop`
+  and `before` are reserved inside a named array, for any tool's
+  section.
 - Config semantics: no `[commit]` section means nothing is linted
   (exit 0 for any message); a declared section defaults _field by
   field_ to unrestricted (`#[serde(default)]` on `CommitConfig`);

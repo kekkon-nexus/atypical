@@ -20,7 +20,7 @@ pub enum Error {
     Cycle(PathBuf),
     /// `extends` is not a path or an array of paths.
     Extends(PathBuf),
-    /// A `before` names an entry that is not there to sit ahead of.
+    /// A `before` names no entry to sit ahead of, or names its own.
     Before(PathBuf, String),
     /// One array gives the same `name` to two of its entries.
     Duplicate(PathBuf, String),
@@ -58,7 +58,7 @@ impl std::fmt::Display for Error {
             ),
             Error::Before(path, name) => write!(
                 f,
-                "`before = \"{name}\"` in {} names no entry",
+                "`before = \"{name}\"` in {} names no other entry",
                 path.display()
             ),
             Error::Duplicate(path, name) => write!(
@@ -120,11 +120,12 @@ pub fn section<T: DeserializeOwned>(
 /// one named, moving it if it was already there. Neither directive ever
 /// reaches the section schema.
 ///
-/// A `before` that names no entry is an error rather than an append:
-/// the position asked for is part of the grammar, so falling back to
-/// the end would quietly write a different one. Two entries of one
-/// array sharing a `name` is an error for the same reason: the second
-/// would merge into the first instead of being a slot of its own.
+/// A `before` that names no other entry is an error rather than a
+/// silent append or no-op: the position asked for is part of the
+/// grammar, so anywhere else is a different grammar. Two entries of
+/// one array sharing a `name` is an error for the same reason: the
+/// second would merge into the first instead of being a slot of its
+/// own.
 pub fn resolve(path: impl AsRef<Path>) -> Result<toml::Table, Error> {
     resolve_into(path.as_ref(), &mut Vec::new())
 }
@@ -308,6 +309,9 @@ fn merge_named(
 
         let to = match before {
             None => None,
+            Some(before) if before == name => {
+                return Err(Conflict::Before(before));
+            }
             Some(before) => {
                 Some(position(base, &before).ok_or(Conflict::Before(before))?)
             }

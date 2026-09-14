@@ -323,6 +323,30 @@ fn before_naming_nothing_present_is_an_error() {
 }
 
 #[test]
+fn before_naming_its_own_entry_is_an_error() {
+    let root = tree("named-before-itself");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            extends = "base.toml"
+
+            [[commit.slots]]
+            name = "keyword"
+            before = "keyword"
+        "#},
+    )
+    .unwrap();
+
+    let itself = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
+
+    assert!(matches!(itself, atypical_config::Error::Before(_, ref name)
+        if name == "keyword"));
+}
+
+#[test]
 fn one_name_for_two_entries_is_an_error() {
     let root = tree("named-duplicate");
     let file = root.join(atypical_config::FILE_NAME);
