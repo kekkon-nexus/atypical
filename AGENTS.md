@@ -199,11 +199,14 @@ Conventions visible in the code:
   field by field, an unmatched one appends after the base order, and
   `drop = true` removes the entry it names. `before = "other"` places an
   entry ahead of the one it names instead of at the end, moving it if it
-  was already there; a `before` naming nothing present falls back to the
-  append. `drop` and `before` are stripped before the section schema
-  sees them, so `deny_unknown_fields` still holds — including for a
-  named array with nothing beneath it, which is merged onto nothing so
-  that it is normalised the same way. A `drop` that is not a boolean,
+  was already there; a `before` naming no entry is `Error::Before` rather
+  than an append, since position is part of the grammar and the fallback
+  would write a different one. Two entries of one array sharing a `name`
+  is `Error::Duplicate`: the second would merge into the first instead of
+  being a slot of its own. `drop` and `before` are stripped before the
+  section schema sees them, so `deny_unknown_fields` still holds —
+  including for a named array with nothing beneath it, which is merged
+  onto nothing so that it is normalised the same way. A `drop` that is not a boolean,
   or a `before` that is not a string, is deliberately left in place so
   the schema reports it instead of it quietly meaning nothing. The
   crate is schema-free but not key-free: `name`, `drop` and `before`

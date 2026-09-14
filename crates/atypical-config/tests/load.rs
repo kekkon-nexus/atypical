@@ -296,7 +296,7 @@ fn before_moves_an_entry_that_is_already_there() {
 }
 
 #[test]
-fn before_naming_nothing_present_appends() {
+fn before_naming_nothing_present_is_an_error() {
     let root = tree("named-before-missing");
     let file = root.join(atypical_config::FILE_NAME);
 
@@ -309,21 +309,46 @@ fn before_naming_nothing_present_appends() {
             [[commit.slots]]
             name = "gitmoji"
             kind = "word"
-            before = "nowhere"
+            before = "keywrod"
         "#},
     )
     .unwrap();
 
-    assert_eq!(
-        atypical_config::load::<Slots>(&file, "commit").unwrap(),
-        Some(Slots {
-            slots: vec![
-                slot("keyword", "word", false),
-                slot("separator", "symbol", false),
-                slot("gitmoji", "word", false),
-            ]
-        })
+    let typo = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
+
+    assert!(matches!(typo, atypical_config::Error::Before(_, ref name)
+        if name == "keywrod"));
+    assert!(typo.to_string().contains("keywrod"));
+    assert!(std::error::Error::source(&typo).is_none());
+}
+
+#[test]
+fn one_name_for_two_entries_is_an_error() {
+    let root = tree("named-duplicate");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(
+        &file,
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keyword"
+            kind = "word"
+
+            [[commit.slots]]
+            name = "keyword"
+            kind = "symbol"
+        "#},
+    )
+    .unwrap();
+
+    let twice = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
+
+    assert!(
+        matches!(twice, atypical_config::Error::Duplicate(_, ref name)
+        if name == "keyword")
     );
+    assert!(twice.to_string().contains("keyword"));
+    assert!(std::error::Error::source(&twice).is_none());
 }
 
 #[test]

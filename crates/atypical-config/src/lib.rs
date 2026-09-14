@@ -20,6 +20,27 @@ pub enum Error {
     Cycle(PathBuf),
     /// `extends` is not a path or an array of paths.
     Extends(PathBuf),
+    /// A `before` names an entry that is not there to sit ahead of.
+    Before(PathBuf, String),
+    /// One array gives the same `name` to two of its entries.
+    Duplicate(PathBuf, String),
+}
+
+/// An [`Error`] from within a document, before the document is known.
+enum Conflict {
+    Before(String),
+    Duplicate(String),
+}
+
+impl Conflict {
+    fn at(self, path: &Path) -> Error {
+        let path = path.to_path_buf();
+
+        match self {
+            Conflict::Before(name) => Error::Before(path, name),
+            Conflict::Duplicate(name) => Error::Duplicate(path, name),
+        }
+    }
 }
 
 impl std::fmt::Display for Error {
@@ -35,6 +56,16 @@ impl std::fmt::Display for Error {
                 "`extends` in {} must be a path or an array of paths",
                 path.display()
             ),
+            Error::Before(path, name) => write!(
+                f,
+                "`before = \"{name}\"` in {} names no entry",
+                path.display()
+            ),
+            Error::Duplicate(path, name) => write!(
+                f,
+                "two entries named \"{name}\" in one array in {}",
+                path.display()
+            ),
         }
     }
 }
@@ -44,7 +75,10 @@ impl std::error::Error for Error {
         match self {
             Error::Io(error) => Some(error),
             Error::Toml(error) => Some(error),
-            Error::Cycle(_) | Error::Extends(_) => None,
+            Error::Cycle(_)
+            | Error::Extends(_)
+            | Error::Before(..)
+            | Error::Duplicate(..) => None,
         }
     }
 }
@@ -85,6 +119,12 @@ pub fn section<T: DeserializeOwned>(
 /// the entry it names; `before = "other"` places the entry ahead of the
 /// one named, moving it if it was already there. Neither directive ever
 /// reaches the section schema.
+///
+/// A `before` that names no entry is an error rather than an append:
+/// the position asked for is part of the grammar, so falling back to
+/// the end would quietly write a different one. Two entries of one
+/// array sharing a `name` is an error for the same reason: the second
+/// would merge into the first instead of being a slot of its own.
 pub fn resolve(path: impl AsRef<Path>) -> Result<toml::Table, Error> {
     resolve_into(path.as_ref(), &mut Vec::new())
 }
@@ -117,63 +157,74 @@ fn resolve_into(
 
     let dir = path.parent().unwrap_or(Path::new("")).to_path_buf();
 
-    stack.push(path);
+    stack.push(path.clone());
 
     let mut merged = toml::Table::new();
 
     for base in bases {
-        merge(&mut merged, resolve_into(&dir.join(base), stack)?);
+        let base = resolve_into(&dir.join(base), stack)?;
+
+        merge(&mut merged, base).map_err(|it| it.at(&path))?;
     }
 
     stack.pop();
-    merge(&mut merged, table);
+    merge(&mut merged, table).map_err(|it| it.at(&path))?;
 
     Ok(merged)
 }
 
-fn merge(base: &mut toml::Table, layer: toml::Table) {
+fn merge(base: &mut toml::Table, layer: toml::Table) -> Result<(), Conflict> {
     for (key, value) in layer {
         match (base.get_mut(&key), value) {
-            (Some(base), value) => merge_value(base, value),
+            (Some(base), value) => merge_value(base, value)?,
             (None, value) => {
-                base.insert(key, normalised(value));
+                base.insert(key, normalised(value)?);
             }
         }
     }
+
+    Ok(())
 }
 
-fn merge_value(base: &mut toml::Value, layer: toml::Value) {
+fn merge_value(
+    base: &mut toml::Value,
+    layer: toml::Value,
+) -> Result<(), Conflict> {
     match (base, layer) {
         (toml::Value::Table(base), toml::Value::Table(layer)) => {
-            merge(base, layer);
+            merge(base, layer)
         }
         (toml::Value::Array(base), toml::Value::Array(layer))
             if named(base) && named(&layer) =>
         {
-            merge_named(base, layer);
+            merge_named(base, layer)
         }
-        (base, layer) => *base = normalised(layer),
+        (base, layer) => {
+            *base = normalised(layer)?;
+
+            Ok(())
+        }
     }
 }
 
 /// What a value looks like with nothing beneath it to merge into: as it
 /// was, except that the directives its entries carry are consumed here
 /// rather than left to reach a section schema.
-fn normalised(layer: toml::Value) -> toml::Value {
+fn normalised(layer: toml::Value) -> Result<toml::Value, Conflict> {
     match layer {
         toml::Value::Table(layer) => {
             let mut onto = toml::Table::new();
 
-            merge(&mut onto, layer);
-            toml::Value::Table(onto)
+            merge(&mut onto, layer)?;
+            Ok(toml::Value::Table(onto))
         }
         toml::Value::Array(layer) if named(&layer) => {
             let mut onto = Vec::new();
 
-            merge_named(&mut onto, layer);
-            toml::Value::Array(onto)
+            merge_named(&mut onto, layer)?;
+            Ok(toml::Value::Array(onto))
         }
-        layer => layer,
+        layer => Ok(layer),
     }
 }
 
@@ -230,20 +281,44 @@ fn before(entry: &mut toml::Value) -> Option<String> {
     Some(name)
 }
 
-fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
+/// The first name this array gives to two of its entries.
+fn duplicate(array: &[toml::Value]) -> Option<&str> {
+    array.iter().enumerate().find_map(|(at, entry)| {
+        let name = name_of(entry)?;
+
+        array[..at]
+            .iter()
+            .any(|earlier| name_of(earlier) == Some(name))
+            .then_some(name)
+    })
+}
+
+fn merge_named(
+    base: &mut Vec<toml::Value>,
+    layer: Vec<toml::Value>,
+) -> Result<(), Conflict> {
+    if let Some(name) = duplicate(&layer) {
+        return Err(Conflict::Duplicate(name.to_owned()));
+    }
+
     for mut entry in layer {
         let dropped = dropped(&mut entry);
         let before = before(&mut entry);
         let name = name_of(&entry).unwrap_or_default().to_owned();
+
+        let to = match before {
+            None => None,
+            Some(before) => {
+                Some(position(base, &before).ok_or(Conflict::Before(before))?)
+            }
+        };
 
         match (position(base, &name), dropped) {
             (Some(at), true) => {
                 base.remove(at);
             }
             (Some(at), false) => {
-                merge_value(&mut base[at], entry);
-
-                let to = before.and_then(|name| position(base, &name));
+                merge_value(&mut base[at], entry)?;
 
                 if let Some(to) = to {
                     let entry = base.remove(at);
@@ -253,15 +328,17 @@ fn merge_named(base: &mut Vec<toml::Value>, layer: Vec<toml::Value>) {
             }
             (None, true) => {}
             (None, false) => {
-                let entry = normalised(entry);
+                let entry = normalised(entry)?;
 
-                match before.and_then(|name| position(base, &name)) {
+                match to {
                     Some(to) => base.insert(to, entry),
                     None => base.push(entry),
                 }
             }
         }
     }
+
+    Ok(())
 }
 
 /// Read the file at `path`, [`resolve`] its `extends` chain, and
