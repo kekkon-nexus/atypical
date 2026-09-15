@@ -559,7 +559,7 @@ fn a_revision_is_never_read_as_an_option() {
 }
 
 #[test]
-fn a_gap_commits_its_slot_once_seen() {
+fn a_gap_commits_the_slot_behind_it_once_seen() {
     let unicode = fixture(
         "gap-unicode.toml",
         indoc::indoc! {r#"
@@ -568,12 +568,12 @@ fn a_gap_commits_its_slot_once_seen() {
             kind = "symbols"
             values = ["✨", "🐛", "⚡️"]
             required = true
+            gap = true
 
             [[commit.slots]]
             name = "scope"
             delimiters = ["(", ")"]
             values = ["auth"]
-            gap = true
 
             [[commit.slots]]
             name = "separator"
@@ -589,12 +589,12 @@ fn a_gap_commits_its_slot_once_seen() {
             delimiters = [":", ":"]
             values = ["sparkles"]
             required = true
+            gap = true
 
             [[commit.slots]]
             name = "scope"
             delimiters = ["(", ")"]
             values = ["auth"]
-            gap = true
 
             [[commit.slots]]
             name = "separator"

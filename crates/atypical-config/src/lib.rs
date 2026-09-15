@@ -114,8 +114,11 @@ pub fn section<T: DeserializeOwned>(
 /// key-by-key, arrays whose every entry carries a `name` merge by that
 /// name, any other value replaces the one beneath it.
 ///
-/// A named entry matching one beneath it merges into it field by field;
-/// an unmatched one appends, keeping base order; `drop = true` removes
+/// A named entry matching one beneath it merges into it field by field.
+/// An unmatched one keeps its place within its own document: right after
+/// the entry it follows there, or at the front when it follows none of
+/// them. It appends only when its document keeps nothing beneath it, so
+/// peer documents compose. `drop = true` removes
 /// the entry it names; `before = "other"` places the entry ahead of the
 /// one named, moving it if it was already there. A directive of the
 /// wrong type is left in place for the section schema to reject.
@@ -302,6 +305,17 @@ fn merge_named(
         return Err(Conflict::Duplicate(name.to_owned()));
     }
 
+    // A layer that keeps any entry beneath it is read as a layout around
+    // those entries, so what it adds lands where it sits between them.
+    let anchored = layer.iter().any(|entry| {
+        let kept =
+            entry.get("drop").and_then(toml::Value::as_bool) != Some(true);
+
+        kept && name_of(entry)
+            .is_some_and(|name| position(base, name).is_some())
+    });
+    let mut last: Option<String> = None;
+
     for mut entry in layer {
         let dropped = dropped(&mut entry);
         let before = before(&mut entry);
@@ -329,15 +343,24 @@ fn merge_named(
 
                     base.insert(to - usize::from(to > at), entry);
                 }
+
+                last = Some(name);
             }
             (None, true) => {}
             (None, false) => {
                 let entry = normalised(entry)?;
+                let after_last = last
+                    .as_deref()
+                    .and_then(|last| position(base, last))
+                    .map(|at| at + 1);
+                let to = match (to, after_last) {
+                    (Some(to), _) | (None, Some(to)) => to,
+                    (None, None) if anchored => 0,
+                    (None, None) => base.len(),
+                };
 
-                match to {
-                    Some(to) => base.insert(to, entry),
-                    None => base.push(entry),
-                }
+                base.insert(to, entry);
+                last = Some(name);
             }
         }
     }
