@@ -30,7 +30,7 @@ pub type Modifier<'i> = &'i str;
 #[doc(alias("Scope"))]
 pub type Enclosure<'i> = (&'i str, DelimitedBy);
 
-/// What the slots matched: `keyword` is the last word slot, `modifiers`
+/// What the slots matched: `keyword` is the last word slot, `modifier`
 /// the first symbols slot present, `enclosures` every delimited slot
 /// present. Separators are not kept.
 #[derive(Debug, Clone, PartialEq)]
