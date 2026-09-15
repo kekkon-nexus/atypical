@@ -1,4 +1,5 @@
-// The `[commit]` section of atypical.toml, lowered into `Tokens`.
+//! The `[commit]` section of `atypical.toml`, lowered into
+//! [`Tokens`](crate::Tokens).
 
 use serde::Deserialize;
 

@@ -1,5 +1,5 @@
-// Syntax to follow:
-// <keyword>[<modifier>][<open_delim><enclosure><close_delim>]...[<modifier>]: <description>
+//! Commit header parser. The grammar is data: [`Tokens`] lists the slots
+//! in header order and [`prefix`] walks them through the parser context.
 
 use chumsky::prelude::*;
 
@@ -311,7 +311,7 @@ fn ident<'i>(
     (i.slice_since(&before..), i.span_since(&before))
 }
 
-/// A visible char that can't belong to a keyword or a description.
+/// A visible char outside the word alphabet.
 pub(crate) fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
 }
@@ -484,7 +484,7 @@ fn bare<'i>(
     }
 }
 
-/// A run of delimited slots, each optional and at most once, in order.
+/// A run of delimited slots, in order and each at most once.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
 ) -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {

@@ -1,10 +1,9 @@
-// Discovery and loading of `atypical.toml`: each tool owns its own
-// section schema and deserializes it from here. A top-level `extends`
-// key layers other config files beneath the extending one.
-//
-// Schema-free but not key-free: within a named array, `name`, `drop`
-// and `before` are reserved directives, consumed here before any
-// section schema sees them.
+//! Discovery and loading of `atypical.toml`. Each tool owns its section
+//! schema; a top-level `extends` layers other files beneath, see
+//! [`resolve`].
+//!
+//! Schema-free but not key-free: within a named array, `name`, `drop`
+//! and `before` are directives consumed before any schema sees them.
 
 use std::path::{Path, PathBuf};
 
@@ -92,8 +91,9 @@ pub fn find(start: impl AsRef<Path>) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-/// Deserialize the `[key]` section of a TOML document.
-/// A document without the section is `Ok(None)`.
+/// Deserialize the `[key]` section of a TOML document as written: no
+/// `extends`, no directives. A document without the section is
+/// `Ok(None)`.
 pub fn section<T: DeserializeOwned>(
     document: &str,
     key: &str,
