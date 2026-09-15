@@ -13,12 +13,12 @@
     "bench:latency": "sh benches/latency.sh"
   },
   "devDependencies": {
-    "@kekkon-nexus/config": "3.1.0",
+    "@kekkon-nexus/config": "3.1.2",
     "@types/bun": "latest",
     "@types/node": "^26.4.0",
     "lefthook": "2.1.12",
-    "oxfmt": "0.66.0",
-    "oxlint": "1.81.0",
+    "oxfmt": "0.68.0",
+    "oxlint": "1.83.0",
     "oxlint-tsgolint": "^7.0.2001",
     "tombi": "1.5.4",
     "typescript": "^7.0.2",
