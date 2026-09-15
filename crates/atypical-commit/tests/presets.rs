@@ -539,8 +539,10 @@ fn a_required_enclosure_is_demanded_with_its_gap() {
     let mut slots = slots("standard.toml");
     let scope = index(&slots, "scope");
 
+    let keywords = index(&slots, "keywords");
+
     slots[scope].required = true;
-    slots[scope].gap = true;
+    slots[keywords].gap = true;
 
     let config = grammar(slots);
     let missing = errors(&config, "add: x");
@@ -614,6 +616,7 @@ const INTENTION: &str = indoc::indoc! {r#"
     [[commit.slots]]
     name = "intention"
     required = true
+    gap = true
 
     [[commit.slots.one-of]]
     name = "emoji"
@@ -628,7 +631,6 @@ const INTENTION: &str = indoc::indoc! {r#"
     [[commit.slots]]
     name = "scope"
     delimiters = ["(", ")"]
-    gap = true
 
     [[commit.slots]]
     name = "separator"
@@ -661,7 +663,7 @@ fn one_of_takes_exactly_one_form() {
 }
 
 #[test]
-fn a_gap_before_a_bare_slot() {
+fn a_gap_before_a_bare_slot_is_owed() {
     let config = load(
         "gap-bare.toml",
         indoc::indoc! {r#"
@@ -670,13 +672,13 @@ fn a_gap_before_a_bare_slot() {
             kind = "symbols"
             values = ["✨"]
             required = true
+            gap = true
 
             [[commit.slots]]
             name = "keywords"
             kind = "word"
             values = ["feat"]
             required = true
-            gap = true
 
             [[commit.slots]]
             name = "separator"
