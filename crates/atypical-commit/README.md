@@ -60,14 +60,34 @@ header order:
 | `name`       | Any string; errors and merges refer to it          |
 | `kind`       | `"word"`, `"symbols"`, or `"symbol"`               |
 | `delimiters` | A pair of characters, eg `["(", ")"]`              |
+| `one-of`     | Options, each a slot with a `kind` or `delimiters` |
 | `values`     | `"any"` (default), or a list of accepted spellings |
 | `required`   | `false` (default), or `true`                       |
 | `gap`        | `false` (default), or `true` for one space before  |
 
-A slot has `kind` or `delimiters`, never both. A `word` is a run of
-alphanumerics and `_`, `symbols` a run of other visible characters,
-`symbol` exactly one. A delimited slot holds a word from `values`, or
-anything but its delimiters when unrestricted.
+A slot has exactly one of `kind`, `delimiters` or `one-of`. A `word` is
+a run of alphanumerics and `_`, `symbols` a run of other visible
+characters, `symbol` exactly one. A delimited slot holds a word from
+`values`, or anything but its delimiters when unrestricted.
+
+A `one-of` slot matches exactly one of its options. `required` and
+`gap` stay on the slot; `values` go on each option:
+
+```toml
+[[commit.slots]]
+name = "intention"
+required = true
+
+[[commit.slots.one-of]]
+name = "emoji"
+kind = "symbols"
+values = ["✨", "🐛"]
+
+[[commit.slots.one-of]]
+name = "shortcode"
+delimiters = [":", ":"]
+values = ["sparkles", "bug"]
+```
 
 ```toml
 [[commit.slots]]
@@ -94,8 +114,9 @@ and a description.
 Slots that cannot be told apart are rejected before any header is read:
 a word after a word, more symbols after unrestricted `symbols`,
 neighbouring spellings sharing a prefix, a closed set in front of an
-unrestricted slot of the same alphabet, or two slots with the same
-delimiters. An optional slot does not separate its neighbours.
+unrestricted slot of the same alphabet, two slots with the same
+delimiters, or two options of one slot that can start on the same input.
+An optional slot does not separate its neighbours.
 
 `default-ignores` sits beside the slots; see [Default
 ignores](#default-ignores).

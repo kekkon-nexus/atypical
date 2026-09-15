@@ -40,8 +40,8 @@ fn index(slots: &[SlotConfig], name: &str) -> usize {
     slots.iter().position(|slot| slot.name == name).unwrap()
 }
 
-fn anything() -> SetConfig {
-    SetConfig::Any(Any::Any)
+fn anything() -> Option<SetConfig> {
+    Some(SetConfig::Any(Any::Any))
 }
 
 fn header_parser<'i>(
@@ -392,7 +392,7 @@ fn strict_and_flexible_enclosures() {
     let scope = index(&slots, "scope");
     let reason = index(&slots, "reason");
 
-    slots[scope].values = SetConfig::OneOf(vec!["core".to_owned()]);
+    slots[scope].values = Some(SetConfig::OneOf(vec!["core".to_owned()]));
     slots[reason].delimiters = Some(['{', '}']);
     slots[reason].values = anything();
 
@@ -415,7 +415,7 @@ fn another_separator() {
     let mut slots = slots("standard.toml");
     let separator = index(&slots, "separator");
 
-    slots[separator].values = SetConfig::OneOf(vec![";".to_owned()]);
+    slots[separator].values = Some(SetConfig::OneOf(vec![";".to_owned()]));
 
     check(
         &grammar(slots),
@@ -499,6 +499,7 @@ fn every_enclosure_in_a_row_is_reachable() {
             name: "extra".to_owned(),
             kind: None,
             delimiters: Some(['{', '}']),
+            one_of: None,
             values: anything(),
             required: false,
             gap: false,
@@ -586,6 +587,115 @@ fn a_run_without_a_separator_slot_is_refused() {
             "add!: x",
             Err((3..3, "`modifiers` needs a separator after it")),
         )],
+    );
+}
+
+const INTENTION: &str = indoc::indoc! {r#"
+    [[commit.slots]]
+    name = "intention"
+    required = true
+
+    [[commit.slots.one-of]]
+    name = "emoji"
+    kind = "symbols"
+    values = ["✨", "🐛"]
+
+    [[commit.slots.one-of]]
+    name = "shortcode"
+    delimiters = [":", ":"]
+    values = ["sparkles", "bug"]
+
+    [[commit.slots]]
+    name = "scope"
+    delimiters = ["(", ")"]
+    gap = true
+
+    [[commit.slots]]
+    name = "separator"
+    kind = "symbol"
+    values = [":"]
+"#};
+
+fn load(name: &str, contents: &str) -> CommitConfig {
+    let file = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+
+    std::fs::write(&file, contents).unwrap();
+
+    atypical_config::load(&file, config::SECTION)
+        .unwrap()
+        .unwrap()
+}
+
+#[test]
+fn one_of_takes_exactly_one_form() {
+    let config = load("one-of.toml", INTENTION);
+
+    for header in ["✨ Add", ":sparkles: Add", "🐛 (auth): Fix", ":bug: (x) y"]
+    {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    for header in [" Add", "Add", "✨:bug: both", ":bogus: Add"] {
+        assert!(!errors(&config, header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
+fn a_project_drops_one_form() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+
+    load("one-of-base.toml", INTENTION);
+
+    let config = load(
+        "one-of-drop.toml",
+        &format!(
+            indoc::indoc! {r#"
+                extends = '{}'
+
+                [[commit.slots]]
+                name = "intention"
+
+                [[commit.slots.one-of]]
+                name = "shortcode"
+                drop = true
+            "#},
+            dir.join("one-of-base.toml").display()
+        ),
+    );
+
+    assert!(errors(&config, "✨ Add").is_empty());
+    assert!(!errors(&config, ":sparkles: Add").is_empty());
+}
+
+#[test]
+fn options_that_start_alike_are_rejected() {
+    let mut slots = slots("standard.toml");
+    let keywords = index(&slots, "keywords");
+    let option = |name: &str, values: &[&str]| SlotConfig {
+        name: name.to_owned(),
+        kind: Some(config::KindConfig::Word),
+        delimiters: None,
+        one_of: None,
+        values: Some(SetConfig::OneOf(
+            values.iter().map(|&value| value.to_owned()).collect(),
+        )),
+        required: false,
+        gap: false,
+    };
+
+    slots[keywords].kind = None;
+    slots[keywords].values = None;
+    slots[keywords].one_of =
+        Some(vec![option("short", &["fix"]), option("long", &["fixup"])]);
+
+    let tokens = atypical_commit::Tokens::try_from(&grammar(slots)).unwrap();
+
+    assert_eq!(
+        atypical_commit::ExtraContext::new(&tokens),
+        Err(atypical_commit::Ambiguous::Overlap {
+            first: "short".to_owned(),
+            second: "long".to_owned(),
+        })
     );
 }
 

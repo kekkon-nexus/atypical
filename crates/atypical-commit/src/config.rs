@@ -53,12 +53,8 @@ impl From<KindConfig> for Class {
     }
 }
 
-fn anything() -> SetConfig {
-    SetConfig::Any(Any::Any)
-}
-
 /// One `[[commit.slots]]` entry: delimited when it has `delimiters`,
-/// bare when it has a `kind`.
+/// bare when it has a `kind`, and an alternation when it has `one-of`.
 #[derive(Debug, Clone, PartialEq)]
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "kebab-case")]
@@ -66,8 +62,10 @@ pub struct SlotConfig {
     pub name: String,
     pub kind: Option<KindConfig>,
     pub delimiters: Option<DelimitedBy>,
-    #[serde(default = "anything")]
-    pub values: SetConfig,
+    pub one_of: Option<Vec<SlotConfig>>,
+    /// Unset takes anything, but unlike `any` it is also allowed where
+    /// values mean nothing, as on a `one-of`.
+    pub values: Option<SetConfig>,
     #[serde(default)]
     pub required: bool,
     #[serde(default)]
@@ -87,8 +85,11 @@ pub struct CommitConfig {
 /// A `[commit]` section that cannot be lowered into slots.
 #[derive(Debug, Clone, PartialEq)]
 pub enum Invalid {
-    /// A slot that is neither delimited nor bare, or both at once.
+    /// A slot with no shape, or more than one.
     Shape(String),
+    /// A key that means nothing where it is: `values` on a `one-of`, or
+    /// `required`, `gap` or `one-of` on one of its options.
+    Key { slot: String, key: &'static str },
     /// A spelling the slot's kind can never match.
     Spelling {
         slot: String,
@@ -102,8 +103,12 @@ impl core::fmt::Display for Invalid {
         match self {
             Invalid::Shape(name) => write!(
                 f,
-                "slot `{name}` needs exactly one of `kind` or `delimiters`"
+                "slot `{name}` needs exactly one of `kind`, `delimiters` or \
+                 `one-of`"
             ),
+            Invalid::Key { slot, key } => {
+                write!(f, "`{key}` does not apply to slot `{slot}`")
+            }
             Invalid::Spelling {
                 slot,
                 spelling,
@@ -117,19 +122,20 @@ impl core::fmt::Display for Invalid {
 }
 
 /// What a slot's kind is called in TOML, for diagnostics.
-fn kind(shape: Shape) -> &'static str {
+fn kind(shape: &Shape) -> &'static str {
     match shape {
         Shape::Delimited(_) => "delimited",
         Shape::Bare(Class::Word) => "a `word`",
         Shape::Bare(Class::Symbols) => "`symbols`",
         Shape::Bare(Class::Symbol) => "a `symbol`",
+        Shape::OneOf(_) => "a `one-of`",
     }
 }
 
 /// Whether a slot of this shape could ever match this spelling. A
 /// delimited slot reads its contents as one word, as a bare word slot
 /// does.
-fn fits(shape: Shape, spelling: &str) -> bool {
+fn fits(shape: &Shape, spelling: &str) -> bool {
     let word = |c: char| c.is_alphanumeric() || c == '_';
     let mut chars = spelling.chars();
 
@@ -143,6 +149,7 @@ fn fits(shape: Shape, spelling: &str) -> bool {
         Shape::Bare(Class::Symbol) => {
             chars.next().is_some_and(crate::is_symbol) && chars.next().is_none()
         }
+        Shape::OneOf(_) => false,
     }
 }
 
@@ -162,19 +169,52 @@ impl TryFrom<&SlotConfig> for Slot {
     type Error = Invalid;
 
     fn try_from(slot: &SlotConfig) -> Result<Self, Self::Error> {
-        let shape = match (slot.delimiters, slot.kind) {
-            (Some(delimiters), None) => Shape::Delimited(delimiters),
-            (None, Some(kind)) => Shape::Bare(kind.into()),
+        let shape = match (slot.delimiters, slot.kind, &slot.one_of) {
+            (Some(delimiters), None, None) => Shape::Delimited(delimiters),
+            (None, Some(kind), None) => Shape::Bare(kind.into()),
+            (None, None, Some(options)) if !options.is_empty() => {
+                if slot.values.is_some() {
+                    return Err(invalid_key(slot, "values"));
+                }
+
+                Shape::OneOf(
+                    options.iter().map(option).collect::<Result<_, _>>()?,
+                )
+            }
             _ => return Err(Invalid::Shape(slot.name.clone())),
         };
 
         Ok(Self {
             name: slot.name.clone(),
             shape,
-            values: (&slot.values).into(),
+            values: slot.values.as_ref().map_or(Values::Any, Values::from),
             required: slot.required,
             gap: slot.gap,
         })
+    }
+}
+
+fn invalid_key(slot: &SlotConfig, key: &'static str) -> Invalid {
+    Invalid::Key {
+        slot: slot.name.clone(),
+        key,
+    }
+}
+
+/// An option of a `one-of`, which leaves presence and spacing to the
+/// slot holding it.
+fn option(option: &SlotConfig) -> Result<Slot, Invalid> {
+    let key = [
+        (option.required, "required"),
+        (option.gap, "gap"),
+        (option.one_of.is_some(), "one-of"),
+    ]
+    .into_iter()
+    .find_map(|(set, key)| set.then_some(key));
+
+    match key {
+        Some(key) => Err(invalid_key(option, key)),
+        None => Slot::try_from(option),
     }
 }
 
@@ -184,19 +224,19 @@ impl TryFrom<&CommitConfig> for Tokens {
     fn try_from(config: &CommitConfig) -> Result<Self, Self::Error> {
         let slots = self::slots(config)?;
 
-        for slot in &slots {
+        for slot in slots.iter().flat_map(crate::forms) {
             let Values::Set(spellings) = &slot.values else {
                 continue;
             };
             let unmatchable = spellings
                 .iter()
-                .find(|spelling| !fits(slot.shape, spelling));
+                .find(|spelling| !fits(&slot.shape, spelling));
 
             if let Some(spelling) = unmatchable {
                 return Err(Invalid::Spelling {
                     slot: slot.name.clone(),
                     spelling: spelling.clone(),
-                    kind: kind(slot.shape),
+                    kind: kind(&slot.shape),
                 });
             }
         }
@@ -248,7 +288,7 @@ mod tests {
 
         assert_eq!(
             config.slots.as_ref().unwrap()[0].values,
-            SetConfig::Any(Any::Any)
+            Some(SetConfig::Any(Any::Any))
         );
         assert_eq!(
             Tokens::try_from(&config).unwrap().slots[0].values,
@@ -316,7 +356,72 @@ mod tests {
 
         assert_eq!(
             Invalid::Shape("scope".to_owned()).to_string(),
-            "slot `scope` needs exactly one of `kind` or `delimiters`"
+            "slot `scope` needs exactly one of `kind`, `delimiters` or `one-of`"
+        );
+    }
+
+    #[test]
+    fn test_a_one_of_lowers_its_options() {
+        let config: CommitConfig = toml::from_str(indoc::indoc! {r#"
+            [[slots]]
+            name = "intention"
+            required = true
+            gap = true
+
+            [[slots.one-of]]
+            name = "emoji"
+            kind = "symbols"
+            values = ["✨"]
+
+            [[slots.one-of]]
+            name = "shortcode"
+            delimiters = [":", ":"]
+        "#})
+        .unwrap();
+        let slots = Tokens::try_from(&config).unwrap().slots;
+
+        let Shape::OneOf(options) = &slots[0].shape else {
+            panic!("{:?}", slots[0].shape);
+        };
+
+        assert!(slots[0].required && slots[0].gap);
+        assert_eq!(options[0].shape, Shape::Bare(Class::Symbols));
+        assert_eq!(options[1].shape, Shape::Delimited([':', ':']));
+    }
+
+    #[test]
+    fn test_a_key_that_means_nothing_is_rejected() {
+        let one_of = |outer: &str, inner: &str| {
+            format!(
+                "[[slots]]\nname = \"intention\"\n{outer}\n\n\
+                 [[slots.one-of]]\nname = \"emoji\"\nkind = \"symbols\"\n{inner}\n"
+            )
+        };
+
+        for (toml, slot, key) in [
+            (one_of("values = [\"x\"]", ""), "intention", "values"),
+            (one_of("", "required = true"), "emoji", "required"),
+            (one_of("", "gap = true"), "emoji", "gap"),
+        ] {
+            let config: CommitConfig = toml::from_str(&toml).unwrap();
+
+            assert_eq!(
+                Tokens::try_from(&config),
+                Err(Invalid::Key {
+                    slot: slot.to_owned(),
+                    key
+                }),
+                "{toml}"
+            );
+        }
+
+        assert_eq!(
+            Invalid::Key {
+                slot: "emoji".to_owned(),
+                key: "gap"
+            }
+            .to_string(),
+            "`gap` does not apply to slot `emoji`"
         );
     }
 
