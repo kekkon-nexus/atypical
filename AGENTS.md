@@ -53,8 +53,8 @@ tests. A `v*` tag runs `publish.yaml`, which reruns CI first.
 
 - `merge_derives = false`: in `src/`, std derives share one line and
   `Deserialize`/`Parser` take the next.
-- Workspace dependencies turn default features off; each crate enables
-  what it uses. Crates inherit `[workspace.package]` fields.
+- Workspace dependencies with default features turn them off; each
+  crate enables what it uses. Crates inherit `[workspace.package]` fields.
 - The `std`, `cli` and `color` features only forward dependency
   features; nothing is `cfg`-gated.
 - Library errors are enums implementing `Display` and `Error`; `anyhow`
@@ -83,7 +83,8 @@ Each is pinned by tests; change a test only on purpose.
 ## Tests
 
 - Unit tests live in-file. `tests/presets.rs` holds parser behavior as
-  header and error rows built from `CommitConfig`, never `Tokens`.
+  header and error rows built from `CommitConfig`, never `Tokens`
+  fields.
 - `tests/cli.rs` runs the real binary against fixtures and throwaway
   repositories under `CARGO_TARGET_TMPDIR`; none are committed.
 
