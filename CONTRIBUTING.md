@@ -24,7 +24,7 @@ bun run test
 change. `commit-msg` lints the message with this repository's own
 `commit-lint`.
 
-`bun run bench:latency` needs
+`bun run bench` needs
 [hyperfine](https://github.com/sharkdp/hyperfine) and writes
 `benches/results.md`.
 

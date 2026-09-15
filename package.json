@@ -9,8 +9,8 @@
     "check": "lefthook run check",
     "fix": "lefthook run fix",
     "test": "lefthook run test",
-    "build:rust": "cargo build --release -p atypical-commit",
-    "bench:latency": "sh benches/latency.sh"
+    "build": "cargo build --release -p atypical-commit",
+    "bench": "sh benches/latency.sh"
   },
   "devDependencies": {
     "@kekkon-nexus/config": "3.1.2",

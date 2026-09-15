@@ -37,13 +37,13 @@ The `commit-msg` hook lints them. Read
 
 ## Commands
 
-| Task          | Command                 |
-| ------------- | ----------------------- |
-| Lint          | `bun run check`         |
-| Lint, autofix | `bun run fix`           |
-| Test          | `bun run test`          |
-| Release build | `bun run build:rust`    |
-| Bench         | `bun run bench:latency` |
+| Task          | Command         |
+| ------------- | --------------- |
+| Lint          | `bun run check` |
+| Lint, autofix | `bun run fix`   |
+| Test          | `bun run test`  |
+| Release build | `bun run build` |
+| Bench         | `bun run bench` |
 
 Tests run under nextest, with `cargo test --doc` for doctests. CI gates
 on `bun run check` and `bun run test` under `cargo llvm-cov` with

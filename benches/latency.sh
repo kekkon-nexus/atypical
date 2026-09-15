@@ -1,5 +1,5 @@
 #!/bin/sh
-# commit-lint latency bench. Override knobs via env: RUNS=1000 bun run bench:latency
+# commit-lint latency bench. Override knobs via env: RUNS=1000 bun run bench
 set -eu
 
 cd "$(dirname "$0")/.."
@@ -15,7 +15,7 @@ command -v hyperfine >/dev/null 2>&1 || {
   exit 2
 }
 
-bun run build:rust
+bun run build
 [ -x "$BIN" ] || { echo "no binary at $BIN" >&2; exit 2; }
 
 # fixtures: each tool's valid msg (exits 0) + one invalid
