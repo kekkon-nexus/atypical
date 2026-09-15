@@ -100,7 +100,7 @@ impl core::fmt::Display for Invalid {
         match self {
             Invalid::Shape(name) => write!(
                 f,
-                "slot `{name}` needs either `kind` or `delimiters`, not both"
+                "slot `{name}` needs exactly one of `kind` or `delimiters`"
             ),
             Invalid::Spelling {
                 slot,
@@ -313,7 +313,7 @@ mod tests {
 
         assert_eq!(
             Invalid::Shape("scope".to_owned()).to_string(),
-            "slot `scope` needs either `kind` or `delimiters`, not both"
+            "slot `scope` needs exactly one of `kind` or `delimiters`"
         );
     }
 
