@@ -1,4 +1,6 @@
+# Cache
 /target
 node_modules
-/npm/platforms
+
+# Test
 *.profraw
