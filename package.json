@@ -8,8 +8,8 @@
   "scripts": {
     "check": "lefthook run check",
     "fix": "lefthook run fix",
+    "test": "lefthook run test",
     "build:rust": "cargo build --release -p atypical-commit",
-    "test:rust": "cargo nextest run --workspace",
     "bench:latency": "sh benches/latency.sh"
   },
   "devDependencies": {

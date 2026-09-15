@@ -66,6 +66,13 @@ check:
           - run: bunx oxfmt --check {all_files}
           - run: bunx oxlint {all_files}
 
+test:
+  jobs:
+    - name: nextest
+      run: cargo nextest run --workspace --all-targets --all-features --locked
+    - name: doctest
+      run: cargo test --doc --workspace --all-features --locked
+
 fix:
   parallel: true
   jobs:

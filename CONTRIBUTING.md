@@ -17,7 +17,7 @@ linking needs `clang` and `lld`.
 ```sh
 bun run check
 bun run fix
-bun run test:rust
+bun run test
 ```
 
 `pre-commit` runs the fixers on staged files and restages what they
