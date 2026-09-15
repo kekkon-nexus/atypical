@@ -535,6 +535,26 @@ fn a_required_enclosure_is_demanded() {
 }
 
 #[test]
+fn a_required_enclosure_is_demanded_with_its_gap() {
+    let mut slots = slots("standard.toml");
+    let scope = index(&slots, "scope");
+
+    slots[scope].required = true;
+    slots[scope].gap = true;
+
+    let config = grammar(slots);
+    let missing = errors(&config, "add: x");
+
+    assert!(errors(&config, "add (lib): x").is_empty());
+    assert!(
+        missing
+            .iter()
+            .any(|(_, message)| message == "expected an opening ` (`"),
+        "{missing:?}"
+    );
+}
+
+#[test]
 fn enclosures_may_share_an_opener() {
     let mut slots = slots("standard.toml");
     let reason = index(&slots, "reason");
