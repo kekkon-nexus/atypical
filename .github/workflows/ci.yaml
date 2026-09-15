@@ -26,7 +26,7 @@ jobs:
       - run: bun ci
       - run: bun run check
 
-  cov:
+  test:
     permissions:
       id-token: write
     runs-on: ubuntu-latest
@@ -40,6 +40,7 @@ jobs:
             cargo-nextest
       - run: mkdir -p target/llvm-cov
       - run: cargo llvm-cov nextest --workspace --all-targets --all-features --locked --fail-under-regions 90 --codecov --output-path target/llvm-cov/codecov.json
+      - run: cargo test --doc --workspace --all-features --locked
       - if: github.ref_type != 'tag'
         uses: codecov/codecov-action@v7
         with:
