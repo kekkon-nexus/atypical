@@ -94,7 +94,9 @@ fn standard_preset() {
                 "",
                 Err((
                     0..0,
-                    &*format!("expected keyword, one of: {STANDARD_KEYWORDS}"),
+                    &*format!(
+                        "expected `keywords`, one of: {STANDARD_KEYWORDS}"
+                    ),
                 )),
             ),
             (
@@ -118,7 +120,7 @@ fn standard_preset() {
                 Err((
                     0..4,
                     &*format!(
-                        "unknown keyword `feat`, expected one of: {STANDARD_KEYWORDS}"
+                        "`feat` is not in `keywords`, expected one of: {STANDARD_KEYWORDS}"
                     ),
                 )),
             ),
@@ -127,7 +129,7 @@ fn standard_preset() {
                 Err((
                     0..5,
                     &*format!(
-                        "unknown keyword `Merge`, expected one of: {STANDARD_KEYWORDS}"
+                        "`Merge` is not in `keywords`, expected one of: {STANDARD_KEYWORDS}"
                     ),
                 )),
             ),
@@ -136,7 +138,7 @@ fn standard_preset() {
                 Err((
                     0..7,
                     &*format!(
-                        "unknown keyword `añadir`, expected one of: {STANDARD_KEYWORDS}"
+                        "`añadir` is not in `keywords`, expected one of: {STANDARD_KEYWORDS}"
                     ),
                 )),
             ),
@@ -146,14 +148,14 @@ fn standard_preset() {
                 "add(unsupported): x",
                 Err((
                     4..15,
-                    "unknown enclosure `unsupported`, expected one of: exe, lib, test, build, doc, ci, cd",
+                    "`unsupported` is not in `scope`, expected one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
             (
                 "add(): x",
                 Err((
                     4..4,
-                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                    "expected `scope`, one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
             (
@@ -166,7 +168,7 @@ fn standard_preset() {
                 "add(: x",
                 Err((
                     4..4,
-                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                    "expected `scope`, one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
             ("add(lib: x", Err((7..8, "found ':' expected ')'"))),
@@ -194,7 +196,7 @@ fn conventional_preset() {
                 "add(lib): standard style",
                 Err((
                     0..3,
-                    "unknown keyword `add`, expected one of: refactor, revert, build, chore, style, docs, feat, perf, test, fix, ci",
+                    "`add` is not in `keywords`, expected one of: refactor, revert, build, chore, style, docs, feat, perf, test, fix, ci",
                 )),
             ),
             (
@@ -240,8 +242,8 @@ fn unrestricted() {
                 "add[int](lib): x",
                 Err((9..16, "expected a space before the description")),
             ),
-            ("no separator here", Err((2..2, "expected a modifier"))),
-            (": no keyword", Err((0..0, "expected a keyword"))),
+            ("no separator here", Err((2..2, "expected `modifiers`"))),
+            (": no keyword", Err((0..0, "expected `keywords`"))),
             (
                 "add:",
                 Err((4..4, "expected a description after the separator")),
@@ -271,7 +273,7 @@ fn any_keyword() {
             ("feat: x", Ok(())),
             ("añadir: x", Ok(())),
             ("snake_case: x", Ok(())),
-            (": x", Err((0..0, "expected a keyword"))),
+            (": x", Err((0..0, "expected `keywords`"))),
         ],
     );
 }
@@ -296,7 +298,7 @@ fn any_modifier() {
                 "add!(: x",
                 Err((
                     5..5,
-                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                    "expected `scope`, one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
         ],
@@ -401,7 +403,7 @@ fn strict_and_flexible_enclosures() {
             ("add{free}: x", Ok(())),
             (
                 "add(other): x",
-                Err((4..9, "unknown enclosure `other`, expected one of: core")),
+                Err((4..9, "`other` is not in `scope`, expected one of: core")),
             ),
             ("add{x}(core): x", Err((6..7, "found '(' expected ':'"))),
         ],
@@ -459,8 +461,8 @@ fn any_separator() {
             ("add: x", Ok(())),
             ("add; x", Ok(())),
             ("add> x", Ok(())),
-            ("add x", Err((3..3, "expected a separator"))),
-            ("add : x", Err((3..3, "expected a separator"))),
+            ("add x", Err((3..3, "expected `separator`"))),
+            ("add : x", Err((3..3, "expected `separator`"))),
         ],
     );
 }
@@ -582,7 +584,7 @@ fn a_run_without_a_separator_slot_is_refused() {
         &grammar(slots),
         &[(
             "add!: x",
-            Err((3..3, "a modifier needs a separator after it")),
+            Err((3..3, "`modifiers` needs a separator after it")),
         )],
     );
 }
@@ -638,7 +640,7 @@ fn a_preset_slot_is_narrowed_without_restating_the_rest() {
         errors(&config, "chore: dropped by the override"),
         [(
             0..5,
-            "unknown keyword `chore`, expected one of: docs, feat, fix"
+            "`chore` is not in `keywords`, expected one of: docs, feat, fix"
                 .to_owned()
         )]
     );

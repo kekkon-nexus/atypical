@@ -186,7 +186,7 @@ fn default_ignores_can_be_disabled() {
     let output = lint(&["--config", config, "-"], header);
 
     assert_eq!(output.status.code(), Some(1));
-    assert!(stderr(&output).contains("unknown keyword `Merge`"));
+    assert!(stderr(&output).contains("`Merge` is not in `keywords`"));
 }
 
 #[test]
@@ -197,7 +197,7 @@ fn invalid_keyword_reports_and_fails() {
     );
 
     assert_eq!(output.status.code(), Some(1));
-    assert!(stderr(&output).contains("unknown keyword `feat`"));
+    assert!(stderr(&output).contains("`feat` is not in `keywords`"));
 }
 
 #[test]
@@ -372,8 +372,8 @@ fn range_reports_every_invalid_commit() {
     let stderr = stderr(&output);
 
     assert_eq!(output.status.code(), Some(1));
-    assert!(stderr.contains("unknown keyword `feat`"), "{stderr}");
-    assert!(stderr.contains("unknown keyword `chore`"), "{stderr}");
+    assert!(stderr.contains("`feat` is not in `keywords`"), "{stderr}");
+    assert!(stderr.contains("`chore` is not in `keywords`"), "{stderr}");
     assert!(stderr.contains(&second[..7]), "{stderr}");
     assert!(stderr.contains(&third[..7]), "{stderr}");
 }
@@ -395,7 +395,7 @@ fn range_without_from_walks_whole_history() {
     let output = lint_in(&dir, &["--to", "HEAD"], None);
 
     assert_eq!(output.status.code(), Some(1));
-    assert!(stderr(&output).contains("unknown keyword `feat`"));
+    assert!(stderr(&output).contains("`feat` is not in `keywords`"));
 }
 
 #[test]

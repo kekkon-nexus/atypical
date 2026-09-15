@@ -10,7 +10,9 @@
 //! let parser = header().with_ctx(context);
 //! let parsed = Parser::<'_, _, Header, Extra>::parse(&parser, "add: x");
 //!
-//! assert_eq!(parsed.into_result().unwrap().prefix.keyword, "add");
+//! let prefix = parsed.into_result().unwrap().prefix;
+//!
+//! assert_eq!((prefix[0].name.as_str(), prefix[0].value), ("keywords", "add"));
 //! ```
 
 use chumsky::prelude::*;
@@ -21,24 +23,17 @@ pub mod ignore;
 /// Opening and closing delimiter, in that order.
 pub type DelimitedBy = [char; 2];
 
-#[doc(alias("Type", "Verb"))]
-pub type Keyword<'i> = &'i str;
-
-#[doc(alias("Importance", "BreakingChange"))]
-pub type Modifier<'i> = &'i str;
-
-#[doc(alias("Scope"))]
-pub type Enclosure<'i> = (&'i str, DelimitedBy);
-
-/// What the slots matched: `keyword` is the last word slot, `modifier`
-/// the first symbols slot present, `enclosures` every delimited slot
-/// present. Separators are not kept.
+/// What one slot matched. A delimited slot's value and span leave out
+/// its delimiters.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Prefix<'i> {
-    pub keyword: Keyword<'i>,
-    pub modifier: Option<Modifier<'i>>,
-    pub enclosures: Vec<Enclosure<'i>>,
+pub struct Part<'i> {
+    pub name: String,
+    pub value: &'i str,
+    pub span: SimpleSpan,
 }
+
+/// Every slot present, in header order.
+pub type Prefix<'i> = Vec<Part<'i>>;
 
 #[doc(alias("Subject"))]
 pub type Description<'i> = &'i str;
@@ -76,8 +71,7 @@ pub enum Values {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Slot {
-    /// Points at the config that declared it, for errors the user can
-    /// act on; diagnostics use the shape's noun instead.
+    /// What diagnostics and the config that declared it call the slot.
     pub name: String,
     pub shape: Shape,
     pub values: Values,
@@ -337,23 +331,13 @@ pub(crate) fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
 }
 
-/// The word diagnostics use for a slot of this shape.
-fn noun(shape: Shape) -> &'static str {
-    match shape {
-        Shape::Bare(Class::Word) => "keyword",
-        Shape::Bare(Class::Symbols) => "modifier",
-        Shape::Bare(Class::Symbol) => "separator",
-        Shape::Delimited(_) => "enclosure",
-    }
-}
-
-fn expected_one_of(found: &str, kind: &str, expected: &[String]) -> String {
+fn expected_one_of(found: &str, name: &str, expected: &[String]) -> String {
     let expected = expected.join(", ");
 
     if found.is_empty() {
-        format!("expected {kind}, one of: {expected}")
+        format!("expected `{name}`, one of: {expected}")
     } else {
-        format!("unknown {kind} `{found}`, expected one of: {expected}")
+        format!("`{found}` is not in `{name}`, expected one of: {expected}")
     }
 }
 
@@ -373,8 +357,7 @@ fn word<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let noun = noun(slot.shape);
-    let Slot { values, .. } = slot.clone();
+    let Slot { name, values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let (s, span) = ident(i);
@@ -382,11 +365,11 @@ fn word<'i>(
         match &values {
             Values::Any if !s.is_empty() => Ok(s),
             Values::Any => {
-                Err(Rich::custom(span, format!("expected a {noun}")))
+                Err(Rich::custom(span, format!("expected `{name}`")))
             }
             Values::Set(set) if set.iter().any(|value| value == s) => Ok(s),
             Values::Set(set) => {
-                let message = expected_one_of(s, noun, set);
+                let message = expected_one_of(s, &name, set);
 
                 Err(Rich::custom(span, message))
             }
@@ -403,8 +386,7 @@ fn symbols<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let noun = noun(slot.shape);
-    let Slot { values, .. } = slot.clone();
+    let Slot { name, values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         if let Values::Set(set) = &values {
@@ -417,7 +399,7 @@ fn symbols<'i>(
         // would eat the rest of the header.
         let Some(separator) = &separator else {
             let span = i.span_since(&before);
-            let message = format!("a {noun} needs a separator after it");
+            let message = format!("`{name}` needs a separator after it");
 
             return Err(Rich::custom(span, message));
         };
@@ -454,7 +436,7 @@ fn symbols<'i>(
         if s.is_empty() {
             let span = i.span_since(&before);
 
-            return Err(Rich::custom(span, format!("expected a {noun}")));
+            return Err(Rich::custom(span, format!("expected `{name}`")));
         }
 
         Ok(s)
@@ -466,8 +448,7 @@ fn symbol<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let noun = noun(slot.shape);
-    let Slot { values, .. } = slot.clone();
+    let Slot { name, values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         if let Values::Set(set) = &values {
@@ -484,7 +465,7 @@ fn symbol<'i>(
             }
             _ => Err(Rich::custom(
                 i.span_since(&before),
-                format!("expected a {noun}"),
+                format!("expected `{name}`"),
             )),
         }
     })
@@ -514,23 +495,22 @@ fn opening([open, _]: DelimitedBy, slot: &Slot) -> String {
 /// A run of delimited slots, in order and each at most once.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
-) -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
+) -> impl Parser<'i, &'i str, Vec<Part<'i>>, Extra<'i>> {
     use chumsky::input::InputRef;
 
     fn parser<'i>(
         [start, end]: DelimitedBy,
         slot: &Slot,
-    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra<'i>> {
-        match &slot.values {
+    ) -> impl Parser<'i, &'i str, (&'i str, SimpleSpan, DelimitedBy), Extra<'i>>
+    {
+        let contents = match &slot.values {
             Values::Any => none_of::<'i, _, _, Extra>([start, end])
                 .repeated()
                 .to_slice()
-                .delimited_by(just(start), just(end))
-                .map(move |s| (s, [start, end]))
                 .boxed(),
             Values::Set(allowed) => {
+                let Slot { name, .. } = slot.clone();
                 let allowed = allowed.clone();
-                let noun = noun(slot.shape);
 
                 custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
                     let (s, span) = ident(i);
@@ -539,15 +519,18 @@ fn enclosures<'i>(
                         return Ok(s);
                     }
 
-                    let message = expected_one_of(s, noun, &allowed);
+                    let message = expected_one_of(s, &name, &allowed);
 
                     Err(Rich::custom(span, message))
                 })
-                .delimited_by(just(start), just(end))
-                .map(move |s| (s, [start, end]))
                 .boxed()
             }
-        }
+        };
+
+        contents
+            .map_with(|s, e| (s, e.span()))
+            .delimited_by(just(start), just(end))
+            .map(move |(s, span)| (s, span, [start, end]))
     }
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
@@ -581,7 +564,7 @@ fn enclosures<'i>(
                 .map(|(delimiters, slot)| parser(*delimiters, slot))
                 .collect::<Vec<_>>();
 
-            let (content, delimited_by) = i.parse(choice(parsers))?;
+            let (value, span, delimited_by) = i.parse(choice(parsers))?;
             // The position is within what is left of the run, since
             // everything before `index` is already spoken for.
             let position = run[index..]
@@ -598,8 +581,12 @@ fn enclosures<'i>(
                 return Err(Rich::custom(i.span_since(&before), message));
             }
 
+            results.push(Part {
+                name: run[index + position].1.name.clone(),
+                value,
+                span,
+            });
             index += position + 1;
-            results.push((content, delimited_by));
         }
 
         if let Some((delimiters, slot)) =
@@ -669,11 +656,7 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             })
             .collect::<Vec<_>>();
 
-        let mut prefix = Prefix {
-            keyword: "",
-            modifier: None,
-            enclosures: Vec::new(),
-        };
+        let mut prefix = Prefix::new();
         let mut rest = slots.as_slice();
 
         while let Some(slot) = rest.first() {
@@ -689,26 +672,30 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                     .collect::<Vec<_>>();
 
                 rest = &rest[run.len()..];
-                prefix.enclosures.extend(i.parse(enclosures(run))?);
+                prefix.extend(i.parse(enclosures(run))?);
                 continue;
             };
 
-            let mut parser = bare(class, slot, &separator, &openers);
+            let mut parser = bare(class, slot, &separator, &openers)
+                .map_with(|s, e| (s, e.span()))
+                .boxed();
 
             if slot.gap {
                 parser = just(' ').ignore_then(parser).boxed();
             }
 
-            let s = if slot.required {
+            let matched = if slot.required {
                 Some(i.parse(parser)?)
             } else {
                 i.parse(parser.or_not())?
             };
 
-            match class {
-                Class::Word => prefix.keyword = s.unwrap_or_default(),
-                Class::Symbols => prefix.modifier = prefix.modifier.or(s),
-                Class::Symbol => {}
+            if let Some((value, span)) = matched {
+                prefix.push(Part {
+                    name: slot.name.clone(),
+                    value,
+                    span,
+                });
             }
 
             rest = &rest[1..];
