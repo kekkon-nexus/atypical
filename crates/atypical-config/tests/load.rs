@@ -235,6 +235,54 @@ fn an_unmatched_named_entry_appends() {
 }
 
 #[test]
+fn an_unmatched_named_entry_keeps_its_place_among_matched_ones() {
+    let root = tree("named-in-place");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    base(&root);
+    std::fs::write(
+        root.join("peer.toml"),
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "gitmoji"
+            kind = "symbols"
+
+            [[commit.slots]]
+            name = "keywords"
+            required = true
+
+            [[commit.slots]]
+            name = "scope"
+            kind = "word"
+
+            [[commit.slots]]
+            name = "gone"
+            drop = true
+
+            [[commit.slots]]
+            name = "modifiers"
+            kind = "symbols"
+        "#},
+    )
+    .unwrap();
+    std::fs::write(&file, "extends = [\"base.toml\", \"peer.toml\"]\n")
+        .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Slots>(&file, "commit").unwrap(),
+        Some(Slots {
+            slots: vec![
+                slot("gitmoji", "symbols", false),
+                slot("keywords", "word", true),
+                slot("scope", "word", false),
+                slot("modifiers", "symbols", false),
+                slot("separator", "symbol", false),
+            ]
+        })
+    );
+}
+
+#[test]
 fn before_places_a_new_entry_ahead_of_the_one_it_names() {
     let root = tree("named-before");
     let file = root.join(atypical_config::FILE_NAME);
