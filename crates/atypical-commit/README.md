@@ -27,7 +27,8 @@ commit-lint --from origin/main
 
 `--from` and `--to` lint every commit in `from..to` instead of an input.
 `to` defaults to `HEAD`; without `from`, the whole history reachable
-from `to` is linted.
+from `to` is linted. With `--from`, the two need a merge base, which a
+shallow clone may lack; in CI, fetch the history the range covers.
 
 Only the header is linted: the first line that is neither blank nor a
 `#` comment.

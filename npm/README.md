@@ -4,7 +4,8 @@ Commit message linting: the `commit-lint` binary, prebuilt.
 
 The binary comes in as an optional dependency,
 `@atypical/commit-<platform>-<arch>[-musl]`, with no install scripts.
-`COMMIT_LINT_BINARY` points the wrapper at another binary.
+`COMMIT_LINT_BINARY` points the wrapper at another binary; without one
+to run, it exits 127.
 
 ## Install
 
