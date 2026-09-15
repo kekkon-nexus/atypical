@@ -641,6 +641,36 @@ fn one_of_takes_exactly_one_form() {
 }
 
 #[test]
+fn a_gap_before_a_bare_slot() {
+    let config = load(
+        "gap-bare.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["feat"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+        "#},
+    );
+
+    assert!(errors(&config, "✨ feat: x").is_empty());
+    assert!(!errors(&config, "✨feat: x").is_empty());
+}
+
+#[test]
 fn a_project_drops_one_form() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
 

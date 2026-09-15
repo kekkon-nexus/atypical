@@ -916,6 +916,50 @@ mod tests {
         );
     }
 
+    fn options(options: Vec<Slot>) -> Result<ExtraContext, Ambiguous> {
+        context(vec![slot("intention", Shape::OneOf(options), Values::Any)])
+    }
+
+    fn overlap(first: &str, second: &str) -> Result<ExtraContext, Ambiguous> {
+        Err(Ambiguous::Overlap {
+            first: first.to_owned(),
+            second: second.to_owned(),
+        })
+    }
+
+    #[test]
+    fn test_options_that_start_alike_overlap() {
+        let code = || slot("code", Shape::Delimited([':', ':']), Values::Any);
+        let emoji = |values| slot("emoji", Shape::Bare(Class::Symbols), values);
+        let symbol = slot("symbol", Shape::Bare(Class::Symbol), Values::Any);
+        let paren = slot("paren", Shape::Delimited([':', ')']), Values::Any);
+
+        assert_eq!(options(vec![code(), paren]), overlap("code", "paren"));
+        assert_eq!(
+            options(vec![code(), emoji(Values::Any)]),
+            overlap("code", "emoji")
+        );
+        assert_eq!(
+            options(vec![emoji(set(&[":)"])), code()]),
+            overlap("emoji", "code")
+        );
+        assert_eq!(
+            options(vec![emoji(set(&["✨"])), symbol]),
+            overlap("emoji", "symbol")
+        );
+    }
+
+    #[test]
+    fn test_options_that_start_apart_do_not_overlap() {
+        let code = || slot("code", Shape::Delimited([':', ':']), Values::Any);
+        let word = || slot("word", Shape::Bare(Class::Word), Values::Any);
+        let emoji = |values| slot("emoji", Shape::Bare(Class::Symbols), values);
+
+        assert!(options(vec![code(), word()]).is_ok());
+        assert!(options(vec![emoji(set(&["✨"])), code()]).is_ok());
+        assert!(options(vec![word(), emoji(Values::Any)]).is_ok());
+    }
+
     #[test]
     fn test_a_word_leaves_nothing_for_a_word() {
         assert_eq!(

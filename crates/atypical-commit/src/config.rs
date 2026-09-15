@@ -121,35 +121,34 @@ impl core::fmt::Display for Invalid {
     }
 }
 
-/// What a slot's kind is called in TOML, for diagnostics.
+/// What a slot's kind is called in TOML, for diagnostics. A `one-of`
+/// holds no spellings of its own, so it never gets here.
 fn kind(shape: &Shape) -> &'static str {
     match shape {
-        Shape::Delimited(_) => "delimited",
         Shape::Bare(Class::Word) => "a `word`",
         Shape::Bare(Class::Symbols) => "`symbols`",
         Shape::Bare(Class::Symbol) => "a `symbol`",
-        Shape::OneOf(_) => "a `one-of`",
+        Shape::Delimited(_) | Shape::OneOf(_) => "delimited",
     }
 }
 
 /// Whether a slot of this shape could ever match this spelling. A
 /// delimited slot reads its contents as one word, as a bare word slot
-/// does.
+/// does. A `one-of` never gets here, as for [`kind`].
 fn fits(shape: &Shape, spelling: &str) -> bool {
     let word = |c: char| c.is_alphanumeric() || c == '_';
     let mut chars = spelling.chars();
 
     match shape {
-        Shape::Delimited(_) | Shape::Bare(Class::Word) => {
-            !spelling.is_empty() && spelling.chars().all(word)
-        }
         Shape::Bare(Class::Symbols) => {
             !spelling.is_empty() && spelling.chars().all(crate::is_symbol)
         }
         Shape::Bare(Class::Symbol) => {
             chars.next().is_some_and(crate::is_symbol) && chars.next().is_none()
         }
-        Shape::OneOf(_) => false,
+        Shape::Delimited(_) | Shape::Bare(Class::Word) | Shape::OneOf(_) => {
+            !spelling.is_empty() && spelling.chars().all(word)
+        }
     }
 }
 
@@ -380,13 +379,16 @@ mod tests {
         .unwrap();
         let slots = Tokens::try_from(&config).unwrap().slots;
 
-        let Shape::OneOf(options) = &slots[0].shape else {
-            panic!("{:?}", slots[0].shape);
-        };
+        let shapes = crate::forms(&slots[0])
+            .iter()
+            .map(|option| option.shape.clone())
+            .collect::<Vec<_>>();
 
         assert!(slots[0].required && slots[0].gap);
-        assert_eq!(options[0].shape, Shape::Bare(Class::Symbols));
-        assert_eq!(options[1].shape, Shape::Delimited([':', ':']));
+        assert_eq!(
+            shapes,
+            [Shape::Bare(Class::Symbols), Shape::Delimited([':', ':'])]
+        );
     }
 
     #[test]
