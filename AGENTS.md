@@ -41,13 +41,14 @@ The `commit-msg` hook lints them. Read
 | ------------- | ----------------------- |
 | Lint          | `bun run check`         |
 | Lint, autofix | `bun run fix`           |
-| Test          | `bun run test:rust`     |
+| Test          | `bun run test`          |
 | Release build | `bun run build:rust`    |
 | Bench         | `bun run bench:latency` |
 
-Tests run under nextest, not `cargo test`. CI gates on `bun run check`
-and `cargo llvm-cov nextest --fail-under-regions 90`, so new code needs
-tests. A `v*` tag runs `publish.yaml`, which reruns CI first.
+Tests run under nextest, with `cargo test --doc` for doctests. CI gates
+on `bun run check` and `bun run test` under `cargo llvm-cov` with
+`--fail-under-regions 90`, so new code needs tests. A `v*` tag runs
+`publish.yaml`, which reruns CI first.
 
 ## Style
 
