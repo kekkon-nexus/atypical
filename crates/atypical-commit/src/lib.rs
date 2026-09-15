@@ -10,7 +10,9 @@
 //! let parser = header().with_ctx(context);
 //! let parsed = Parser::<'_, _, Header, Extra>::parse(&parser, "add: x");
 //!
-//! assert_eq!(parsed.into_result().unwrap().prefix.keyword, "add");
+//! let prefix = parsed.into_result().unwrap().prefix;
+//!
+//! assert_eq!((prefix[0].name.as_str(), prefix[0].value), ("keywords", "add"));
 //! ```
 
 use chumsky::prelude::*;
@@ -21,24 +23,17 @@ pub mod ignore;
 /// Opening and closing delimiter, in that order.
 pub type DelimitedBy = [char; 2];
 
-#[doc(alias("Type", "Verb"))]
-pub type Keyword<'i> = &'i str;
-
-#[doc(alias("Importance", "BreakingChange"))]
-pub type Modifier<'i> = &'i str;
-
-#[doc(alias("Scope"))]
-pub type Enclosure<'i> = (&'i str, DelimitedBy);
-
-/// What the slots matched: `keyword` is the last word slot, `modifier`
-/// the first symbols slot present, `enclosures` every delimited slot
-/// present. Separators are not kept.
+/// What one slot matched. A delimited slot's value and span leave out
+/// its delimiters.
 #[derive(Debug, Clone, PartialEq)]
-pub struct Prefix<'i> {
-    pub keyword: Keyword<'i>,
-    pub modifier: Option<Modifier<'i>>,
-    pub enclosures: Vec<Enclosure<'i>>,
+pub struct Part<'i> {
+    pub name: String,
+    pub value: &'i str,
+    pub span: SimpleSpan,
 }
+
+/// Every slot present, in header order.
+pub type Prefix<'i> = Vec<Part<'i>>;
 
 #[doc(alias("Subject"))]
 pub type Description<'i> = &'i str;
@@ -60,10 +55,13 @@ pub enum Class {
     Symbol,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Shape {
     Delimited(DelimitedBy),
     Bare(Class),
+    /// Exactly one of these options, each named and shaped as a slot of
+    /// its own. Whether it is required or has a gap is the outer slot's.
+    OneOf(Vec<Slot>),
 }
 
 /// A restrictable set of accepted spellings: anything, or a closed
@@ -76,12 +74,13 @@ pub enum Values {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Slot {
-    /// Points at the config that declared it, for errors the user can
-    /// act on; diagnostics use the shape's noun instead.
+    /// What diagnostics and the config that declared it call the slot.
     pub name: String,
     pub shape: Shape,
     pub values: Values,
     pub required: bool,
+    /// One space before the slot, matched or skipped together with it.
+    pub gap: bool,
 }
 
 /// The header grammar: its slots, in header order.
@@ -101,6 +100,7 @@ impl Default for Tokens {
             shape,
             values: Values::Any,
             required,
+            gap: false,
         };
 
         Self {
@@ -140,6 +140,8 @@ pub enum Ambiguous {
     Shadowed { first: String, second: String },
     /// Two delimited slots carry the same pair of delimiters.
     Delimiters { first: String, second: String },
+    /// Two options of one slot can start on the same input.
+    Overlap { first: String, second: String },
 }
 
 impl core::fmt::Display for Ambiguous {
@@ -164,6 +166,12 @@ impl core::fmt::Display for Ambiguous {
             Ambiguous::Delimiters { first, second } => {
                 write!(f, "`{first}` and `{second}` carry the same delimiters")
             }
+            Ambiguous::Overlap { first, second } => {
+                write!(
+                    f,
+                    "`{first}` and `{second}` can start on the same input"
+                )
+            }
         }
     }
 }
@@ -173,43 +181,117 @@ impl core::error::Error for Ambiguous {}
 /// A bare slot is only locatable because its alphabet is disjoint from
 /// its neighbour's, so the pairs are checked before any input is seen.
 fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
-    for (index, first) in slots.iter().enumerate() {
-        // An optional slot can be absent, which makes the slot behind
-        // it a neighbour too, up to the first required one.
-        for second in &slots[index + 1..] {
-            if let Some(ambiguous) = ambiguous_pair(first, second) {
-                return Some(ambiguous);
-            }
+    for (index, slot) in slots.iter().enumerate() {
+        if let Shape::OneOf(options) = &slot.shape {
+            for (at, first) in options.iter().enumerate() {
+                let overlapping = options[at + 1..]
+                    .iter()
+                    .find(|second| overlap(first, second));
 
-            if second.required {
-                break;
+                if let Some(second) = overlapping {
+                    return Some(Ambiguous::Overlap {
+                        first: first.name.clone(),
+                        second: second.name.clone(),
+                    });
+                }
             }
         }
 
-        // Delimiters are matched wherever they sit, so a repeat is
-        // unreachable however far away it is. A shared opener with its
-        // own closer still tells them apart.
-        if !matches!(first.shape, Shape::Delimited(_)) {
-            continue;
-        }
+        for first in forms(slot) {
+            // An optional slot can be absent, which makes the slot
+            // behind it a neighbour too, up to the first required one.
+            for next in &slots[index + 1..] {
+                for second in forms(next) {
+                    if let Some(ambiguous) = ambiguous_pair(first, second) {
+                        return Some(ambiguous);
+                    }
+                }
 
-        let repeat = slots[index + 1..]
-            .iter()
-            .find(|second| second.shape == first.shape);
+                if next.required {
+                    break;
+                }
+            }
 
-        if let Some(second) = repeat {
-            return Some(Ambiguous::Delimiters {
-                first: first.name.clone(),
-                second: second.name.clone(),
-            });
+            // Delimiters are matched wherever they sit, so a repeat is
+            // unreachable however far away it is. A shared opener with
+            // its own closer still tells them apart.
+            if !matches!(first.shape, Shape::Delimited(_)) {
+                continue;
+            }
+
+            let repeat = slots[index + 1..]
+                .iter()
+                .flat_map(forms)
+                .find(|second| second.shape == first.shape);
+
+            if let Some(second) = repeat {
+                return Some(Ambiguous::Delimiters {
+                    first: first.name.clone(),
+                    second: second.name.clone(),
+                });
+            }
         }
     }
 
     None
 }
 
+/// The shapes a slot can take where it sits: its options, or itself.
+pub(crate) fn forms(slot: &Slot) -> &[Slot] {
+    match &slot.shape {
+        Shape::OneOf(options) => options,
+        _ => std::slice::from_ref(slot),
+    }
+}
+
+fn starts_class(class: Class, c: char) -> bool {
+    match class {
+        Class::Word => c.is_alphanumeric() || c == '_',
+        Class::Symbols | Class::Symbol => is_symbol(c),
+    }
+}
+
+/// Whether two options of one slot could both start on some input,
+/// leaving the one tried second unreachable there.
+fn overlap(first: &Slot, second: &Slot) -> bool {
+    let alike = |class: Class, next: Class| {
+        (class == Class::Word) == (next == Class::Word)
+    };
+
+    match (&first.shape, &second.shape) {
+        (Shape::Delimited([open, _]), Shape::Delimited([next, _])) => {
+            open == next
+        }
+        (&Shape::Delimited([open, _]), &Shape::Bare(class))
+        | (&Shape::Bare(class), &Shape::Delimited([open, _])) => {
+            let bare = if matches!(first.shape, Shape::Bare(_)) {
+                first
+            } else {
+                second
+            };
+
+            match &bare.values {
+                Values::Any => starts_class(class, open),
+                Values::Set(set) => set.iter().any(|s| s.starts_with(open)),
+            }
+        }
+        (&Shape::Bare(class), &Shape::Bare(next)) if alike(class, next) => {
+            match (&first.values, &second.values) {
+                (Values::Set(set), Values::Set(next)) => set.iter().any(|s| {
+                    next.iter().any(|n| {
+                        s.starts_with(n.as_str()) || n.starts_with(s.as_str())
+                    })
+                }),
+                _ => true,
+            }
+        }
+        _ => false,
+    }
+}
+
 fn ambiguous_pair(first: &Slot, second: &Slot) -> Option<Ambiguous> {
-    let (Shape::Bare(class), Shape::Bare(next)) = (first.shape, second.shape)
+    let (&Shape::Bare(class), &Shape::Bare(next)) =
+        (&first.shape, &second.shape)
     else {
         return None;
     };
@@ -284,18 +366,24 @@ impl ExtraContext {
 
         let mut tokens = tokens.clone();
 
-        // Bare slots match by prefix, so `!!` must be tried before `!`.
-        for slot in &mut tokens.slots {
-            if let (Shape::Bare(_), Values::Set(set)) =
-                (slot.shape, &mut slot.values)
-            {
+        longest_first(&mut tokens.slots);
+
+        Ok(Self { tokens })
+    }
+}
+
+/// Bare slots match by prefix, so `!!` must be tried before `!`.
+fn longest_first(slots: &mut [Slot]) {
+    for slot in slots {
+        match (&mut slot.shape, &mut slot.values) {
+            (Shape::OneOf(options), _) => longest_first(options),
+            (Shape::Bare(_), Values::Set(set)) => {
                 set.sort_unstable_by(|a, b| {
                     b.len().cmp(&a.len()).then(a.cmp(b))
                 });
             }
+            _ => {}
         }
-
-        Ok(Self { tokens })
     }
 }
 
@@ -334,23 +422,13 @@ pub(crate) fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
 }
 
-/// The word diagnostics use for a slot of this shape.
-fn noun(shape: Shape) -> &'static str {
-    match shape {
-        Shape::Bare(Class::Word) => "keyword",
-        Shape::Bare(Class::Symbols) => "modifier",
-        Shape::Bare(Class::Symbol) => "separator",
-        Shape::Delimited(_) => "enclosure",
-    }
-}
-
-fn expected_one_of(found: &str, kind: &str, expected: &[String]) -> String {
+fn expected_one_of(found: &str, name: &str, expected: &[String]) -> String {
     let expected = expected.join(", ");
 
     if found.is_empty() {
-        format!("expected {kind}, one of: {expected}")
+        format!("expected `{name}`, one of: {expected}")
     } else {
-        format!("unknown {kind} `{found}`, expected one of: {expected}")
+        format!("`{found}` is not in `{name}`, expected one of: {expected}")
     }
 }
 
@@ -370,8 +448,7 @@ fn word<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let noun = noun(slot.shape);
-    let Slot { values, .. } = slot.clone();
+    let Slot { name, values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let (s, span) = ident(i);
@@ -379,11 +456,11 @@ fn word<'i>(
         match &values {
             Values::Any if !s.is_empty() => Ok(s),
             Values::Any => {
-                Err(Rich::custom(span, format!("expected a {noun}")))
+                Err(Rich::custom(span, format!("expected `{name}`")))
             }
             Values::Set(set) if set.iter().any(|value| value == s) => Ok(s),
             Values::Set(set) => {
-                let message = expected_one_of(s, noun, set);
+                let message = expected_one_of(s, &name, set);
 
                 Err(Rich::custom(span, message))
             }
@@ -400,8 +477,7 @@ fn symbols<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let noun = noun(slot.shape);
-    let Slot { values, .. } = slot.clone();
+    let Slot { name, values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         if let Values::Set(set) = &values {
@@ -414,7 +490,7 @@ fn symbols<'i>(
         // would eat the rest of the header.
         let Some(separator) = &separator else {
             let span = i.span_since(&before);
-            let message = format!("a {noun} needs a separator after it");
+            let message = format!("`{name}` needs a separator after it");
 
             return Err(Rich::custom(span, message));
         };
@@ -451,7 +527,7 @@ fn symbols<'i>(
         if s.is_empty() {
             let span = i.span_since(&before);
 
-            return Err(Rich::custom(span, format!("expected a {noun}")));
+            return Err(Rich::custom(span, format!("expected `{name}`")));
         }
 
         Ok(s)
@@ -463,8 +539,7 @@ fn symbol<'i>(
 ) -> impl Parser<'i, &'i str, &'i str, Extra<'i>> + use<'i> {
     use chumsky::input::InputRef;
 
-    let noun = noun(slot.shape);
-    let Slot { values, .. } = slot.clone();
+    let Slot { name, values, .. } = slot.clone();
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         if let Values::Set(set) = &values {
@@ -481,7 +556,7 @@ fn symbol<'i>(
             }
             _ => Err(Rich::custom(
                 i.span_since(&before),
-                format!("expected a {noun}"),
+                format!("expected `{name}`"),
             )),
         }
     })
@@ -502,44 +577,77 @@ fn bare<'i>(
     }
 }
 
+fn opening([open, _]: DelimitedBy, slot: &Slot) -> String {
+    let gap = if slot.gap { " " } else { "" };
+
+    format!("expected an opening `{gap}{open}`")
+}
+
+fn enclosure<'i>(
+    [start, end]: DelimitedBy,
+    slot: &Slot,
+) -> impl Parser<'i, &'i str, (&'i str, SimpleSpan, DelimitedBy), Extra<'i>> + use<'i>
+{
+    use chumsky::input::InputRef;
+
+    let contents = match &slot.values {
+        Values::Any => none_of::<'i, _, _, Extra>([start, end])
+            .repeated()
+            .to_slice()
+            .boxed(),
+        Values::Set(allowed) => {
+            let Slot { name, .. } = slot.clone();
+            let allowed = allowed.clone();
+
+            custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
+                let (s, span) = ident(i);
+
+                if allowed.iter().any(|value| value == s) {
+                    return Ok(s);
+                }
+
+                let message = expected_one_of(s, &name, &allowed);
+
+                Err(Rich::custom(span, message))
+            })
+            .boxed()
+        }
+    };
+
+    contents
+        .map_with(|s, e| (s, e.span()))
+        .delimited_by(just(start), just(end))
+        .map(move |(s, span)| (s, span, [start, end]))
+}
+
+/// One slot outside a run of enclosures.
+fn single<'i>(
+    slot: &Slot,
+    separator: &Option<Values>,
+    openers: &[char],
+) -> Boxed<'i, 'i, &'i str, (&'i str, SimpleSpan), Extra<'i>> {
+    match &slot.shape {
+        Shape::Bare(class) => bare(*class, slot, separator, openers)
+            .map_with(|s, e| (s, e.span()))
+            .boxed(),
+        Shape::Delimited(delimiters) => enclosure(*delimiters, slot)
+            .map(|(s, span, _)| (s, span))
+            .boxed(),
+        Shape::OneOf(options) => choice(
+            options
+                .iter()
+                .map(|option| single(option, separator, openers))
+                .collect::<Vec<_>>(),
+        )
+        .boxed(),
+    }
+}
+
 /// A run of delimited slots, in order and each at most once.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
-) -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
+) -> impl Parser<'i, &'i str, Vec<Part<'i>>, Extra<'i>> {
     use chumsky::input::InputRef;
-
-    fn parser<'i>(
-        [start, end]: DelimitedBy,
-        slot: &Slot,
-    ) -> impl Parser<'i, &'i str, Enclosure<'i>, Extra<'i>> {
-        match &slot.values {
-            Values::Any => none_of::<'i, _, _, Extra>([start, end])
-                .repeated()
-                .to_slice()
-                .delimited_by(just(start), just(end))
-                .map(move |s| (s, [start, end]))
-                .boxed(),
-            Values::Set(allowed) => {
-                let allowed = allowed.clone();
-                let noun = noun(slot.shape);
-
-                custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
-                    let (s, span) = ident(i);
-
-                    if allowed.iter().any(|value| value == s) {
-                        return Ok(s);
-                    }
-
-                    let message = expected_one_of(s, noun, &allowed);
-
-                    Err(Rich::custom(span, message))
-                })
-                .delimited_by(just(start), just(end))
-                .map(move |s| (s, [start, end]))
-                .boxed()
-            }
-        }
-    }
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let mut index = 0;
@@ -547,21 +655,32 @@ fn enclosures<'i>(
 
         while index < run.len() {
             let before = i.cursor();
+            let checkpoint = i.save();
+            let gap = i.peek() == Some(' ');
+
+            if gap {
+                i.next();
+            }
+
+            // Seeing the opener commits to the slot, so a bad value
+            // errors instead of backtracking into the description.
             let next = i.peek();
-            let is_open = run[index..]
-                .iter()
-                .any(|([open, _], _)| Some(*open) == next);
+            let is_open = run[index..].iter().any(|([open, _], slot)| {
+                slot.gap == gap && Some(*open) == next
+            });
 
             if !is_open {
+                i.rewind(checkpoint);
                 break;
             }
 
             let parsers = run[index..]
                 .iter()
-                .map(|(delimiters, slot)| parser(*delimiters, slot))
+                .filter(|(_, slot)| slot.gap == gap)
+                .map(|(delimiters, slot)| enclosure(*delimiters, slot))
                 .collect::<Vec<_>>();
 
-            let (content, delimited_by) = i.parse(choice(parsers))?;
+            let (value, span, delimited_by) = i.parse(choice(parsers))?;
             // The position is within what is left of the run, since
             // everything before `index` is already spoken for.
             let position = run[index..]
@@ -572,21 +691,25 @@ fn enclosures<'i>(
                 .iter()
                 .find(|(_, slot)| slot.required);
 
-            if let Some(([open, _], _)) = skipped {
-                let message = format!("expected an opening `{open}`");
+            if let Some((delimiters, slot)) = skipped {
+                let message = opening(*delimiters, slot);
 
                 return Err(Rich::custom(i.span_since(&before), message));
             }
 
+            results.push(Part {
+                name: run[index + position].1.name.clone(),
+                value,
+                span,
+            });
             index += position + 1;
-            results.push((content, delimited_by));
         }
 
-        if let Some(([open, _], _)) =
+        if let Some((delimiters, slot)) =
             run[index..].iter().find(|(_, slot)| slot.required)
         {
             let here = i.cursor();
-            let message = format!("expected an opening `{open}`");
+            let message = opening(*delimiters, slot);
 
             return Err(Rich::custom(i.span_since(&here), message));
         }
@@ -643,47 +766,51 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             .map(|slot| slot.values.clone());
         let openers = slots
             .iter()
+            .flat_map(forms)
             .filter_map(|slot| match slot.shape {
                 Shape::Delimited([open, _]) => Some(open),
-                Shape::Bare(_) => None,
+                _ => None,
             })
             .collect::<Vec<_>>();
 
-        let mut prefix = Prefix {
-            keyword: "",
-            modifier: None,
-            enclosures: Vec::new(),
-        };
+        let mut prefix = Prefix::new();
         let mut rest = slots.as_slice();
 
         while let Some(slot) = rest.first() {
-            let Shape::Bare(class) = slot.shape else {
+            if let Shape::Delimited(_) = slot.shape {
                 let run = rest
                     .iter()
                     .map_while(|slot| match slot.shape {
                         Shape::Delimited(delimiters) => {
                             Some((delimiters, slot.clone()))
                         }
-                        Shape::Bare(_) => None,
+                        _ => None,
                     })
                     .collect::<Vec<_>>();
 
                 rest = &rest[run.len()..];
-                prefix.enclosures.extend(i.parse(enclosures(run))?);
+                prefix.extend(i.parse(enclosures(run))?);
                 continue;
-            };
+            }
 
-            let parser = bare(class, slot, &separator, &openers);
-            let s = if slot.required {
+            let mut parser = single(slot, &separator, &openers);
+
+            if slot.gap {
+                parser = just(' ').ignore_then(parser).boxed();
+            }
+
+            let matched = if slot.required {
                 Some(i.parse(parser)?)
             } else {
                 i.parse(parser.or_not())?
             };
 
-            match class {
-                Class::Word => prefix.keyword = s.unwrap_or_default(),
-                Class::Symbols => prefix.modifier = prefix.modifier.or(s),
-                Class::Symbol => {}
+            if let Some((value, span)) = matched {
+                prefix.push(Part {
+                    name: slot.name.clone(),
+                    value,
+                    span,
+                });
             }
 
             rest = &rest[1..];
@@ -712,6 +839,7 @@ mod tests {
             shape,
             values,
             required: false,
+            gap: false,
         }
     }
 
@@ -776,6 +904,60 @@ mod tests {
             delimiters.to_string(),
             "`scope` and `reason` carry the same delimiters"
         );
+
+        let overlap = Ambiguous::Overlap {
+            first: "emoji".to_owned(),
+            second: "shortcode".to_owned(),
+        };
+
+        assert_eq!(
+            overlap.to_string(),
+            "`emoji` and `shortcode` can start on the same input"
+        );
+    }
+
+    fn options(options: Vec<Slot>) -> Result<ExtraContext, Ambiguous> {
+        context(vec![slot("intention", Shape::OneOf(options), Values::Any)])
+    }
+
+    fn overlap(first: &str, second: &str) -> Result<ExtraContext, Ambiguous> {
+        Err(Ambiguous::Overlap {
+            first: first.to_owned(),
+            second: second.to_owned(),
+        })
+    }
+
+    #[test]
+    fn test_options_that_start_alike_overlap() {
+        let code = || slot("code", Shape::Delimited([':', ':']), Values::Any);
+        let emoji = |values| slot("emoji", Shape::Bare(Class::Symbols), values);
+        let symbol = slot("symbol", Shape::Bare(Class::Symbol), Values::Any);
+        let paren = slot("paren", Shape::Delimited([':', ')']), Values::Any);
+
+        assert_eq!(options(vec![code(), paren]), overlap("code", "paren"));
+        assert_eq!(
+            options(vec![code(), emoji(Values::Any)]),
+            overlap("code", "emoji")
+        );
+        assert_eq!(
+            options(vec![emoji(set(&[":)"])), code()]),
+            overlap("emoji", "code")
+        );
+        assert_eq!(
+            options(vec![emoji(set(&["✨"])), symbol]),
+            overlap("emoji", "symbol")
+        );
+    }
+
+    #[test]
+    fn test_options_that_start_apart_do_not_overlap() {
+        let code = || slot("code", Shape::Delimited([':', ':']), Values::Any);
+        let word = || slot("word", Shape::Bare(Class::Word), Values::Any);
+        let emoji = |values| slot("emoji", Shape::Bare(Class::Symbols), values);
+
+        assert!(options(vec![code(), word()]).is_ok());
+        assert!(options(vec![emoji(set(&["✨"])), code()]).is_ok());
+        assert!(options(vec![word(), emoji(Values::Any)]).is_ok());
     }
 
     #[test]

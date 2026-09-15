@@ -40,8 +40,8 @@ fn index(slots: &[SlotConfig], name: &str) -> usize {
     slots.iter().position(|slot| slot.name == name).unwrap()
 }
 
-fn anything() -> SetConfig {
-    SetConfig::Any(Any::Any)
+fn anything() -> Option<SetConfig> {
+    Some(SetConfig::Any(Any::Any))
 }
 
 fn header_parser<'i>(
@@ -94,7 +94,9 @@ fn standard_preset() {
                 "",
                 Err((
                     0..0,
-                    &*format!("expected keyword, one of: {STANDARD_KEYWORDS}"),
+                    &*format!(
+                        "expected `keywords`, one of: {STANDARD_KEYWORDS}"
+                    ),
                 )),
             ),
             (
@@ -118,7 +120,7 @@ fn standard_preset() {
                 Err((
                     0..4,
                     &*format!(
-                        "unknown keyword `feat`, expected one of: {STANDARD_KEYWORDS}"
+                        "`feat` is not in `keywords`, expected one of: {STANDARD_KEYWORDS}"
                     ),
                 )),
             ),
@@ -127,7 +129,7 @@ fn standard_preset() {
                 Err((
                     0..5,
                     &*format!(
-                        "unknown keyword `Merge`, expected one of: {STANDARD_KEYWORDS}"
+                        "`Merge` is not in `keywords`, expected one of: {STANDARD_KEYWORDS}"
                     ),
                 )),
             ),
@@ -136,7 +138,7 @@ fn standard_preset() {
                 Err((
                     0..7,
                     &*format!(
-                        "unknown keyword `añadir`, expected one of: {STANDARD_KEYWORDS}"
+                        "`añadir` is not in `keywords`, expected one of: {STANDARD_KEYWORDS}"
                     ),
                 )),
             ),
@@ -146,14 +148,14 @@ fn standard_preset() {
                 "add(unsupported): x",
                 Err((
                     4..15,
-                    "unknown enclosure `unsupported`, expected one of: exe, lib, test, build, doc, ci, cd",
+                    "`unsupported` is not in `scope`, expected one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
             (
                 "add(): x",
                 Err((
                     4..4,
-                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                    "expected `scope`, one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
             (
@@ -166,7 +168,7 @@ fn standard_preset() {
                 "add(: x",
                 Err((
                     4..4,
-                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                    "expected `scope`, one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
             ("add(lib: x", Err((7..8, "found ':' expected ')'"))),
@@ -194,7 +196,7 @@ fn conventional_preset() {
                 "add(lib): standard style",
                 Err((
                     0..3,
-                    "unknown keyword `add`, expected one of: refactor, revert, build, chore, style, docs, feat, perf, test, fix, ci",
+                    "`add` is not in `keywords`, expected one of: refactor, revert, build, chore, style, docs, feat, perf, test, fix, ci",
                 )),
             ),
             (
@@ -240,8 +242,8 @@ fn unrestricted() {
                 "add[int](lib): x",
                 Err((9..16, "expected a space before the description")),
             ),
-            ("no separator here", Err((2..2, "expected a modifier"))),
-            (": no keyword", Err((0..0, "expected a keyword"))),
+            ("no separator here", Err((2..2, "expected `modifiers`"))),
+            (": no keyword", Err((0..0, "expected `keywords`"))),
             (
                 "add:",
                 Err((4..4, "expected a description after the separator")),
@@ -271,7 +273,7 @@ fn any_keyword() {
             ("feat: x", Ok(())),
             ("añadir: x", Ok(())),
             ("snake_case: x", Ok(())),
-            (": x", Err((0..0, "expected a keyword"))),
+            (": x", Err((0..0, "expected `keywords`"))),
         ],
     );
 }
@@ -296,7 +298,7 @@ fn any_modifier() {
                 "add!(: x",
                 Err((
                     5..5,
-                    "expected enclosure, one of: exe, lib, test, build, doc, ci, cd",
+                    "expected `scope`, one of: exe, lib, test, build, doc, ci, cd",
                 )),
             ),
         ],
@@ -390,7 +392,7 @@ fn strict_and_flexible_enclosures() {
     let scope = index(&slots, "scope");
     let reason = index(&slots, "reason");
 
-    slots[scope].values = SetConfig::OneOf(vec!["core".to_owned()]);
+    slots[scope].values = Some(SetConfig::OneOf(vec!["core".to_owned()]));
     slots[reason].delimiters = Some(['{', '}']);
     slots[reason].values = anything();
 
@@ -401,7 +403,7 @@ fn strict_and_flexible_enclosures() {
             ("add{free}: x", Ok(())),
             (
                 "add(other): x",
-                Err((4..9, "unknown enclosure `other`, expected one of: core")),
+                Err((4..9, "`other` is not in `scope`, expected one of: core")),
             ),
             ("add{x}(core): x", Err((6..7, "found '(' expected ':'"))),
         ],
@@ -413,7 +415,7 @@ fn another_separator() {
     let mut slots = slots("standard.toml");
     let separator = index(&slots, "separator");
 
-    slots[separator].values = SetConfig::OneOf(vec![";".to_owned()]);
+    slots[separator].values = Some(SetConfig::OneOf(vec![";".to_owned()]));
 
     check(
         &grammar(slots),
@@ -459,8 +461,8 @@ fn any_separator() {
             ("add: x", Ok(())),
             ("add; x", Ok(())),
             ("add> x", Ok(())),
-            ("add x", Err((3..3, "expected a separator"))),
-            ("add : x", Err((3..3, "expected a separator"))),
+            ("add x", Err((3..3, "expected `separator`"))),
+            ("add : x", Err((3..3, "expected `separator`"))),
         ],
     );
 }
@@ -497,8 +499,10 @@ fn every_enclosure_in_a_row_is_reachable() {
             name: "extra".to_owned(),
             kind: None,
             delimiters: Some(['{', '}']),
+            one_of: None,
             values: anything(),
             required: false,
+            gap: false,
         },
     );
 
@@ -527,6 +531,26 @@ fn a_required_enclosure_is_demanded() {
             ("add: x", Err((3..4, "expected an opening `(`"))),
             ("add[int]: x", Err((3..4, "expected an opening `(`"))),
         ],
+    );
+}
+
+#[test]
+fn a_required_enclosure_is_demanded_with_its_gap() {
+    let mut slots = slots("standard.toml");
+    let scope = index(&slots, "scope");
+
+    slots[scope].required = true;
+    slots[scope].gap = true;
+
+    let config = grammar(slots);
+    let missing = errors(&config, "add: x");
+
+    assert!(errors(&config, "add (lib): x").is_empty());
+    assert!(
+        missing
+            .iter()
+            .any(|(_, message)| message == "expected an opening ` (`"),
+        "{missing:?}"
     );
 }
 
@@ -581,8 +605,147 @@ fn a_run_without_a_separator_slot_is_refused() {
         &grammar(slots),
         &[(
             "add!: x",
-            Err((3..3, "a modifier needs a separator after it")),
+            Err((3..3, "`modifiers` needs a separator after it")),
         )],
+    );
+}
+
+const INTENTION: &str = indoc::indoc! {r#"
+    [[commit.slots]]
+    name = "intention"
+    required = true
+
+    [[commit.slots.one-of]]
+    name = "emoji"
+    kind = "symbols"
+    values = ["✨", "🐛"]
+
+    [[commit.slots.one-of]]
+    name = "shortcode"
+    delimiters = [":", ":"]
+    values = ["sparkles", "bug"]
+
+    [[commit.slots]]
+    name = "scope"
+    delimiters = ["(", ")"]
+    gap = true
+
+    [[commit.slots]]
+    name = "separator"
+    kind = "symbol"
+    values = [":"]
+"#};
+
+fn load(name: &str, contents: &str) -> CommitConfig {
+    let file = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join(name);
+
+    std::fs::write(&file, contents).unwrap();
+
+    atypical_config::load(&file, config::SECTION)
+        .unwrap()
+        .unwrap()
+}
+
+#[test]
+fn one_of_takes_exactly_one_form() {
+    let config = load("one-of.toml", INTENTION);
+
+    for header in ["✨ Add", ":sparkles: Add", "🐛 (auth): Fix", ":bug: (x) y"]
+    {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    for header in [" Add", "Add", "✨:bug: both", ":bogus: Add"] {
+        assert!(!errors(&config, header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
+fn a_gap_before_a_bare_slot() {
+    let config = load(
+        "gap-bare.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            values = ["feat"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+        "#},
+    );
+
+    assert!(errors(&config, "✨ feat: x").is_empty());
+    assert!(!errors(&config, "✨feat: x").is_empty());
+}
+
+#[test]
+fn a_project_drops_one_form() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+
+    load("one-of-base.toml", INTENTION);
+
+    let config = load(
+        "one-of-drop.toml",
+        &format!(
+            indoc::indoc! {r#"
+                extends = '{}'
+
+                [[commit.slots]]
+                name = "intention"
+
+                [[commit.slots.one-of]]
+                name = "shortcode"
+                drop = true
+            "#},
+            dir.join("one-of-base.toml").display()
+        ),
+    );
+
+    assert!(errors(&config, "✨ Add").is_empty());
+    assert!(!errors(&config, ":sparkles: Add").is_empty());
+}
+
+#[test]
+fn options_that_start_alike_are_rejected() {
+    let mut slots = slots("standard.toml");
+    let keywords = index(&slots, "keywords");
+    let option = |name: &str, values: &[&str]| SlotConfig {
+        name: name.to_owned(),
+        kind: Some(config::KindConfig::Word),
+        delimiters: None,
+        one_of: None,
+        values: Some(SetConfig::OneOf(
+            values.iter().map(|&value| value.to_owned()).collect(),
+        )),
+        required: false,
+        gap: false,
+    };
+
+    slots[keywords].kind = None;
+    slots[keywords].values = None;
+    slots[keywords].one_of =
+        Some(vec![option("short", &["fix"]), option("long", &["fixup"])]);
+
+    let tokens = atypical_commit::Tokens::try_from(&grammar(slots)).unwrap();
+
+    assert_eq!(
+        atypical_commit::ExtraContext::new(&tokens),
+        Err(atypical_commit::Ambiguous::Overlap {
+            first: "short".to_owned(),
+            second: "long".to_owned(),
+        })
     );
 }
 
@@ -637,7 +800,7 @@ fn a_preset_slot_is_narrowed_without_restating_the_rest() {
         errors(&config, "chore: dropped by the override"),
         [(
             0..5,
-            "unknown keyword `chore`, expected one of: docs, feat, fix"
+            "`chore` is not in `keywords`, expected one of: docs, feat, fix"
                 .to_owned()
         )]
     );
