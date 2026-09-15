@@ -117,14 +117,14 @@ pub fn section<T: DeserializeOwned>(
 /// A named entry matching one beneath it merges into it field by field;
 /// an unmatched one appends, keeping base order; `drop = true` removes
 /// the entry it names; `before = "other"` places the entry ahead of the
-/// one named, moving it if it was already there. Neither directive ever
-/// reaches the section schema.
+/// one named, moving it if it was already there. A directive of the
+/// wrong type is left in place for the section schema to reject.
 ///
 /// A `before` that names no other entry is an error rather than a
 /// silent append or no-op: the position asked for is part of the
 /// grammar, so anywhere else is a different grammar. Two entries of
 /// one array sharing a `name` is an error for the same reason: the
-/// second would merge into the first instead of being a slot of its
+/// second would merge into the first instead of being an entry of its
 /// own.
 pub fn resolve(path: impl AsRef<Path>) -> Result<toml::Table, Error> {
     resolve_into(path.as_ref(), &mut Vec::new())

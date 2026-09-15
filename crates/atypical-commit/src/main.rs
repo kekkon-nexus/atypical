@@ -14,7 +14,7 @@ mod range;
 enum Exit {
     /// The commit message is valid.
     Success = 0,
-    /// The commit message failed linting.
+    /// A commit message failed linting, or was empty within a range.
     /// Unexpected errors (e.g. unreadable input) also exit with 1,
     /// via the std `Termination` impl for `Result`.
     Invalid = 1,
