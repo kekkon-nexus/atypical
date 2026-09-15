@@ -1,11 +1,23 @@
 //! Commit header parser. The grammar is data: [`Tokens`] lists the slots
 //! in header order and [`prefix`] walks them through the parser context.
+//! A [`config::CommitConfig`] lowers into [`Tokens`] with `try_from`.
+//!
+//! ```
+//! use atypical_commit::{ExtraContext, Tokens, header};
+//! use chumsky::Parser;
+//!
+//! let context = ExtraContext::new(&Tokens::default()).unwrap();
+//! let parsed = header().with_ctx(context).parse("add(lib): something");
+//!
+//! assert_eq!(parsed.into_result().unwrap().prefix.keyword, "add");
+//! ```
 
 use chumsky::prelude::*;
 
 pub mod config;
 pub mod ignore;
 
+/// Opening and closing delimiter, in that order.
 pub type DelimitedBy = [char; 2];
 
 #[doc(alias("Type", "Verb"))]
@@ -17,6 +29,9 @@ pub type Modifier<'i> = &'i str;
 #[doc(alias("Scope"))]
 pub type Enclosure<'i> = (&'i str, DelimitedBy);
 
+/// What the slots matched: `keyword` is the last word slot, `modifier`
+/// the first symbols slot present, `enclosures` every delimited slot
+/// present. Separators are not kept.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prefix<'i> {
     pub keyword: Keyword<'i>,
@@ -259,6 +274,8 @@ fn ambiguous_pair(first: &Slot, second: &Slot) -> Option<Ambiguous> {
 }
 
 impl ExtraContext {
+    /// Rejects slots that cannot be told apart, and orders every bare set
+    /// longest first.
     pub fn new(tokens: &Tokens) -> Result<Self, Ambiguous> {
         if let Some(ambiguous) = ambiguity(&tokens.slots) {
             return Err(ambiguous);
@@ -577,6 +594,7 @@ fn enclosures<'i>(
     })
 }
 
+/// One space, then the rest of the line with trailing whitespace trimmed.
 pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
 {
     use chumsky::input::InputRef;
@@ -674,6 +692,8 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
     })
 }
 
+/// Parses against the context given through `with_ctx`, or the
+/// unrestricted grammar without one.
 pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
     group((prefix(), description())).map(|(prefix, description)| Header {
         prefix,
