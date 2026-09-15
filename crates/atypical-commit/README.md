@@ -62,6 +62,7 @@ header order:
 | `delimiters` | A pair of characters, eg `["(", ")"]`              |
 | `values`     | `"any"` (default), or a list of accepted spellings |
 | `required`   | `false` (default), or `true`                       |
+| `gap`        | `false` (default), or `true` for one space before  |
 
 A slot has `kind` or `delimiters`, never both. A `word` is a run of
 alphanumerics and `_`, `symbols` a run of other visible characters,

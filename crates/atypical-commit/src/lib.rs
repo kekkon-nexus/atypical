@@ -82,6 +82,8 @@ pub struct Slot {
     pub shape: Shape,
     pub values: Values,
     pub required: bool,
+    /// One space before the slot, matched or skipped together with it.
+    pub gap: bool,
 }
 
 /// The header grammar: its slots, in header order.
@@ -101,6 +103,7 @@ impl Default for Tokens {
             shape,
             values: Values::Any,
             required,
+            gap: false,
         };
 
         Self {
@@ -502,6 +505,12 @@ fn bare<'i>(
     }
 }
 
+fn opening([open, _]: DelimitedBy, slot: &Slot) -> String {
+    let gap = if slot.gap { " " } else { "" };
+
+    format!("expected an opening `{gap}{open}`")
+}
+
 /// A run of delimited slots, in order and each at most once.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
@@ -547,17 +556,28 @@ fn enclosures<'i>(
 
         while index < run.len() {
             let before = i.cursor();
+            let checkpoint = i.save();
+            let gap = i.peek() == Some(' ');
+
+            if gap {
+                i.next();
+            }
+
+            // Seeing the opener commits to the slot, so a bad value
+            // errors instead of backtracking into the description.
             let next = i.peek();
-            let is_open = run[index..]
-                .iter()
-                .any(|([open, _], _)| Some(*open) == next);
+            let is_open = run[index..].iter().any(|([open, _], slot)| {
+                slot.gap == gap && Some(*open) == next
+            });
 
             if !is_open {
+                i.rewind(checkpoint);
                 break;
             }
 
             let parsers = run[index..]
                 .iter()
+                .filter(|(_, slot)| slot.gap == gap)
                 .map(|(delimiters, slot)| parser(*delimiters, slot))
                 .collect::<Vec<_>>();
 
@@ -572,8 +592,8 @@ fn enclosures<'i>(
                 .iter()
                 .find(|(_, slot)| slot.required);
 
-            if let Some(([open, _], _)) = skipped {
-                let message = format!("expected an opening `{open}`");
+            if let Some((delimiters, slot)) = skipped {
+                let message = opening(*delimiters, slot);
 
                 return Err(Rich::custom(i.span_since(&before), message));
             }
@@ -582,11 +602,11 @@ fn enclosures<'i>(
             results.push((content, delimited_by));
         }
 
-        if let Some(([open, _], _)) =
+        if let Some((delimiters, slot)) =
             run[index..].iter().find(|(_, slot)| slot.required)
         {
             let here = i.cursor();
-            let message = format!("expected an opening `{open}`");
+            let message = opening(*delimiters, slot);
 
             return Err(Rich::custom(i.span_since(&here), message));
         }
@@ -673,7 +693,12 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                 continue;
             };
 
-            let parser = bare(class, slot, &separator, &openers);
+            let mut parser = bare(class, slot, &separator, &openers);
+
+            if slot.gap {
+                parser = just(' ').ignore_then(parser).boxed();
+            }
+
             let s = if slot.required {
                 Some(i.parse(parser)?)
             } else {
@@ -712,6 +737,7 @@ mod tests {
             shape,
             values,
             required: false,
+            gap: false,
         }
     }
 

@@ -559,6 +559,72 @@ fn a_revision_is_never_read_as_an_option() {
 }
 
 #[test]
+fn a_gap_commits_its_slot_once_seen() {
+    let unicode = fixture(
+        "gap-unicode.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨", "🐛", "⚡️"]
+            required = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            values = ["auth"]
+            gap = true
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+        "#},
+    );
+    let shortcode = fixture(
+        "gap-shortcode.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            delimiters = [":", ":"]
+            values = ["sparkles"]
+            required = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            values = ["auth"]
+            gap = true
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+        "#},
+    );
+
+    for (config, header, code) in [
+        (&unicode, "✨ (bogus): Add\n", 1),
+        (&unicode, "✨(bogus): Add\n", 1),
+        (&unicode, "✨ (auth): Add\n", 0),
+        (&unicode, "✨ Add\n", 0),
+        (&shortcode, ":sparkles: (bogus): Add\n", 1),
+        (&shortcode, ":sparkles: (auth): Add\n", 0),
+        (&shortcode, ":sparkles: Add\n", 0),
+    ] {
+        let config = config.to_str().unwrap();
+        let output = lint(&["--config", config, "-"], Some(header));
+
+        assert_eq!(
+            output.status.code(),
+            Some(code),
+            "{header}{}",
+            stderr(&output)
+        );
+    }
+}
+
+#[test]
 fn slots_that_cannot_be_told_apart_fail() {
     // Modifiers on either side, with no enclosure between them.
     let config = fixture(

@@ -70,6 +70,8 @@ pub struct SlotConfig {
     pub values: SetConfig,
     #[serde(default)]
     pub required: bool,
+    #[serde(default)]
+    pub gap: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -171,6 +173,7 @@ impl TryFrom<&SlotConfig> for Slot {
             shape,
             values: (&slot.values).into(),
             required: slot.required,
+            gap: slot.gap,
         })
     }
 }

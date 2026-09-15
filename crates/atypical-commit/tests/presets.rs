@@ -499,6 +499,7 @@ fn every_enclosure_in_a_row_is_reachable() {
             delimiters: Some(['{', '}']),
             values: anything(),
             required: false,
+            gap: false,
         },
     );
 
