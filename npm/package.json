@@ -16,10 +16,7 @@
     "git-hooks",
     "gitmoji",
     "husky",
-    "lint-staged",
     "linter",
-    "monorepo",
-    "napi",
     "release-notes"
   ],
   "license": "(MIT OR Apache-2.0)",
