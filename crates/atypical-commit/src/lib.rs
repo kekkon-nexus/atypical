@@ -30,7 +30,7 @@ pub type Modifier<'i> = &'i str;
 #[doc(alias("Scope"))]
 pub type Enclosure<'i> = (&'i str, DelimitedBy);
 
-/// What the slots matched: `keyword` is the last word slot, `modifier`
+/// What the slots matched: `keyword` is the last word slot, `modifiers`
 /// the first symbols slot present, `enclosures` every delimited slot
 /// present. Separators are not kept.
 #[derive(Debug, Clone, PartialEq)]
@@ -105,10 +105,10 @@ impl Default for Tokens {
 
         Self {
             slots: vec![
-                slot("keyword", Shape::Bare(Class::Word), true),
+                slot("keywords", Shape::Bare(Class::Word), true),
                 slot("(...)", Shape::Delimited(['(', ')']), false),
                 slot("[...]", Shape::Delimited(['[', ']']), false),
-                slot("modifier", Shape::Bare(Class::Symbols), false),
+                slot("modifiers", Shape::Bare(Class::Symbols), false),
                 slot("separator", Shape::Bare(Class::Symbol), true),
             ],
         }
@@ -737,24 +737,24 @@ mod tests {
     #[test]
     fn test_ambiguity_says_which_pair() {
         let run = Ambiguous::Run {
-            first: "modifier".to_owned(),
+            first: "modifiers".to_owned(),
             second: "flag".to_owned(),
         };
 
         assert_eq!(
             run.to_string(),
-            "`modifier` takes the whole run, leaving nothing for `flag`"
+            "`modifiers` takes the whole run, leaving nothing for `flag`"
         );
 
         let prefix = Ambiguous::Prefix {
-            first: "modifier".to_owned(),
+            first: "modifiers".to_owned(),
             second: "separator".to_owned(),
             spelling: "!".to_owned(),
         };
 
         assert_eq!(
             prefix.to_string(),
-            "`modifier` and `separator` both start with `!`"
+            "`modifiers` and `separator` both start with `!`"
         );
 
         let shadowed = Ambiguous::Shadowed {
@@ -782,11 +782,11 @@ mod tests {
     fn test_a_word_leaves_nothing_for_a_word() {
         assert_eq!(
             context(vec![
-                slot("keyword", Shape::Bare(Class::Word), Values::Any),
+                slot("keywords", Shape::Bare(Class::Word), Values::Any),
                 slot("scope", Shape::Bare(Class::Word), set(&["lib"])),
             ]),
             Err(Ambiguous::Run {
-                first: "keyword".to_owned(),
+                first: "keywords".to_owned(),
                 second: "scope".to_owned(),
             })
         );
@@ -796,11 +796,11 @@ mod tests {
     fn test_an_unrestricted_run_leaves_nothing_for_a_run() {
         assert_eq!(
             context(vec![
-                slot("modifier", Shape::Bare(Class::Symbols), Values::Any),
+                slot("modifiers", Shape::Bare(Class::Symbols), Values::Any),
                 slot("flag", Shape::Bare(Class::Symbols), set(&["~"])),
             ]),
             Err(Ambiguous::Run {
-                first: "modifier".to_owned(),
+                first: "modifiers".to_owned(),
                 second: "flag".to_owned(),
             })
         );
@@ -810,7 +810,7 @@ mod tests {
     fn test_a_single_symbol_may_follow_a_run() {
         assert!(
             context(vec![
-                slot("modifier", Shape::Bare(Class::Symbols), Values::Any),
+                slot("modifiers", Shape::Bare(Class::Symbols), Values::Any),
                 slot("separator", Shape::Bare(Class::Symbol), Values::Any),
             ])
             .is_ok()
@@ -821,11 +821,11 @@ mod tests {
     fn test_the_longer_spelling_may_come_second() {
         assert_eq!(
             context(vec![
-                slot("modifier", Shape::Bare(Class::Symbols), set(&["!"])),
+                slot("modifiers", Shape::Bare(Class::Symbols), set(&["!"])),
                 slot("flag", Shape::Bare(Class::Symbols), set(&["!!"])),
             ]),
             Err(Ambiguous::Prefix {
-                first: "modifier".to_owned(),
+                first: "modifiers".to_owned(),
                 second: "flag".to_owned(),
                 spelling: "!".to_owned(),
             })
@@ -837,14 +837,14 @@ mod tests {
         assert_eq!(
             context(vec![
                 slot(
-                    "modifier",
+                    "modifiers",
                     Shape::Bare(Class::Symbols),
                     set(&["!", "!!"])
                 ),
                 slot("separator", Shape::Bare(Class::Symbol), set(&["!"])),
             ]),
             Err(Ambiguous::Prefix {
-                first: "modifier".to_owned(),
+                first: "modifiers".to_owned(),
                 second: "separator".to_owned(),
                 spelling: "!".to_owned(),
             })

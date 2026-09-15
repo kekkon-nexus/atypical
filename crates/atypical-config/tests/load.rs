@@ -163,7 +163,7 @@ fn base(root: &std::path::Path) {
         root.join("base.toml"),
         indoc::indoc! {r#"
             [[commit.slots]]
-            name = "keyword"
+            name = "keywords"
             kind = "word"
 
             [[commit.slots]]
@@ -186,7 +186,7 @@ fn named_entries_merge_field_by_field() {
             extends = "base.toml"
 
             [[commit.slots]]
-            name = "keyword"
+            name = "keywords"
             required = true
         "#},
     )
@@ -196,7 +196,7 @@ fn named_entries_merge_field_by_field() {
         atypical_config::load::<Slots>(&file, "commit").unwrap(),
         Some(Slots {
             slots: vec![
-                slot("keyword", "word", true),
+                slot("keywords", "word", true),
                 slot("separator", "symbol", false),
             ]
         })
@@ -226,7 +226,7 @@ fn an_unmatched_named_entry_appends() {
         atypical_config::load::<Slots>(&file, "commit").unwrap(),
         Some(Slots {
             slots: vec![
-                slot("keyword", "word", false),
+                slot("keywords", "word", false),
                 slot("separator", "symbol", false),
                 slot("scope", "word", false),
             ]
@@ -248,7 +248,7 @@ fn before_places_a_new_entry_ahead_of_the_one_it_names() {
             [[commit.slots]]
             name = "gitmoji"
             kind = "word"
-            before = "keyword"
+            before = "keywords"
         "#},
     )
     .unwrap();
@@ -258,7 +258,7 @@ fn before_places_a_new_entry_ahead_of_the_one_it_names() {
         Some(Slots {
             slots: vec![
                 slot("gitmoji", "word", false),
-                slot("keyword", "word", false),
+                slot("keywords", "word", false),
                 slot("separator", "symbol", false),
             ]
         })
@@ -279,7 +279,7 @@ fn before_moves_an_entry_that_is_already_there() {
             [[commit.slots]]
             name = "separator"
             required = true
-            before = "keyword"
+            before = "keywords"
         "#},
     )
     .unwrap();
@@ -289,7 +289,7 @@ fn before_moves_an_entry_that_is_already_there() {
         Some(Slots {
             slots: vec![
                 slot("separator", "symbol", true),
-                slot("keyword", "word", false),
+                slot("keywords", "word", false),
             ]
         })
     );
@@ -309,7 +309,7 @@ fn before_naming_nothing_present_is_an_error() {
             [[commit.slots]]
             name = "gitmoji"
             kind = "word"
-            before = "keywrod"
+            before = "keywrods"
         "#},
     )
     .unwrap();
@@ -317,8 +317,8 @@ fn before_naming_nothing_present_is_an_error() {
     let typo = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
     assert!(matches!(typo, atypical_config::Error::Before(_, ref name)
-        if name == "keywrod"));
-    assert!(typo.to_string().contains("keywrod"));
+        if name == "keywrods"));
+    assert!(typo.to_string().contains("keywrods"));
     assert!(std::error::Error::source(&typo).is_none());
 }
 
@@ -334,8 +334,8 @@ fn before_naming_its_own_entry_is_an_error() {
             extends = "base.toml"
 
             [[commit.slots]]
-            name = "keyword"
-            before = "keyword"
+            name = "keywords"
+            before = "keywords"
         "#},
     )
     .unwrap();
@@ -343,7 +343,7 @@ fn before_naming_its_own_entry_is_an_error() {
     let itself = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
     assert!(matches!(itself, atypical_config::Error::Before(_, ref name)
-        if name == "keyword"));
+        if name == "keywords"));
 }
 
 #[test]
@@ -355,11 +355,11 @@ fn one_name_for_two_entries_is_an_error() {
         &file,
         indoc::indoc! {r#"
             [[commit.slots]]
-            name = "keyword"
+            name = "keywords"
             kind = "word"
 
             [[commit.slots]]
-            name = "keyword"
+            name = "keywords"
             kind = "symbol"
         "#},
     )
@@ -369,9 +369,9 @@ fn one_name_for_two_entries_is_an_error() {
 
     assert!(
         matches!(twice, atypical_config::Error::Duplicate(_, ref name)
-        if name == "keyword")
+        if name == "keywords")
     );
-    assert!(twice.to_string().contains("keyword"));
+    assert!(twice.to_string().contains("keywords"));
     assert!(std::error::Error::source(&twice).is_none());
 }
 
@@ -400,7 +400,7 @@ fn drop_removes_the_entry_it_names() {
     assert_eq!(
         atypical_config::load::<Slots>(&file, "commit").unwrap(),
         Some(Slots {
-            slots: vec![slot("keyword", "word", false)]
+            slots: vec![slot("keywords", "word", false)]
         })
     );
 }
@@ -432,7 +432,7 @@ fn named_entries_merge_along_a_chain() {
             extends = "middle.toml"
 
             [[commit.slots]]
-            name = "keyword"
+            name = "keywords"
             drop = true
 
             [[commit.slots]]
