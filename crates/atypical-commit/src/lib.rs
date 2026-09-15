@@ -3,11 +3,12 @@
 //! A [`config::CommitConfig`] lowers into [`Tokens`] with `try_from`.
 //!
 //! ```
-//! use atypical_commit::{ExtraContext, Tokens, header};
+//! use atypical_commit::{Extra, ExtraContext, Header, Tokens, header};
 //! use chumsky::Parser;
 //!
 //! let context = ExtraContext::new(&Tokens::default()).unwrap();
-//! let parsed = header().with_ctx(context).parse("add(lib): something");
+//! let parser = header().with_ctx(context);
+//! let parsed = Parser::<'_, _, Header, Extra>::parse(&parser, "add: x");
 //!
 //! assert_eq!(parsed.into_result().unwrap().prefix.keyword, "add");
 //! ```
