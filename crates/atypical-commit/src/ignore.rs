@@ -1,6 +1,5 @@
-// Headers that git and forges write on their own — merges, reverts,
-// autosquash markers, semver release bumps — should never be linted.
-// Mirrors commitlint's default ignores (@commitlint/is-ignored).
+//! Headers git and forges write on their own, exempt from linting.
+//! Mirrors commitlint's default ignores (`@commitlint/is-ignored`).
 
 use std::borrow::Cow;
 

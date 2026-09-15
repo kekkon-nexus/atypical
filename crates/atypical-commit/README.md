@@ -3,69 +3,81 @@
 [![crates.io](https://img.shields.io/crates/v/atypical-commit)](https://crates.io/crates/atypical-commit)
 [![docs.rs](https://img.shields.io/docsrs/atypical-commit)](https://docs.rs/atypical-commit)
 
-Commit message linting: a parser library and the `commit-lint` binary.
+Commit message linting: the `commit-lint` binary and its parser library.
 
-## `commit-lint`
-
-Lints the commit message header against
-`<keyword>[<modifier>][(<scope>)][<reason>]: <description>`,
-e.g. `add(exe)[int]: initial commit linting`.
-
-### Install
+## Install
 
 ```sh
 cargo install atypical-commit
 ```
 
-Or as a prebuilt binary, [from npm](https://www.npmjs.com/package/@atypical/commit):
+Prebuilt, [from npm](https://www.npmjs.com/package/@atypical/commit):
 
 ```sh
 npm i -D @atypical/commit
 ```
 
-### Usage
-
-Pass a commit message file, or `-` to read from stdin:
+## Usage
 
 ```sh
 commit-lint -- .git/COMMIT_EDITMSG
 echo 'add(lib)[int]: something' | commit-lint -
+commit-lint --from origin/main
 ```
 
-Exit codes: `0` valid, `1` failed linting (or unreadable input),
-`2` usage error or nothing to lint.
+`--from` and `--to` lint every commit in `from..to` instead of an input.
+`to` defaults to `HEAD`; without `from`, the whole history reachable
+from `to` is linted. With `--from`, the two need a merge base, which a
+shallow clone may lack; in CI, fetch the history the range covers.
 
-### Configuration
+Only the header is linted: the first line that is neither blank nor a
+`#` comment.
 
-Every part of the syntax comes from the `[commit]` section of the
-nearest `atypical.toml`, found from the working directory upward
-(or passed with `--config <FILE>`). Without one, nothing is linted.
+| Exit | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| `0`  | Valid, or no `[commit]` section to lint against          |
+| `1`  | Failed linting, an empty message in a range, or an error |
+| `2`  | Usage error, or no commit message to lint                |
 
-The grammar is the slot list: one `[[commit.slots]]` entry per part of
-the header, in the order they appear. A slot is either `delimiters` or
-a `kind` (`word`, `symbols`, `symbol`), and takes anything unless
-`values` narrows it:
+As a `commit-msg` hook, in `.husky/commit-msg` or an executable
+`.git/hooks/commit-msg` starting with `#!/bin/sh`:
+
+```sh
+commit-lint -- "$1"
+```
+
+## Configuration
+
+The `[commit]` section of the nearest `atypical.toml` from the working
+directory upward, or of `--config <FILE>`. Without one, nothing is
+linted.
+
+The grammar is `[[commit.slots]]`, one entry per part of the header, in
+header order:
+
+| Field        | Value                                              |
+| ------------ | -------------------------------------------------- |
+| `name`       | Any string; errors and merges refer to it          |
+| `kind`       | `"word"`, `"symbols"`, or `"symbol"`               |
+| `delimiters` | A pair of characters, eg `["(", ")"]`              |
+| `values`     | `"any"` (default), or a list of accepted spellings |
+| `required`   | `false` (default), or `true`                       |
+
+A slot has `kind` or `delimiters`, never both. A `word` is a run of
+alphanumerics and `_`, `symbols` a run of other visible characters,
+`symbol` exactly one. A delimited slot holds a word from `values`, or
+anything but its delimiters when unrestricted.
 
 ```toml
-[commit]
-default-ignores = true # skip machine-generated headers
-
 [[commit.slots]]
-name = "keywords"
+name = "keyword"
 kind = "word"
-values = ["add", "rem", "ref", "fix", "undo", "release"]
+values = ["feat", "fix"]
 required = true
 
 [[commit.slots]]
-name = "modifiers"
-kind = "symbols"
-values = ["?", "!", "!!"]
-
-# Scopes; omit `values` to accept anything between the delimiters.
-[[commit.slots]]
 name = "scope"
 delimiters = ["(", ")"]
-values = ["exe", "lib", "test", "build", "doc", "ci", "cd"]
 
 [[commit.slots]]
 name = "separator"
@@ -74,44 +86,77 @@ values = [":"]
 required = true
 ```
 
-That is the standard preset, minus its reason slot. Both presets ship
-in full at
+A section without `slots` still enforces the shape: a word, optional
+`(...)` and `[...]`, optional symbols, a separator symbol, then a space
+and a description.
+
+Slots that cannot be told apart are rejected before any header is read:
+a word after a word, more symbols after unrestricted `symbols`,
+neighbouring spellings sharing a prefix, a closed set in front of an
+unrestricted slot of the same alphabet, or two slots with the same
+delimiters. An optional slot does not separate its neighbours.
+
+`default-ignores` sits beside the slots; see [Default
+ignores](#default-ignores).
+
+### Presets
+
 [`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
-and are meant to be reached through `extends`, which merges slots by
-`name` so narrowing one leaves the rest alone.
+holds `standard.toml`
+([Standard Commits](https://github.com/standard-commits/standard-commits))
+and `conventional.toml`
+([Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)).
+They cannot be referenced remotely yet: copy one in, or vendor the
+repository.
+
+`extends` takes a path or an array of paths, relative to the extending
+file, applied in order with the extending file last. Tables merge by
+key; `[[commit.slots]]` merges by `name`:
+
+```toml
+extends = "conventional.toml"
+
+[[commit.slots]]
+name = "keywords"
+values = ["feat", "fix", "docs"]
+
+[[commit.slots]]
+name = "ticket"
+delimiters = ["[", "]"]
+before = "separator"
+```
+
+- A matched `name` merges field by field; an unmatched one appends.
+- `drop = true` removes the entry it names.
+- `before = "<name>"` places the entry ahead of the one named, moving it
+  if already present. Naming no other entry is an error.
+- Two entries sharing a `name` in one file is an error.
+
+### From the fixed-layout keys
+
+These are removed and now rejected as unknown keys.
+
+| Was                 | Now                                                |
+| ------------------- | -------------------------------------------------- |
+| `keywords`          | A `kind = "word"` slot's `values`                  |
+| `modifiers`         | A `kind = "symbols"` slot's `values`               |
+| `modifier-sequence` | Where the modifier slot sits in the list           |
+| `separator`         | A `kind = "symbol"` slot's `values`                |
+| `enclosures[]`      | One slot per enclosure, `delimiters` plus `values` |
 
 ### Default ignores
 
-Headers that git and forges generate on their own are exempt from
-linting, mirroring [commitlint's default
-ignores](https://commitlint.js.org/reference/configuration.html#defaultignores):
+Unless `default-ignores = false`, headers that git and forges generate
+pass unlinted, as in [commitlint](https://commitlint.js.org/reference/configuration.html#defaultignores):
 
 - merges: `Merge pull request ...`, `Merge branch '...'`,
   `Merge tag '...'`, `Merge x into y`,
   `Merge remote-tracking branch '...'`, `Merged x in(to) y`,
   `Merged PR 1: ...`, `Automatic merge ...`, `Auto-merged x into y`
-- reverts and reapplies: `Revert "..."`, `Reapply "..."`
+- reverts and reapplies: `Revert ...`, `Reapply ...`
 - autosquash markers: `fixup! ...`, `squash! ...`, `amend! ...`
-- release bumps: a semver version, optionally behind a `chore:`
-  prefix and a `[skip ci]`-style marker, e.g. `chore(release): v1.2.3`
-
-Set `default-ignores = false` in the `[commit]` section to lint these
-like any other header.
-
-### As a `commit-msg` hook
-
-With [husky](https://typicode.github.io/husky/), in `.husky/commit-msg`:
-
-```sh
-commit-lint -- "$1"
-```
-
-Or as a plain git hook, in `.git/hooks/commit-msg` (mark it executable):
-
-```sh
-#!/bin/sh
-commit-lint -- "$1"
-```
+- release bumps: a semver version, optionally behind `chore:` or
+  `chore(<scope>):` and a `[skip ci]`-style marker
 
 ## License
 

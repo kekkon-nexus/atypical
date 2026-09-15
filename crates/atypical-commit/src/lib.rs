@@ -1,11 +1,24 @@
-// Syntax to follow:
-// <keyword>[<modifier>][<open_delim><enclosure><close_delim>]...[<modifier>]: <description>
+//! Commit header parser. The grammar is data: [`Tokens`] lists the slots
+//! in header order and [`prefix`] walks them through the parser context.
+//! A [`config::CommitConfig`] lowers into [`Tokens`] with `try_from`.
+//!
+//! ```
+//! use atypical_commit::{Extra, ExtraContext, Header, Tokens, header};
+//! use chumsky::Parser;
+//!
+//! let context = ExtraContext::new(&Tokens::default()).unwrap();
+//! let parser = header().with_ctx(context);
+//! let parsed = Parser::<'_, _, Header, Extra>::parse(&parser, "add: x");
+//!
+//! assert_eq!(parsed.into_result().unwrap().prefix.keyword, "add");
+//! ```
 
 use chumsky::prelude::*;
 
 pub mod config;
 pub mod ignore;
 
+/// Opening and closing delimiter, in that order.
 pub type DelimitedBy = [char; 2];
 
 #[doc(alias("Type", "Verb"))]
@@ -17,6 +30,9 @@ pub type Modifier<'i> = &'i str;
 #[doc(alias("Scope"))]
 pub type Enclosure<'i> = (&'i str, DelimitedBy);
 
+/// What the slots matched: `keyword` is the last word slot, `modifier`
+/// the first symbols slot present, `enclosures` every delimited slot
+/// present. Separators are not kept.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prefix<'i> {
     pub keyword: Keyword<'i>,
@@ -259,6 +275,8 @@ fn ambiguous_pair(first: &Slot, second: &Slot) -> Option<Ambiguous> {
 }
 
 impl ExtraContext {
+    /// Rejects slots that cannot be told apart, and orders every bare set
+    /// longest first.
     pub fn new(tokens: &Tokens) -> Result<Self, Ambiguous> {
         if let Some(ambiguous) = ambiguity(&tokens.slots) {
             return Err(ambiguous);
@@ -311,7 +329,7 @@ fn ident<'i>(
     (i.slice_since(&before..), i.span_since(&before))
 }
 
-/// A visible char that can't belong to a keyword or a description.
+/// A visible char outside the word alphabet.
 pub(crate) fn is_symbol(c: char) -> bool {
     !c.is_alphanumeric() && c != '_' && !c.is_whitespace()
 }
@@ -484,7 +502,7 @@ fn bare<'i>(
     }
 }
 
-/// A run of delimited slots, each optional and at most once, in order.
+/// A run of delimited slots, in order and each at most once.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
 ) -> impl Parser<'i, &'i str, Vec<Enclosure<'i>>, Extra<'i>> {
@@ -577,6 +595,7 @@ fn enclosures<'i>(
     })
 }
 
+/// One space, then the rest of the line with trailing whitespace trimmed.
 pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
 {
     use chumsky::input::InputRef;
@@ -674,6 +693,8 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
     })
 }
 
+/// Parses against the context given through `with_ctx`, or the
+/// unrestricted grammar without one.
 pub fn header<'i>() -> impl Parser<'i, &'i str, Header<'i>, Extra<'i>> {
     group((prefix(), description())).map(|(prefix, description)| Header {
         prefix,

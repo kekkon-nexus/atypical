@@ -1,295 +1,101 @@
 # AGENTS.md
 
-Guidance for AI agents working in this repository. Humans:
-see [CONTRIBUTING.md](CONTRIBUTING.md).
+Humans: [CONTRIBUTING.md](CONTRIBUTING.md). User-facing behavior is in
+the crate READMEs.
 
-## What this is
+## Layout
 
-**Atypical** — a toolkit for enforcing your own conventions, configured
-from a single `atypical.toml`. Rust workspace (edition 2024, **nightly**
-toolchain, resolver 3) with two crates:
+Rust workspace on nightly, two crates:
 
-- `crates/atypical-commit` — commit message linting: the `commit-lint`
-  binary (`src/main.rs`) plus a chumsky-based parser library
-  (`src/lib.rs`), rendering diagnostics with `ariadne`. Without a
-  `[commit]` section there is nothing to enforce and every message
-  passes. The section schema lives in `src/config.rs`; fields left
-  unset are unrestricted (`CommitConfig::default()`): any keyword, any
-  modifiers after the enclosures, any single-symbol separator,
-  free-form `(...)`/`[...]` enclosures.
-- `crates/atypical-config` — discovery (`find`, walking ancestors for
-  `atypical.toml`) and loading (`section`/`load`/`resolve`) of
-  `atypical.toml`. Schema-free: each tool owns its own section schema
-  and deserializes it from here.
+- `crates/atypical-commit`: `commit-lint` (`src/main.rs`, with
+  `src/range.rs` behind `--from`/`--to`) and a chumsky parser
+  (`src/lib.rs`). `src/config.rs` is the `[commit]` schema, lowered into
+  `Tokens`; `src/ignore.rs` holds the default ignores.
+- `crates/atypical-config`: `find`, `load`, `resolve`, `section`. Owns
+  `extends` and named-array merging; knows no section schema.
 
-The design principle is **grammar-as-data**: the entire commit syntax
-lives in `Tokens` as an ordered list of slots (keyword, modifiers,
-enclosures, separator), lowered from a preset or the `[commit]`
-section of `atypical.toml`. `prefix()` walks the slots at runtime via
-chumsky's context (`ExtraContext`), so nothing about the grammar is
-hardcoded into parser structure. Preserve this: new syntax features
-should extend `Slot`/`CommitConfig`, not add special-cased parsers.
+The grammar is data: `Tokens` is an ordered slot list that `prefix()`
+walks from chumsky's context. New syntax extends `Slot`/`CommitConfig`,
+never a special-cased parser.
 
-## Commit messages (you will be linted)
+## Commits
 
-Headers follow [Standard Commits](https://github.com/standard-commits/standard-commits):
+The `commit-msg` hook lints them. Read
+[CONTRIBUTING.md#commits](CONTRIBUTING.md#commits) before committing.
 
-Each commit MUST have a `<verb>` and a `<summary>` but all the other fields are present on a case-by-case basis.
+## Toolchain
 
-Syntax Specification:
-
-```bnf
-<verb><importance?>(<scope?>)[<reason?>]: <summary>
-
-<body?>
-
-<footer?>
-```
-
-| 🔊 verb               | ⚠️ importance             | 🔖 scope                      | 💡 reason                |
-| --------------------- | ------------------------- | ----------------------------- | ------------------------ |
-| `add` (_add_)         | `?` (_possibly breaking_) | `exe` (_executable_)          | `int` (_introduction_)   |
-| `rem` (_remove_)      | `!` (_breaking_)          | `lib` (_backend library_)     | `pre` (_preliminary_)    |
-| `ref` (_refactor_)    | `!!`(_critical_)          | `test` (_testing_)            | `eff` (_efficiency_)     |
-| `fix` (_fix_)         |                           | `build` (_building_)          | `rel` (_reliability_)    |
-| `undo` (_undo_)       |                           | `doc` (_documentation_)       | `cmp` (_compatibility_)  |
-| `release` (_release_) |                           | `ci` (continuous integration) | `mnt` (_maintenance_)    |
-|                       |                           | `cd` (continuous delivery)    | `tmp` (_temporary_)      |
-|                       |                           |                               | `exp` (_experiment_)     |
-|                       |                           |                               | `sec` (_security_)       |
-|                       |                           |                               | `upg` (_upgrade_)        |
-|                       |                           |                               | `ux` (_user experience_) |
-|                       |                           |                               | `pol` (_policy_)         |
-|                       |                           |                               | `sty` (_styling_)        |
-
-| 📝 summary                                                  | ℹ️ body                                                   | ⚙️ footer                                        |
-| ----------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------ |
-| Starts with a _lowercase letter_                            | Starts with an _uppercase letter_                         | Each tag on a new line, format: `<key>: <value>` |
-| _Concise_ and _descriptive_ of what the change does         | Expands on _why_ and _how_, not what (already in summary) | MUST be separated from body by a blank line      |
-| MUST _not repeat_ info from the structured fragment         | Organized in _short_, _clear_ paragraphs                  | `Breaking:` ─ describe breaking changes          |
-| ≤ _50 UTF-8 characters_ (_excluding_ the structured prefix) | Written in _imperative mood_                              | `Fixes: #N` ─ closes referenced issues           |
-| SHOULD use a subset of Markdown                             | SHOULD use a subset of Markdown                           | `Co-authored-by:` ─ attributes co-authorship     |
-
-Example:
-
-```txt
-add!(lib/type-check)[rel]: enforce type checking in function calls
-
-Previously, the semantic analyzer allowed mismatched parameter types
-in function calls, leading to runtime errors. This fix implements
-strict type validation during the semantic analysis phase.
-
-Breaking: The `validateCall` function now returns `TypeMismatchError`
-  instead of returning a boolean, requiring updates in error handling.
-Fixes: #247
-Co-authored-by: Foo Bar <foo.bar@compiler.dev>
-```
-
-## Toolchain & environment
-
-- Rust **nightly**, pinned by `rust-toolchain.toml` (components:
-  clippy, llvm-tools, rustfmt). `.cargo/config.toml` passes nightly
-  `-Z` rustflags and expects `clang` + `lld` on Linux/macOS; builds
-  fail on stable, or at link time if those are missing.
-- Linters come from npm devDependencies (`bun install`): `tombi`
-  (TOML), `oxfmt` (YAML/JSON/TS), `v8r` (JSON Schema), `lefthook`.
-  `cargo-nextest` and `hyperfine` are not on npm and must be installed
-  separately (`cargo install cargo-nextest --locked`).
-- [lefthook](https://lefthook.dev/) (`.config/lefthook.yaml`) runs the
-  linters and installs the git hooks via its own postinstall. JS tools
-  are invoked through `bunx` because lefthook does not put
+- `.cargo/config.toml` passes `-Z` flags: stable fails, don't switch to
+  it. x86_64 Linux and macOS link with `clang` and `lld`.
+- `bun install` brings tombi, oxfmt, oxlint, v8r and lefthook, and
+  installs the hooks. `cargo-nextest` and `hyperfine` come separately.
+- Hooks call JS tools through `bunx`: lefthook doesn't put
   `node_modules/.bin` on `PATH`.
-- `v8r` resolves schemas from the schemastore.org catalog by filename,
-  so no schema is vendored here. It needs network on cache miss (HTTP
-  responses are cached for 600s), and `.v8rignore` drops `.vscode/`,
-  whose files have no catalog entry and would otherwise fail the run.
-  It also runs in CI through `bun run check`, covering unstaged
-  files.
+- v8r fetches schemas from schemastore.org by filename, so a cold cache
+  needs network. `.v8rignore` drops `.vscode/`, which has no catalog
+  entry.
 
 ## Commands
 
-| Task                 | Command                                                             |
-| -------------------- | ------------------------------------------------------------------- |
-| Lint (check only)    | `bun run check` (= `lefthook run check`)                            |
-| Lint + autofix       | `bun run fix` (= `lefthook run fix`)                                |
-| Test                 | `bun run test:rust` (= `cargo nextest run --workspace`)             |
-| Build release binary | `bun run build:rust` (= `cargo build --release -p atypical-commit`) |
-| Latency benchmarks   | `bun run bench:latency` (receipts in `benches/results.md`)          |
+| Task          | Command                 |
+| ------------- | ----------------------- |
+| Lint          | `bun run check`         |
+| Lint, autofix | `bun run fix`           |
+| Test          | `bun run test:rust`     |
+| Release build | `bun run build:rust`    |
+| Bench         | `bun run bench:latency` |
 
-Tests use **cargo-nextest**, not `cargo test`. Without lefthook, the
-raw CI equivalents:
+Tests run under nextest, not `cargo test`. CI gates on `bun run check`
+and `cargo llvm-cov nextest --fail-under-regions 90`, so new code needs
+tests. A `v*` tag runs `publish.yaml`, which reruns CI first.
 
-```sh
-cargo fmt --all --check
-cargo clippy --workspace --all-targets --all-features -- -D warnings
-cargo nextest run --workspace
-```
+## Style
 
-## CI gates (all must pass)
+- `merge_derives = false`: in `src/`, std derives share one line and
+  `Deserialize`/`Parser` take the next.
+- Workspace dependencies with default features turn them off; each
+  crate enables what it uses. Crates inherit `[workspace.package]` fields.
+- The `std`, `cli` and `color` features only forward dependency
+  features; nothing is `cfg`-gated.
+- Library errors are enums implementing `Display` and `Error`; `anyhow`
+  stays in the binary.
 
-`.github/workflows/ci.yaml` has two jobs:
+## Contracts
 
-1. `qc` runs `bun ci` then `bun run check`, so the whole lefthook
-   `check` hook gates CI: rustfmt, clippy (`-D warnings`), tombi,
-   oxfmt, v8r, and oxlint.
-2. `cov` runs `cargo llvm-cov nextest ... --fail-under-regions 90`;
-   **region coverage must stay at 90% or above**, so new code needs
-   tests. The Codecov uploads are skipped on tag runs.
+Each is pinned by tests; change a test only on purpose.
 
-Publishing lives in `.github/workflows/publish.yaml`, triggered by
-`v*` tags. Its first job calls `ci.yaml` back through
-`workflow_call`, so all of CI must pass before anything ships. It
-then cuts a draft GitHub release, builds `commit-lint` binaries for
-an eight-target matrix (x86_64/aarch64 across Linux gnu, Linux musl,
-macOS, and Windows), undrafts the release, and publishes to
-crates.io and npm.
+- Exit codes: `Exit` and `after_help` in `main.rs` (`tests/cli.rs`).
+- The header is the first line neither blank nor a `#` comment; CRLF is
+  tolerated (`message_header`).
+- No `[commit]` section lints nothing, and a range then never runs git.
+  A section without `slots` lowers to `Tokens::default()`. Unknown keys
+  are rejected, the removed fixed-layout keys included, with no
+  migration code.
+- `presets/*.toml` are the only preset definitions; `tests/presets.rs`
+  pins accepted headers and every error span and message.
+- `extends`, `drop`, `before` and duplicate names behave as documented
+  on `atypical_config::resolve` (`tests/load.rs`). `name`, `drop` and
+  `before` are reserved in every named array, for any tool.
+- Unlowerable slots are `Invalid` (`config.rs`); indistinguishable ones
+  are `Ambiguous` (`ambiguity` in `lib.rs`). Bare sets are tried longest
+  first; delimited sets keep declaration order, which diagnostics list.
 
-## Code style
+## Tests
 
-`rustfmt.toml` is enforced; the non-defaults matter:
-
-- `max_width = 80` (markdown and TOML wrap at ~80 columns to match)
-- `merge_derives = false` — keep **separate `#[derive(...)]` lines**
-  grouped as the surrounding code does: `#[derive(Debug, Clone, PartialEq)]`
-  on one line, `#[derive(serde::Deserialize)]` on the next.
-- `group_imports = "StdExternalCrate"`, `imports_granularity = "Module"`
-- `use_field_init_shorthand = true`
-
-`.editorconfig`: LF, UTF-8, final newline; 2-space indent everywhere
-except `.rs` (4-space).
-
-Conventions visible in the code:
-
-- Dependencies are declared in `[workspace.dependencies]` with
-  `default-features = false`; each crate re-enables exactly the
-  features it needs. Version and metadata come from
-  `[workspace.package]` — new crates should use
-  `version.workspace = true` etc.
-- `atypical-commit` gates functionality behind features: `std`, `cli`,
-  `color` (all default). Keep new code compiling across feature
-  combinations (CI runs `--all-features`; the library avoids baking in
-  `std`-only conveniences).
-- Errors: library crates define their own `Error` enums with `Display` +
-  `std::error::Error` impls; `anyhow` is used only at the binary
-  boundary.
-- Comments are sparse and explain intent/constraints, not mechanics.
-
-## Behavior contracts (do not break)
-
-- `commit-lint` exit codes: `0` valid, `1` failed linting or
-  unreadable input, `2` usage error / nothing to lint (clap also
-  uses 2). The integration tests assert these.
-- Header extraction mimics git: leading blank lines and `#` comment
-  lines are skipped; the first remaining line is the header
-  (`message_header` in `main.rs`). CRLF is tolerated.
-- The preset files in `presets/` (`standard.toml`, `conventional.toml`)
-  are meant to be targeted by `extends`, and are the only definition
-  of each preset: no copy lives in code. `tests/presets.rs` in
-  `atypical-commit` pins, per preset and config variant, the headers
-  accepted and the span and message of every error reported.
-- A top-level `extends` key (a path or an array of paths, relative to
-  the extending file) is resolved by `atypical-config` before section
-  lookup: extended documents apply one by one in declaration order,
-  the extending file last; tables merge key-by-key, any other value
-  replaces the one beneath it. Cycles and non-path values are errors
-  (`Error::Cycle` / `Error::Extends`).
-- An array whose every entry carries a `name` is the exception: it
-  merges entry by entry rather than being replaced, so `[[commit.slots]]`
-  can be adjusted without restating the grammar. A matched entry merges
-  field by field, an unmatched one appends after the base order, and
-  `drop = true` removes the entry it names. `before = "other"` places an
-  entry ahead of the one it names instead of at the end, moving it if it
-  was already there; a `before` naming no other entry, whether a typo or
-  the entry itself, is `Error::Before` rather than a silent append or
-  no-op, since position is part of the grammar and anywhere else is a
-  different grammar. Two entries of one array sharing a `name` is
-  `Error::Duplicate`: the second would merge into the first instead of
-  being a slot of its own. `drop` and `before` are stripped before the
-  section schema sees them, so `deny_unknown_fields` still holds —
-  including for a named array with nothing beneath it, which is merged
-  onto nothing so that it is normalised the same way. A `drop` that is
-  not a boolean, or a `before` that is not a string, is deliberately
-  left in place so the schema reports it instead of it quietly meaning
-  nothing. The crate is schema-free but not key-free: `name`, `drop`
-  and `before` are reserved inside a named array, for any tool's
-  section.
-- Config semantics: no `[commit]` section means nothing is linted
-  (exit 0 for any message); a declared section defaults _field by
-  field_ to unrestricted (`#[serde(default)]` on `CommitConfig`);
-  unknown keys are rejected (`deny_unknown_fields`); a slot without
-  `values` is flexible; `values` accepts the literal string `"any"`.
-  A section with no `slots` lowers to `Tokens::default()`.
-- The grammar has one spelling: `[[commit.slots]]`, an ordered list
-  where each entry has a `name` and either a `kind` (`word`,
-  `symbols`, `symbol`) or `delimiters`, plus optional `values` and
-  `required`. `default-ignores` is not grammar and sits beside the
-  list. A slot with neither `kind` nor `delimiters`, or with both, is
-  `Invalid::Shape`; a spelling its kind can never match, such as `::`
-  for a `symbol`, is `Invalid::Spelling`.
-- The fixed-layout keys (`keywords`, `modifiers`, `modifier-sequence`,
-  `enclosures`, `separator`) are gone, with no migration path in code:
-  they are unknown keys like any other typo. The slot list never
-  shipped, so there was never a release where both spellings worked.
-- Slot order is positional: where a slot sits in the list is where it
-  sits in the header.
-- Machine-generated headers — merges, reverts, `fixup!`/`squash!`/
-  `amend!`, semver release bumps — exit 0 without linting
-  (`src/ignore.rs`, mirroring commitlint's default ignores) unless
-  `default-ignores = false` is set in `[commit]`.
-- `ExtraContext::new` sorts every bare slot's set longest-first so
-  that e.g. `!!` wins over `!`. Delimited slots match whole, so their
-  sets keep declaration order, which is the order diagnostics list.
-- `ExtraContext::new` rejects (`Ambiguous`) bare slots that cannot be
-  told apart: one that takes a whole run in front of one needing the
-  same run (word then word, or an unrestricted symbol run then another
-  run), and two whose spellings share a prefix. A single-symbol slot
-  may follow a run: the last symbol of the run is the separator.
-  Optional slots between two others do not separate them, so every
-  slot up to the first required one is a neighbour. A closed set in
-  front of a slot taking anything of the same alphabet is rejected as
-  well, since its spellings would serve the other, and so are two
-  delimited slots carrying the same pair of delimiters, since the later
-  one is unreachable. Sharing only an opener is fine: the closer still
-  tells them apart. A slot carries the `name` its config gave it, so the
-  error points at the entry to edit; diagnostics use the shape's noun
-  instead. `Tokens::default()` has no config behind it, so its slots are
-  named for what they are.
-- A delimited slot marked `required` must appear: the walker refuses a
-  header that skips it, naming the opener it wanted.
-
-## Testing conventions
-
-- Unit tests live in-file under `#[cfg(test)] mod tests`. Parser
-  behavior is pinned in `tests/presets.rs` as rows of header and
-  expected error, driven by `CommitConfig` alone; no test names a
-  `Tokens` field.
-- Integration tests live in each crate's `tests/` (`cli.rs`,
-  `load.rs`): `cli.rs` drives the real binary through
-  `env!("CARGO_BIN_EXE_commit-lint")` and writes fixtures to
-  `env!("CARGO_TARGET_TMPDIR")` — no fixture files are committed.
-- nextest is configured (`.config/nextest.toml`) to emit
-  `target/nextest/default/junit.xml` for CI's Codecov upload.
+- Unit tests live in-file. `tests/presets.rs` holds parser behavior as
+  header and error rows built from `CommitConfig`, never `Tokens`
+  fields.
+- `tests/cli.rs` runs the real binary against fixtures and throwaway
+  repositories under `CARGO_TARGET_TMPDIR`; none are committed.
 
 ## Gotchas
 
-- The toolchain is pinned to **nightly**; don't "fix" builds by
-  switching to stable.
-- TOML is formatted by **tombi** and YAML/JSON by **oxfmt** via
-  lefthook — run `bun run fix` after editing config/workflow files
-  rather than hand-styling them.
-- oxfmt also formats TOML, which tombi owns, so the `js` jobs in
-  `check` and `fix` carry `exclude: "*.toml"`. Everything else it
-  supports, Markdown included, is oxfmt's; don't hand-style it.
-- lefthook only finds a `.config/` config named `lefthook.yaml`;
-  `.config/lefthook.yml` is silently ignored.
-- Tool configs are gathered under `.config/` (lefthook, nextest,
-  tombi) rather than the repo root.
-- `benches/` is not `cargo bench`: it is a POSIX-sh hyperfine harness
-  (`latency.sh`) comparing against a vendored commitlint.
-  `benches/node_modules` exists only after
-  `npm --prefix benches install`; it's optional (the commitlint lane
-  is skipped without it).
-- The release profile in `.cargo/config.toml` is size-tuned
-  (`codegen-units = 1`, `lto = "fat"`, `opt-level = "z"`,
-  `strip = "symbols"`, `panic = "abort"`). These are deliberate,
-  benchmarked choices — do not "fix" them.
+- tombi owns TOML; oxfmt owns everything else it supports, Markdown
+  included, so its jobs exclude `*.toml`. Run `bun run fix` instead of
+  hand-styling.
+- lefthook reads `.config/lefthook.yaml` only; `.yml` is silently
+  ignored.
+- The size-tuned release profile in `.cargo/config.toml` is deliberate.
+- `benches/` is a hyperfine script, not `cargo bench`. Its commitlint
+  lane needs the `benches` workspace installed and is skipped without
+  it.

@@ -1,10 +1,9 @@
-// Discovery and loading of `atypical.toml`: each tool owns its own
-// section schema and deserializes it from here. A top-level `extends`
-// key layers other config files beneath the extending one.
-//
-// Schema-free but not key-free: within a named array, `name`, `drop`
-// and `before` are reserved directives, consumed here before any
-// section schema sees them.
+//! Discovery and loading of `atypical.toml`. Each tool owns its section
+//! schema; a top-level `extends` layers other files beneath, see
+//! [`resolve`].
+//!
+//! Schema-free but not key-free: within a named array, `name`, `drop`
+//! and `before` are directives consumed before any schema sees them.
 
 use std::path::{Path, PathBuf};
 
@@ -92,8 +91,9 @@ pub fn find(start: impl AsRef<Path>) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-/// Deserialize the `[key]` section of a TOML document.
-/// A document without the section is `Ok(None)`.
+/// Deserialize the `[key]` section of a TOML document as written: no
+/// `extends`, no directives. A document without the section is
+/// `Ok(None)`.
 pub fn section<T: DeserializeOwned>(
     document: &str,
     key: &str,
@@ -117,14 +117,14 @@ pub fn section<T: DeserializeOwned>(
 /// A named entry matching one beneath it merges into it field by field;
 /// an unmatched one appends, keeping base order; `drop = true` removes
 /// the entry it names; `before = "other"` places the entry ahead of the
-/// one named, moving it if it was already there. Neither directive ever
-/// reaches the section schema.
+/// one named, moving it if it was already there. A directive of the
+/// wrong type is left in place for the section schema to reject.
 ///
 /// A `before` that names no other entry is an error rather than a
 /// silent append or no-op: the position asked for is part of the
 /// grammar, so anywhere else is a different grammar. Two entries of
 /// one array sharing a `name` is an error for the same reason: the
-/// second would merge into the first instead of being a slot of its
+/// second would merge into the first instead of being an entry of its
 /// own.
 pub fn resolve(path: impl AsRef<Path>) -> Result<toml::Table, Error> {
     resolve_into(path.as_ref(), &mut Vec::new())

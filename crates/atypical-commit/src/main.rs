@@ -14,7 +14,7 @@ mod range;
 enum Exit {
     /// The commit message is valid.
     Success = 0,
-    /// The commit message failed linting.
+    /// A commit message failed linting, or was empty within a range.
     /// Unexpected errors (e.g. unreadable input) also exit with 1,
     /// via the std `Termination` impl for `Result`.
     Invalid = 1,
@@ -35,16 +35,17 @@ impl Termination for Exit {
     about = "Lint commit messages with atypical.",
     long_about = indoc::indoc! {r#"
         Lint commit messages with atypical.
-        Check out the documentation for more details: https://github.com/kekkon-nexus/atypical
+        https://github.com/kekkon-nexus/atypical
     "#},
     after_help = indoc::indoc! {r#"
         Exit codes:
-          0  the commit message is valid
-          1  the commit message failed linting, or input could not be read
+          0  valid
+          1  failed linting, an empty message in a range, or an error
           2  usage error, or no commit message to lint
     "#}
 )]
 struct Args {
+    /// Commit message file, or `-` for stdin.
     input: Option<FileOrStdin>,
 
     /// Path to atypical.toml; the nearest one from the current

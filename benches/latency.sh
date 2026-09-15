@@ -19,7 +19,6 @@ bun run build:rust
 [ -x "$BIN" ] || { echo "no binary at $BIN" >&2; exit 2; }
 
 # fixtures: each tool's valid msg (exits 0) + one invalid
-# TODO: collapse to one string after the conventional preset
 mkdir -p "$FIX"
 printf 'add(exe)[int]: initial commit linting\n' > "$FIX/atypical-valid.txt"
 printf 'feat[pre](lib): oops\n' > "$FIX/atypical-invalid.txt"
@@ -41,7 +40,7 @@ printf 'feat(api): add thing\n' > "$FIX/conventional-valid.txt"
 
 TMP=$(mktemp)
 
-# commitlint (vendored): bun install
+# commitlint: bun install (benches workspace)
 CL=""
 if [ -x benches/node_modules/.bin/commitlint ]; then
   CL="benches/node_modules/.bin/commitlint"

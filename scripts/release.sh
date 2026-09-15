@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
-# scripts/release.sh <major|minor|patch|X.Y.Z>
 set -euo pipefail
 cd "$(git rev-parse --show-toplevel)"
 
-case "$1" in
+case "${1:?usage: $0 <major|minor|patch|alpha|beta|rc|release|X.Y.Z>}" in
 major | minor | patch | alpha | beta | rc | release) cargo set-version --workspace --bump "$1" ;;
 *) cargo set-version --workspace "$1" ;;
 esac
