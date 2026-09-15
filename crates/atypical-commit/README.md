@@ -70,7 +70,7 @@ anything but its delimiters when unrestricted.
 
 ```toml
 [[commit.slots]]
-name = "keyword"
+name = "keywords"
 kind = "word"
 values = ["feat", "fix"]
 required = true
