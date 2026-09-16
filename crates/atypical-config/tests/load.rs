@@ -1,3 +1,4 @@
+use std::assert_matches;
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
@@ -364,8 +365,8 @@ fn before_naming_nothing_present_is_an_error() {
 
     let typo = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
-    assert!(matches!(typo, atypical_config::Error::Before(_, ref name)
-        if name == "keywrods"));
+    assert_matches!(typo, atypical_config::Error::Before(_, ref name)
+        if name == "keywrods");
     assert!(typo.to_string().contains("keywrods"));
     assert!(std::error::Error::source(&typo).is_none());
 }
@@ -390,8 +391,8 @@ fn before_naming_its_own_entry_is_an_error() {
 
     let itself = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
-    assert!(matches!(itself, atypical_config::Error::Before(_, ref name)
-        if name == "keywords"));
+    assert_matches!(itself, atypical_config::Error::Before(_, ref name)
+        if name == "keywords");
 }
 
 #[test]
@@ -415,10 +416,8 @@ fn one_name_for_two_entries_is_an_error() {
 
     let twice = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
-    assert!(
-        matches!(twice, atypical_config::Error::Duplicate(_, ref name)
-        if name == "keywords")
-    );
+    assert_matches!(twice, atypical_config::Error::Duplicate(_, ref name)
+        if name == "keywords");
     assert!(twice.to_string().contains("keywords"));
     assert!(std::error::Error::source(&twice).is_none());
 }
@@ -630,7 +629,7 @@ fn cyclic_extends_is_an_error() {
 
     let cycle = atypical_config::load::<Section>(&file, "commit").unwrap_err();
 
-    assert!(matches!(cycle, atypical_config::Error::Cycle(_)));
+    assert_matches!(cycle, atypical_config::Error::Cycle(_));
     assert!(cycle.to_string().contains("cyclic"));
     assert!(std::error::Error::source(&cycle).is_none());
 }
@@ -644,16 +643,16 @@ fn extends_must_be_a_path_or_an_array_of_paths() {
 
     let scalar = atypical_config::load::<Section>(&file, "commit").unwrap_err();
 
-    assert!(matches!(scalar, atypical_config::Error::Extends(_)));
+    assert_matches!(scalar, atypical_config::Error::Extends(_));
     assert!(scalar.to_string().contains("extends"));
     assert!(std::error::Error::source(&scalar).is_none());
 
     std::fs::write(&file, "extends = [1]\n").unwrap();
 
-    assert!(matches!(
+    assert_matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Extends(_))
-    ));
+    );
 }
 
 #[test]
@@ -663,10 +662,10 @@ fn extends_to_a_missing_file_is_an_io_error() {
 
     std::fs::write(&file, "extends = \"./nowhere.toml\"\n").unwrap();
 
-    assert!(matches!(
+    assert_matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Io(_))
-    ));
+    );
 }
 
 #[test]
@@ -676,10 +675,10 @@ fn extends_an_absent_npm_package_is_a_resolve_error() {
 
     std::fs::write(&file, "extends = \"npm:missing-package\"\n").unwrap();
 
-    assert!(matches!(
+    assert_matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Resolve(..))
-    ));
+    );
 }
 
 #[test]
@@ -706,10 +705,10 @@ fn extends_unknown_scheme_is_rejected() {
 
     std::fs::write(&file, "extends = \"bogus:preset.toml\"\n").unwrap();
 
-    assert!(matches!(
+    assert_matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Scheme(scheme)) if scheme == "bogus"
-    ));
+    );
 }
 
 #[test]
