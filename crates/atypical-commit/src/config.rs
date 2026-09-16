@@ -259,6 +259,8 @@ fn slots(config: &CommitConfig) -> Result<Vec<Slot>, Invalid> {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches;
+
     use super::*;
 
     #[test]
@@ -479,10 +481,10 @@ mod tests {
         .unwrap();
 
         for config in [worded, spaced, keyword] {
-            assert!(matches!(
+            assert_matches!(
                 Tokens::try_from(&config),
                 Err(Invalid::Spelling { .. })
-            ));
+            );
         }
     }
 
