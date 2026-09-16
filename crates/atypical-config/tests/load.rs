@@ -1,3 +1,4 @@
+use std::assert_matches;
 use std::path::PathBuf;
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
@@ -364,8 +365,8 @@ fn before_naming_nothing_present_is_an_error() {
 
     let typo = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
-    assert!(matches!(typo, atypical_config::Error::Before(_, ref name)
-        if name == "keywrods"));
+    assert_matches!(typo, atypical_config::Error::Before(_, ref name)
+        if name == "keywrods");
     assert!(typo.to_string().contains("keywrods"));
     assert!(std::error::Error::source(&typo).is_none());
 }
@@ -390,8 +391,8 @@ fn before_naming_its_own_entry_is_an_error() {
 
     let itself = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
-    assert!(matches!(itself, atypical_config::Error::Before(_, ref name)
-        if name == "keywords"));
+    assert_matches!(itself, atypical_config::Error::Before(_, ref name)
+        if name == "keywords");
 }
 
 #[test]
@@ -415,10 +416,8 @@ fn one_name_for_two_entries_is_an_error() {
 
     let twice = atypical_config::load::<Slots>(&file, "commit").unwrap_err();
 
-    assert!(
-        matches!(twice, atypical_config::Error::Duplicate(_, ref name)
-        if name == "keywords")
-    );
+    assert_matches!(twice, atypical_config::Error::Duplicate(_, ref name)
+        if name == "keywords");
     assert!(twice.to_string().contains("keywords"));
     assert!(std::error::Error::source(&twice).is_none());
 }
@@ -630,7 +629,7 @@ fn cyclic_extends_is_an_error() {
 
     let cycle = atypical_config::load::<Section>(&file, "commit").unwrap_err();
 
-    assert!(matches!(cycle, atypical_config::Error::Cycle(_)));
+    assert_matches!(cycle, atypical_config::Error::Cycle(_));
     assert!(cycle.to_string().contains("cyclic"));
     assert!(std::error::Error::source(&cycle).is_none());
 }
@@ -644,16 +643,16 @@ fn extends_must_be_a_path_or_an_array_of_paths() {
 
     let scalar = atypical_config::load::<Section>(&file, "commit").unwrap_err();
 
-    assert!(matches!(scalar, atypical_config::Error::Extends(_)));
+    assert_matches!(scalar, atypical_config::Error::Extends(_));
     assert!(scalar.to_string().contains("extends"));
     assert!(std::error::Error::source(&scalar).is_none());
 
     std::fs::write(&file, "extends = [1]\n").unwrap();
 
-    assert!(matches!(
+    assert_matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Extends(_))
-    ));
+    );
 }
 
 #[test]
@@ -661,12 +660,108 @@ fn extends_to_a_missing_file_is_an_io_error() {
     let root = tree("extends-missing");
     let file = root.join(atypical_config::FILE_NAME);
 
-    std::fs::write(&file, "extends = \"nowhere.toml\"\n").unwrap();
+    std::fs::write(&file, "extends = \"./nowhere.toml\"\n").unwrap();
 
-    assert!(matches!(
+    assert_matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Io(_))
-    ));
+    );
+}
+
+#[test]
+fn extends_an_npm_package_file_loads() {
+    let root = tree("extends-npm");
+    let file = root.join(atypical_config::FILE_NAME);
+    let package = root.join("node_modules/atypical-preset");
+
+    std::fs::create_dir_all(&package).unwrap();
+    std::fs::write(
+        package.join("package.json"),
+        "{ \"name\": \"atypical-preset\" }\n",
+    )
+    .unwrap();
+    std::fs::write(package.join("preset.toml"), "[commit]\nname = \"npm\"\n")
+        .unwrap();
+    std::fs::write(&file, "extends = \"npm:atypical-preset/preset.toml\"\n")
+        .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Section>(&file, "commit").unwrap(),
+        Some(Section { name: "npm".into() })
+    );
+}
+
+#[test]
+fn extends_an_absent_npm_package_is_a_resolve_error() {
+    // Outside the repository: resolution would otherwise walk up into
+    // this repo's own node_modules above CARGO_TARGET_TMPDIR.
+    let root = std::env::temp_dir().join("atypical-extends-npm-missing");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::create_dir_all(&root).unwrap();
+    std::fs::write(&file, "extends = \"npm:missing-package\"\n").unwrap();
+
+    let missing =
+        atypical_config::load::<Section>(&file, "commit").unwrap_err();
+
+    assert_matches!(missing, atypical_config::Error::Resolve(..));
+    assert!(missing.to_string().contains("npm:missing-package"));
+    assert!(std::error::Error::source(&missing).is_some());
+}
+
+#[test]
+fn extends_dot_relative_path_loads() {
+    let root = tree("extends-dot");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(root.join("base.toml"), "[commit]\nname = \"base\"\n")
+        .unwrap();
+    std::fs::write(&file, "extends = \"./base.toml\"\n").unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Section>(&file, "commit").unwrap(),
+        Some(Section {
+            name: "base".into()
+        })
+    );
+}
+
+#[test]
+fn extends_a_prefix_under_two_chars_is_a_file() {
+    let root = tree("extends-short-prefix");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    for (base, name) in [(":empty.toml", "empty"), ("c:drive.toml", "drive")] {
+        std::fs::write(
+            root.join(base),
+            format!("[commit]\nname = \"{name}\"\n"),
+        )
+        .unwrap();
+        std::fs::write(&file, format!("extends = \"{base}\"\n")).unwrap();
+
+        assert_eq!(
+            atypical_config::load::<Section>(&file, "commit").unwrap(),
+            Some(Section { name: name.into() }),
+            "{base}"
+        );
+    }
+}
+
+#[test]
+fn extends_unknown_scheme_is_rejected() {
+    let root = tree("extends-scheme");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(&file, "extends = \"bogus:preset.toml\"\n").unwrap();
+
+    let bogus = atypical_config::load::<Section>(&file, "commit").unwrap_err();
+
+    assert_matches!(
+        &bogus,
+        atypical_config::Error::Scheme(scheme) if scheme == "bogus"
+    );
+    assert!(bogus.to_string().contains("bogus:"));
+    assert!(std::error::Error::source(&bogus).is_none());
 }
 
 #[test]

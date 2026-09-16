@@ -7,6 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
+use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
 use serde::de::DeserializeOwned;
 
 pub const FILE_NAME: &str = "atypical.toml";
@@ -17,8 +18,12 @@ pub enum Error {
     Toml(toml::de::Error),
     /// A document names itself, directly or indirectly, in `extends`.
     Cycle(PathBuf),
-    /// `extends` is not a path or an array of paths.
+    /// `extends` is not a string or an array of strings.
     Extends(PathBuf),
+    /// An `npm:` specifier that does not resolve to a file.
+    Resolve(String, ResolveError),
+    /// An `extends` `scheme:` naming an ecosystem with no resolver yet.
+    Scheme(String),
     /// A `before` names no entry to sit ahead of, or names its own.
     Before(PathBuf, String),
     /// One array gives the same `name` to two of its entries.
@@ -52,9 +57,15 @@ impl std::fmt::Display for Error {
             }
             Error::Extends(path) => write!(
                 f,
-                "`extends` in {} must be a path or an array of paths",
+                "`extends` in {} must be a string or an array of strings",
                 path.display()
             ),
+            Error::Resolve(base, error) => {
+                write!(f, "cannot resolve `extends = \"{base}\"`: {error}")
+            }
+            Error::Scheme(scheme) => {
+                write!(f, "`extends` scheme `{scheme}:` is not supported yet")
+            }
             Error::Before(path, name) => write!(
                 f,
                 "`before = \"{name}\"` in {} names no other entry",
@@ -74,8 +85,10 @@ impl std::error::Error for Error {
         match self {
             Error::Io(error) => Some(error),
             Error::Toml(error) => Some(error),
+            Error::Resolve(_, error) => Some(error),
             Error::Cycle(_)
             | Error::Extends(_)
+            | Error::Scheme(_)
             | Error::Before(..)
             | Error::Duplicate(..) => None,
         }
@@ -108,11 +121,20 @@ pub fn section<T: DeserializeOwned>(
 }
 
 /// Parse the file at `path` into a table, resolving its top-level
-/// `extends` key (a path or an array of paths, relative to the
-/// extending file). Extended documents are applied one by one in
-/// declaration order, the extending document last: tables merge
-/// key-by-key, arrays whose every entry carries a `name` merge by that
-/// name, any other value replaces the one beneath it.
+/// `extends` key (a string or an array of strings). Extended documents
+/// are applied one by one in declaration order, the extending document
+/// last: tables merge key-by-key, arrays whose every entry carries a
+/// `name` merge by that name, any other value replaces the one beneath
+/// it.
+///
+/// Targets take two forms:
+///
+/// - A `scheme:spec` prefix names the ecosystem to resolve `spec` in.
+///   Only `npm` is wired up, through the shared `node_modules` layout
+///   npm, pnpm, yarn and bun populate; every other scheme is the seam a
+///   per-ecosystem resolver (`cargo`, `pip`, ...) drops into.
+/// - Anything else is a file relative to the extending file, written
+///   `./x`, `../x`, an absolute path, or a bare name.
 ///
 /// A named entry matching one beneath it merges into it field by field.
 /// An unmatched one keeps its place within its own document: right after
@@ -166,7 +188,7 @@ fn resolve_into(
     let mut merged = toml::Table::new();
 
     for base in bases {
-        let base = resolve_into(&dir.join(base), stack)?;
+        let base = resolve_into(&locate(&dir, &base)?, stack)?;
 
         merge(&mut merged, base).map_err(|it| it.at(&path))?;
     }
@@ -175,6 +197,36 @@ fn resolve_into(
     merge(&mut merged, table).map_err(|it| it.at(&path))?;
 
     Ok(merged)
+}
+
+/// Turn an `extends` target into a file path, in the forms listed on
+/// [`resolve`].
+fn locate(dir: &Path, base: &str) -> Result<PathBuf, Error> {
+    match base.split_once(':') {
+        Some((scheme, spec))
+            if scheme.len() > 1
+                && scheme.chars().all(|c| c.is_ascii_lowercase()) =>
+        {
+            match scheme {
+                "npm" => resolve_package(dir, base, spec),
+                _ => Err(Error::Scheme(scheme.to_owned())),
+            }
+        }
+        _ => Ok(dir.join(base)),
+    }
+}
+
+/// Resolve an npm-style specifier through `node_modules`, naming the
+/// whole `label` (scheme included) if it fails.
+fn resolve_package(
+    dir: &Path,
+    label: &str,
+    spec: &str,
+) -> Result<PathBuf, Error> {
+    Resolver::new(ResolveOptions::default())
+        .resolve(dir, spec)
+        .map(|resolution| resolution.path().to_path_buf())
+        .map_err(|error| Error::Resolve(label.to_owned(), error))
 }
 
 fn merge(base: &mut toml::Table, layer: toml::Table) -> Result<(), Conflict> {
