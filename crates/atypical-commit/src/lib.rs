@@ -621,10 +621,18 @@ fn enclosure<'i>(
     use chumsky::input::InputRef;
 
     let contents = match &slot.values {
-        Values::Any => none_of::<'i, _, _, Extra>([start, end])
-            .repeated()
-            .to_slice()
-            .boxed(),
+        Values::Any => {
+            let Slot { name, .. } = slot.clone();
+
+            none_of::<'i, _, _, Extra>([start, end])
+                .repeated()
+                .at_least(1)
+                .to_slice()
+                .map_err(move |error: Rich<'i, char>| {
+                    Rich::custom(*error.span(), format!("expected `{name}`"))
+                })
+                .boxed()
+        }
         Values::Set(allowed) => {
             let Slot { name, .. } = slot.clone();
             let allowed = allowed.clone();
@@ -781,7 +789,10 @@ fn enclosures<'i>(
     })
 }
 
-/// One space, then the rest of the line with trailing whitespace trimmed.
+/// One space, then the rest of the line with trailing whitespace
+/// trimmed. A second leading space is refused: it is not part of the
+/// separator's one space, so it would otherwise be a slot that fell open
+/// into the description.
 pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
 {
     use chumsky::input::InputRef;
@@ -813,6 +824,13 @@ pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
             ));
         }
 
+        if rest.starts_with(char::is_whitespace) {
+            return Err(Rich::custom(
+                span,
+                "the description must not start with a space",
+            ));
+        }
+
         Ok(rest.trim_end())
     })
 }
@@ -823,10 +841,6 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
         let slots = i.ctx().tokens.slots.clone();
-        let separator = slots
-            .iter()
-            .find(|slot| slot.shape == Shape::Bare(Class::Symbol))
-            .map(|slot| slot.values.clone());
         let openers = slots
             .iter()
             .flat_map(forms)
@@ -864,6 +878,14 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                 continue;
             }
 
+            // A `symbols` run stops for the separator that follows it,
+            // which is the nearest `symbol` slot after this one, not the
+            // first in the grammar.
+            let separator = rest
+                .iter()
+                .skip(1)
+                .find(|slot| slot.shape == Shape::Bare(Class::Symbol))
+                .map(|slot| slot.values.clone());
             let mut parser = single(slot, &separator, &openers);
 
             if spaced {
