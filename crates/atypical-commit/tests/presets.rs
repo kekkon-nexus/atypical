@@ -757,6 +757,12 @@ fn an_opener_shared_with_a_later_slot_still_backtracks() {
     for header in ["✨ [ABC] Add", "✨ [x) Add", "✨ Add"] {
         assert!(errors(&config, header).is_empty(), "{header:?}");
     }
+
+    // A `[` no slot accepts falls open to the description, the same as
+    // when the enclosure comes first, so the run's order does not
+    // decide it.
+    assert!(errors(&config, "✨ [BOGUS] Add").is_empty());
+    assert!(parts(&config, "✨ [BOGUS] Add") == ["intention"]);
 }
 
 fn parts(config: &CommitConfig, header: &str) -> Vec<String> {
@@ -810,6 +816,11 @@ fn an_enclosure_opener_shared_with_a_later_slot_still_backtracks() {
     // A shared opener is tried, not committed on: `reason` claims `[x)`
     // rather than leaving it to the description.
     assert!(parts(&config, "✨ [x) Add").contains(&"reason".to_owned()));
+
+    // A `[` no slot accepts falls open, the same as with the enclosure
+    // last, rather than `reason` committing because nothing follows it.
+    assert!(errors(&config, "✨ [BOGUS] Add").is_empty());
+    assert!(parts(&config, "✨ [BOGUS] Add") == ["intention"]);
 
     // Required, the same header parses instead of failing for a `[` the
     // run declined to open.

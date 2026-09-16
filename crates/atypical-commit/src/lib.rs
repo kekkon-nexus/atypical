@@ -678,7 +678,7 @@ fn single<'i>(
 /// back is whether one is still owed after the run.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
-    after: Vec<char>,
+    openers: Vec<char>,
     spaced: bool,
 ) -> impl Parser<'i, &'i str, (Vec<Part<'i>>, bool), Extra<'i>> {
     use chumsky::input::InputRef;
@@ -718,11 +718,18 @@ fn enclosures<'i>(
 
             // Seeing the opener commits to the slot, so a bad value
             // errors instead of backtracking into the description. An
-            // opener a later slot shares is no such promise, since the
-            // value may yet be that slot's, so it is tried without
-            // committing; sharing within the run is a promise, as
-            // `choice` tries each.
-            let shared = after.iter().any(|open| Some(*open) == next);
+            // opener another slot outside the run shares is no such
+            // promise, since the value may yet be that slot's, so it is
+            // tried without committing, as an optional slot is; sharing
+            // within the run is a promise, as `choice` tries each. This
+            // matches a lone slot, which commits only on a unique opener,
+            // so the run's order does not decide it.
+            let count = |it: &mut dyn Iterator<Item = char>| {
+                it.filter(|open| Some(*open) == next).count()
+            };
+            let outside = count(&mut openers.iter().copied())
+                - count(&mut run.iter().map(|([open, _], _)| *open));
+            let shared = outside > 0;
             let matched = if shared {
                 // `or_not` recovers the inner failure, so it never errors.
                 i.parse(parsers.or_not()).unwrap_or(None)
@@ -849,15 +856,8 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
                 rest = &rest[run.len()..];
 
-                let after = rest
-                    .iter()
-                    .flat_map(forms)
-                    .filter_map(|slot| match slot.shape {
-                        Shape::Delimited([open, _]) => Some(open),
-                        _ => None,
-                    })
-                    .collect::<Vec<_>>();
-                let (parts, owed) = i.parse(enclosures(run, after, spaced))?;
+                let (parts, owed) =
+                    i.parse(enclosures(run, openers.clone(), spaced))?;
 
                 prefix.extend(parts);
                 spaced = owed;
