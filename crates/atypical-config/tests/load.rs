@@ -701,10 +701,12 @@ fn extends_an_absent_npm_package_is_a_resolve_error() {
     std::fs::create_dir_all(&root).unwrap();
     std::fs::write(&file, "extends = \"npm:missing-package\"\n").unwrap();
 
-    assert_matches!(
-        atypical_config::load::<Section>(&file, "commit"),
-        Err(atypical_config::Error::Resolve(..))
-    );
+    let missing =
+        atypical_config::load::<Section>(&file, "commit").unwrap_err();
+
+    assert_matches!(missing, atypical_config::Error::Resolve(..));
+    assert!(missing.to_string().contains("npm:missing-package"));
+    assert!(std::error::Error::source(&missing).is_some());
 }
 
 #[test]
@@ -752,10 +754,14 @@ fn extends_unknown_scheme_is_rejected() {
 
     std::fs::write(&file, "extends = \"bogus:preset.toml\"\n").unwrap();
 
+    let bogus = atypical_config::load::<Section>(&file, "commit").unwrap_err();
+
     assert_matches!(
-        atypical_config::load::<Section>(&file, "commit"),
-        Err(atypical_config::Error::Scheme(scheme)) if scheme == "bogus"
+        &bogus,
+        atypical_config::Error::Scheme(scheme) if scheme == "bogus"
     );
+    assert!(bogus.to_string().contains("bogus:"));
+    assert!(std::error::Error::source(&bogus).is_none());
 }
 
 #[test]
