@@ -22,12 +22,12 @@ if (!response.ok) {
 const { gitmojis } = (await response.json()) as { gitmojis: Gitmoji[] };
 const emoji = gitmojis.map((gitmoji) => gitmoji.emoji);
 
-// A delimited slot reads its contents as one word, so a shortcode that
-// is not `\w+` (only `t-rex` today) has no slot that can match it. Its
-// emoji still stands.
+// A delimited slot matches its contents against the set, so word chars
+// and hyphens are fine; anything else (whitespace, a nested delimiter)
+// has no slot that can hold it. Its emoji still stands.
 const shortcodes = gitmojis
   .map((gitmoji) => gitmoji.code.slice(1, -1))
-  .filter((code) => /^\w+$/u.test(code));
+  .filter((code) => /^[\w-]+$/u.test(code));
 const dropped = gitmojis.length - shortcodes.length;
 
 const list = (values: string[]) =>

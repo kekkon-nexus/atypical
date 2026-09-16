@@ -984,6 +984,7 @@ fn gitmoji_preset() {
         ":sparkles: Add a feature",
         "🐛 (auth): Fix a bug",
         ":bug: (auth): Fix a bug",
+        ":t-rex: Add old code", // hyphen in a delimited shortcode
         "⚡️ Improve performance",
     ] {
         assert!(errors(&config, header).is_empty(), "{header:?}");

@@ -88,13 +88,15 @@ fn gitmoji_preset_matches_the_live_catalogue() {
         .iter()
         .map(|g| g.emoji.clone())
         .collect::<Vec<_>>();
-    // A delimited slot only holds a word, so the generator drops a
-    // non-word shortcode; the check mirrors that to compare like for
-    // like.
+    // The generator keeps word chars and hyphens; the check mirrors that
+    // to compare like for like.
     let shortcodes = catalogue
         .iter()
         .map(|g| g.code.trim_matches(':').to_owned())
-        .filter(|code| code.chars().all(|c| c.is_alphanumeric() || c == '_'))
+        .filter(|code| {
+            code.chars()
+                .all(|c| c.is_alphanumeric() || c == '_' || c == '-')
+        })
         .collect::<Vec<_>>();
 
     assert_eq!(

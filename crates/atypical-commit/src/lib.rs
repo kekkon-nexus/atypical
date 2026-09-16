@@ -638,7 +638,19 @@ fn enclosure<'i>(
             let allowed = allowed.clone();
 
             custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
-                let (s, span) = ident(i);
+                // Word chars plus hyphen, so a shortcode like `t-rex`
+                // can match against the set; a non-word char still ends
+                // the read, keeping the empty-value error for a bad open.
+                let before = i.cursor();
+
+                while i.peek().is_some_and(|c: char| {
+                    c.is_alphanumeric() || c == '_' || c == '-'
+                }) {
+                    i.next();
+                }
+
+                let s = i.slice_since(&before..);
+                let span = i.span_since(&before);
 
                 if allowed.iter().any(|value| value == s) {
                     return Ok(s);
