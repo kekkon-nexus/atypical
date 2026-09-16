@@ -1000,6 +1000,33 @@ fn gitmoji_preset() {
 }
 
 #[test]
+fn gitmoji_every_emoji_and_shortcode_lints() {
+    let config = preset("gitmoji.toml");
+    let slots = config.slots.as_ref().unwrap();
+    let intention = &slots[index(slots, "intention")];
+    let options = intention.one_of.as_ref().unwrap();
+    let values =
+        |name: &str| match options[index(options, name)].values.as_ref() {
+            Some(SetConfig::OneOf(values)) => values.clone(),
+            other => panic!("{name}: {other:?}"),
+        };
+
+    // The preset is the source of truth: every spelling it ships must
+    // lint, not just the handful the examples name.
+    for emoji in values("emoji") {
+        let header = format!("{emoji} a change");
+
+        assert!(errors(&config, &header).is_empty(), "{header:?}");
+    }
+
+    for code in values("shortcode") {
+        let header = format!(":{code}: a change");
+
+        assert!(errors(&config, &header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
 fn gitmoji_layers_onto_conventional() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     let presets = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../presets");
