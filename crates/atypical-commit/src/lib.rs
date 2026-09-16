@@ -781,7 +781,10 @@ fn enclosures<'i>(
     })
 }
 
-/// One space, then the rest of the line with trailing whitespace trimmed.
+/// One space, then the rest of the line with trailing whitespace
+/// trimmed. A second leading space is refused: it is not part of the
+/// separator's one space, so it would otherwise be a slot that fell open
+/// into the description.
 pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
 {
     use chumsky::input::InputRef;
@@ -810,6 +813,13 @@ pub fn description<'i>() -> impl Parser<'i, &'i str, Description<'i>, Extra<'i>>
             return Err(Rich::custom(
                 span,
                 "expected a description after the separator",
+            ));
+        }
+
+        if rest.starts_with(char::is_whitespace) {
+            return Err(Rich::custom(
+                span,
+                "the description must not start with a space",
             ));
         }
 
