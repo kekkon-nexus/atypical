@@ -893,7 +893,8 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             let matched = if slot.required || opened {
                 Some(i.parse(parser)?)
             } else {
-                i.parse(parser.or_not())?
+                // `or_not` recovers the inner failure, so it never errors.
+                i.parse(parser.or_not()).unwrap_or(None)
             };
 
             if let Some((value, span)) = matched {
