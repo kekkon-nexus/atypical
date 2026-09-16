@@ -693,9 +693,12 @@ fn extends_an_npm_package_file_loads() {
 
 #[test]
 fn extends_an_absent_npm_package_is_a_resolve_error() {
-    let root = tree("extends-npm-missing");
+    // Outside the repository: resolution would otherwise walk up into
+    // this repo's own node_modules above CARGO_TARGET_TMPDIR.
+    let root = std::env::temp_dir().join("atypical-extends-npm-missing");
     let file = root.join(atypical_config::FILE_NAME);
 
+    std::fs::create_dir_all(&root).unwrap();
     std::fs::write(&file, "extends = \"npm:missing-package\"\n").unwrap();
 
     assert_matches!(
