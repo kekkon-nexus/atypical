@@ -657,15 +657,47 @@ fn extends_must_be_a_path_or_an_array_of_paths() {
 }
 
 #[test]
-fn extends_to_a_missing_file_is_an_io_error() {
+fn extends_to_a_missing_target_is_a_resolve_error() {
     let root = tree("extends-missing");
     let file = root.join(atypical_config::FILE_NAME);
 
-    std::fs::write(&file, "extends = \"nowhere.toml\"\n").unwrap();
+    std::fs::write(&file, "extends = \"missing-package\"\n").unwrap();
+
+    // A bare name with no file beside the document is a package
+    // specifier, which does not resolve here.
+    assert!(matches!(
+        atypical_config::load::<Section>(&file, "commit"),
+        Err(atypical_config::Error::Resolve(..))
+    ));
+}
+
+#[test]
+fn extends_relative_path_needs_a_dot_prefix() {
+    let root = tree("extends-dot");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(root.join("base.toml"), "[commit]\nname = \"base\"\n")
+        .unwrap();
+    std::fs::write(&file, "extends = \"./base.toml\"\n").unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Section>(&file, "commit").unwrap(),
+        Some(Section {
+            name: "base".into()
+        })
+    );
+}
+
+#[test]
+fn extends_unknown_scheme_is_rejected() {
+    let root = tree("extends-scheme");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(&file, "extends = \"bogus:preset.toml\"\n").unwrap();
 
     assert!(matches!(
         atypical_config::load::<Section>(&file, "commit"),
-        Err(atypical_config::Error::Io(_))
+        Err(atypical_config::Error::Scheme(scheme)) if scheme == "bogus"
     ));
 }
 
