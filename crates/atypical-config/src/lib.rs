@@ -121,11 +121,20 @@ pub fn section<T: DeserializeOwned>(
 }
 
 /// Parse the file at `path` into a table, resolving its top-level
-/// `extends` key (a string or an array of strings, each located by
-/// [`locate`]). Extended documents are applied one by one in
-/// declaration order, the extending document last: tables merge
-/// key-by-key, arrays whose every entry carries a `name` merge by that
-/// name, any other value replaces the one beneath it.
+/// `extends` key (a string or an array of strings). Extended documents
+/// are applied one by one in declaration order, the extending document
+/// last: tables merge key-by-key, arrays whose every entry carries a
+/// `name` merge by that name, any other value replaces the one beneath
+/// it.
+///
+/// Targets take two forms:
+///
+/// - A `scheme:spec` prefix names the ecosystem to resolve `spec` in.
+///   Only `npm` is wired up, through the shared `node_modules` layout
+///   npm, pnpm, yarn and bun populate; every other scheme is the seam a
+///   per-ecosystem resolver (`cargo`, `pip`, ...) drops into.
+/// - Anything else is a file relative to the extending file, written
+///   `./x`, `../x`, an absolute path, or a bare name.
 ///
 /// A named entry matching one beneath it merges into it field by field.
 /// An unmatched one keeps its place within its own document: right after
@@ -190,14 +199,8 @@ fn resolve_into(
     Ok(merged)
 }
 
-/// Turn an `extends` target into a file path.
-///
-/// - A `scheme:spec` prefix names the ecosystem to resolve `spec` in.
-///   Only `npm` is wired up, through the shared `node_modules` layout
-///   npm, pnpm, yarn and bun populate; every other scheme is the seam a
-///   per-ecosystem resolver (`cargo`, `pip`, ...) drops into.
-/// - Anything else is a file relative to the extending file, written
-///   `./x`, `../x`, an absolute path, or a bare name.
+/// Turn an `extends` target into a file path, in the forms listed on
+/// [`resolve`].
 fn locate(dir: &Path, base: &str) -> Result<PathBuf, Error> {
     match base.split_once(':') {
         Some((scheme, spec))
