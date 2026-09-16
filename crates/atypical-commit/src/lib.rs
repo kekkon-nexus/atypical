@@ -678,6 +678,7 @@ fn single<'i>(
 /// back is whether one is still owed after the run.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
+    after: Vec<char>,
     spaced: bool,
 ) -> impl Parser<'i, &'i str, (Vec<Part<'i>>, bool), Extra<'i>> {
     use chumsky::input::InputRef;
@@ -698,9 +699,13 @@ fn enclosures<'i>(
             }
 
             // Seeing the opener commits to the slot, so a bad value
-            // errors instead of backtracking into the description.
+            // errors instead of backtracking into the description. An
+            // opener a later slot shares is no such promise, since the
+            // value may yet be that slot's; sharing within the run is,
+            // as `choice` tries each.
             let next = i.peek();
             let is_open = gapped == spaced
+                && !after.iter().any(|open| Some(*open) == next)
                 && run[index..]
                     .iter()
                     .any(|([open, _], _)| Some(*open) == next);
@@ -831,7 +836,15 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
                 rest = &rest[run.len()..];
 
-                let (parts, owed) = i.parse(enclosures(run, spaced))?;
+                let after = rest
+                    .iter()
+                    .flat_map(forms)
+                    .filter_map(|slot| match slot.shape {
+                        Shape::Delimited([open, _]) => Some(open),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                let (parts, owed) = i.parse(enclosures(run, after, spaced))?;
 
                 prefix.extend(parts);
                 spaced = owed;

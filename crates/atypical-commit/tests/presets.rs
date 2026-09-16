@@ -760,6 +760,37 @@ fn an_opener_shared_with_a_later_slot_still_backtracks() {
 }
 
 #[test]
+fn an_enclosure_opener_shared_with_a_later_slot_still_backtracks() {
+    let config = load(
+        "enclosure-shared-opener.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "reason"
+            delimiters = ["[", ")"]
+
+            [[commit.slots]]
+            name = "ticket"
+
+            [[commit.slots.one-of]]
+            name = "issue"
+            delimiters = ["[", "]"]
+            values = ["ABC"]
+        "#},
+    );
+
+    for header in ["✨ [ABC] Add", "✨ [x) Add", "✨ Add"] {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
 fn a_project_drops_one_form() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
 
