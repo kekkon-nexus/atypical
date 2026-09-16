@@ -678,6 +678,7 @@ fn single<'i>(
 /// back is whether one is still owed after the run.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
+    openers: Vec<char>,
     spaced: bool,
 ) -> impl Parser<'i, &'i str, (Vec<Part<'i>>, bool), Extra<'i>> {
     use chumsky::input::InputRef;
@@ -697,8 +698,6 @@ fn enclosures<'i>(
                 i.next();
             }
 
-            // Seeing the opener commits to the slot, so a bad value
-            // errors instead of backtracking into the description.
             let next = i.peek();
             let is_open = gapped == spaced
                 && run[index..]
@@ -710,12 +709,38 @@ fn enclosures<'i>(
                 break;
             }
 
-            let parsers = run[index..]
-                .iter()
-                .map(|(delimiters, slot)| enclosure(*delimiters, slot))
-                .collect::<Vec<_>>();
+            let parsers = choice(
+                run[index..]
+                    .iter()
+                    .map(|(delimiters, slot)| enclosure(*delimiters, slot))
+                    .collect::<Vec<_>>(),
+            );
 
-            let (value, span, delimited_by) = i.parse(choice(parsers))?;
+            // Seeing the opener commits to the slot, so a bad value
+            // errors instead of backtracking into the description. An
+            // opener another slot outside the run shares is no such
+            // promise, since the value may yet be that slot's, so it is
+            // tried without committing, as an optional slot is; sharing
+            // within the run is a promise, as `choice` tries each. This
+            // matches a lone slot, which commits only on a unique opener,
+            // so the run's order does not decide it.
+            let count = |it: &mut dyn Iterator<Item = char>| {
+                it.filter(|open| Some(*open) == next).count()
+            };
+            let outside = count(&mut openers.iter().copied())
+                - count(&mut run.iter().map(|([open, _], _)| *open));
+            let shared = outside > 0;
+            let matched = if shared {
+                // `or_not` recovers the inner failure, so it never errors.
+                i.parse(parsers.or_not()).unwrap_or(None)
+            } else {
+                Some(i.parse(parsers)?)
+            };
+
+            let Some((value, span, delimited_by)) = matched else {
+                i.rewind(checkpoint);
+                break;
+            };
             // The position is within what is left of the run, since
             // everything before `index` is already spoken for.
             let position = run[index..]
@@ -831,7 +856,8 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
                 rest = &rest[run.len()..];
 
-                let (parts, owed) = i.parse(enclosures(run, spaced))?;
+                let (parts, owed) =
+                    i.parse(enclosures(run, openers.clone(), spaced))?;
 
                 prefix.extend(parts);
                 spaced = owed;
@@ -844,10 +870,31 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                 parser = just(' ').ignore_then(parser).boxed();
             }
 
-            let matched = if slot.required {
+            // An opener commits an optional slot, as within a run of
+            // enclosures, so a bad value errors instead of backtracking
+            // into the description. An opener another slot shares is no
+            // such promise: the value may yet be that slot's.
+            let checkpoint = i.save();
+
+            if spaced && i.peek() == Some(' ') {
+                i.next();
+            }
+
+            let next = i.peek();
+            let shared = openers.iter().filter(|open| Some(**open) == next);
+            let opened = shared.count() == 1
+                && forms(slot).iter().any(|form| {
+                    matches!(form.shape, Shape::Delimited([open, _])
+                        if Some(open) == next)
+                });
+
+            i.rewind(checkpoint);
+
+            let matched = if slot.required || opened {
                 Some(i.parse(parser)?)
             } else {
-                i.parse(parser.or_not())?
+                // `or_not` recovers the inner failure, so it never errors.
+                i.parse(parser.or_not()).unwrap_or(None)
             };
 
             if let Some((value, span)) = matched {

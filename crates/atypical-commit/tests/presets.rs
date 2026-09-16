@@ -693,6 +693,144 @@ fn a_gap_before_a_bare_slot_is_owed() {
 }
 
 #[test]
+fn an_optional_option_commits_on_its_opener() {
+    let config = load(
+        "one-of-optional.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "ticket"
+
+            [[commit.slots.one-of]]
+            name = "issue"
+            delimiters = ["[", "]"]
+            values = ["ABC"]
+
+            [[commit.slots.one-of]]
+            name = "epic"
+            delimiters = ["<", ">"]
+            values = ["ABC"]
+        "#},
+    );
+
+    for header in ["✨ [ABC] Add", "✨ <ABC> Add", "✨ Add"] {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    for header in ["✨ [BOGUS] Add", "✨ <BOGUS> Add"] {
+        assert!(!errors(&config, header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
+fn an_opener_shared_with_a_later_slot_still_backtracks() {
+    let config = load(
+        "one-of-shared-opener.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "ticket"
+
+            [[commit.slots.one-of]]
+            name = "issue"
+            delimiters = ["[", "]"]
+            values = ["ABC"]
+
+            [[commit.slots]]
+            name = "reason"
+            delimiters = ["[", ")"]
+        "#},
+    );
+
+    for header in ["✨ [ABC] Add", "✨ [x) Add", "✨ Add"] {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    // A `[` no slot accepts falls open to the description, the same as
+    // when the enclosure comes first, so the run's order does not
+    // decide it.
+    assert!(errors(&config, "✨ [BOGUS] Add").is_empty());
+    assert!(parts(&config, "✨ [BOGUS] Add") == ["intention"]);
+}
+
+fn parts(config: &CommitConfig, header: &str) -> Vec<String> {
+    let tokens = atypical_commit::Tokens::try_from(config).unwrap();
+
+    header_parser(&tokens)
+        .parse(header)
+        .into_output()
+        .map(|header| header.prefix.iter().map(|p| p.name.clone()).collect())
+        .unwrap_or_default()
+}
+
+fn enclosure_shared(name: &str, required: bool) -> CommitConfig {
+    load(
+        name,
+        &format!(
+            indoc::indoc! {r#"
+                [[commit.slots]]
+                name = "intention"
+                kind = "symbols"
+                values = ["✨"]
+                required = true
+                gap = true
+
+                [[commit.slots]]
+                name = "reason"
+                delimiters = ["[", ")"]
+                required = {required}
+
+                [[commit.slots]]
+                name = "ticket"
+
+                [[commit.slots.one-of]]
+                name = "issue"
+                delimiters = ["[", "]"]
+                values = ["ABC"]
+            "#},
+            required = required
+        ),
+    )
+}
+
+#[test]
+fn an_enclosure_opener_shared_with_a_later_slot_still_backtracks() {
+    let config = enclosure_shared("enclosure-shared-opener.toml", false);
+
+    for header in ["✨ [ABC] Add", "✨ [x) Add", "✨ Add"] {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    // A shared opener is tried, not committed on: `reason` claims `[x)`
+    // rather than leaving it to the description.
+    assert!(parts(&config, "✨ [x) Add").contains(&"reason".to_owned()));
+
+    // A `[` no slot accepts falls open, the same as with the enclosure
+    // last, rather than `reason` committing because nothing follows it.
+    assert!(errors(&config, "✨ [BOGUS] Add").is_empty());
+    assert!(parts(&config, "✨ [BOGUS] Add") == ["intention"]);
+
+    // Required, the same header parses instead of failing for a `[` the
+    // run declined to open.
+    let required = enclosure_shared("enclosure-shared-required.toml", true);
+
+    assert!(errors(&required, "✨ [x) Add").is_empty());
+    assert!(!errors(&required, "✨ Add").is_empty());
+}
+
+#[test]
 fn a_project_drops_one_form() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
 
