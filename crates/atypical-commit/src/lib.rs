@@ -79,7 +79,8 @@ pub struct Slot {
     pub shape: Shape,
     pub values: Values,
     pub required: bool,
-    /// One space before the slot, matched or skipped together with it.
+    /// One space after the slot, owed by whichever slot comes next and
+    /// is present. With none, the description's own space serves.
     pub gap: bool,
 }
 
@@ -142,6 +143,9 @@ pub enum Ambiguous {
     Delimiters { first: String, second: String },
     /// Two options of one slot can start on the same input.
     Overlap { first: String, second: String },
+    /// An optional bare slot behind a gap, where the space is also the
+    /// description's and a word or free symbols read as the slot.
+    Description { slot: String },
 }
 
 impl core::fmt::Display for Ambiguous {
@@ -172,6 +176,11 @@ impl core::fmt::Display for Ambiguous {
                     "`{first}` and `{second}` can start on the same input"
                 )
             }
+            Ambiguous::Description { slot } => write!(
+                f,
+                "`{slot}` is optional after a gap, so it can take the start \
+                 of the description"
+            ),
         }
     }
 }
@@ -182,6 +191,27 @@ impl core::error::Error for Ambiguous {}
 /// its neighbour's, so the pairs are checked before any input is seen.
 fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
     for (index, slot) in slots.iter().enumerate() {
+        // A delimited slot commits on its opener and a closed set of
+        // symbols is not prose, so only these are mistaken for the
+        // description.
+        let prose = |form: &Slot| {
+            matches!(
+                (&form.shape, &form.values),
+                (Shape::Bare(Class::Word), _) | (Shape::Bare(_), Values::Any)
+            )
+        };
+        let landing = slots[index + 1..]
+            .iter()
+            .take_while(|_| slot.gap)
+            .take_while(|next| !next.required)
+            .find(|next| forms(next).iter().any(prose));
+
+        if let Some(next) = landing {
+            return Some(Ambiguous::Description {
+                slot: next.name.clone(),
+            });
+        }
+
         if let Shape::OneOf(options) = &slot.shape {
             for (at, first) in options.iter().enumerate() {
                 let overlapping = options[at + 1..]
@@ -577,8 +607,8 @@ fn bare<'i>(
     }
 }
 
-fn opening([open, _]: DelimitedBy, slot: &Slot) -> String {
-    let gap = if slot.gap { " " } else { "" };
+fn opening([open, _]: DelimitedBy, spaced: bool) -> String {
+    let gap = if spaced { " " } else { "" };
 
     format!("expected an opening `{gap}{open}`")
 }
@@ -643,31 +673,37 @@ fn single<'i>(
     }
 }
 
-/// A run of delimited slots, in order and each at most once.
+/// A run of delimited slots, in order and each at most once. `spaced`
+/// is whether a gap is owed before the first one present; what comes
+/// back is whether one is still owed after the run.
 fn enclosures<'i>(
     run: Vec<(DelimitedBy, Slot)>,
-) -> impl Parser<'i, &'i str, Vec<Part<'i>>, Extra<'i>> {
+    spaced: bool,
+) -> impl Parser<'i, &'i str, (Vec<Part<'i>>, bool), Extra<'i>> {
     use chumsky::input::InputRef;
 
     custom(move |i: &mut InputRef<&'i str, Extra<'i>>| {
         let mut index = 0;
         let mut results = Vec::new();
+        let mut spaced = spaced;
 
         while index < run.len() {
             let before = i.cursor();
             let checkpoint = i.save();
-            let gap = i.peek() == Some(' ');
 
-            if gap {
+            let gapped = spaced && i.peek() == Some(' ');
+
+            if gapped {
                 i.next();
             }
 
             // Seeing the opener commits to the slot, so a bad value
             // errors instead of backtracking into the description.
             let next = i.peek();
-            let is_open = run[index..].iter().any(|([open, _], slot)| {
-                slot.gap == gap && Some(*open) == next
-            });
+            let is_open = gapped == spaced
+                && run[index..]
+                    .iter()
+                    .any(|([open, _], _)| Some(*open) == next);
 
             if !is_open {
                 i.rewind(checkpoint);
@@ -676,7 +712,6 @@ fn enclosures<'i>(
 
             let parsers = run[index..]
                 .iter()
-                .filter(|(_, slot)| slot.gap == gap)
                 .map(|(delimiters, slot)| enclosure(*delimiters, slot))
                 .collect::<Vec<_>>();
 
@@ -691,30 +726,33 @@ fn enclosures<'i>(
                 .iter()
                 .find(|(_, slot)| slot.required);
 
-            if let Some((delimiters, slot)) = skipped {
-                let message = opening(*delimiters, slot);
+            if let Some((delimiters, _)) = skipped {
+                let message = opening(*delimiters, spaced);
 
                 return Err(Rich::custom(i.span_since(&before), message));
             }
 
+            let slot = &run[index + position].1;
+
             results.push(Part {
-                name: run[index + position].1.name.clone(),
+                name: slot.name.clone(),
                 value,
                 span,
             });
+            spaced = slot.gap;
             index += position + 1;
         }
 
-        if let Some((delimiters, slot)) =
+        if let Some((delimiters, _)) =
             run[index..].iter().find(|(_, slot)| slot.required)
         {
             let here = i.cursor();
-            let message = opening(*delimiters, slot);
+            let message = opening(*delimiters, spaced);
 
             return Err(Rich::custom(i.span_since(&here), message));
         }
 
-        Ok(results)
+        Ok((results, spaced))
     })
 }
 
@@ -775,6 +813,9 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
         let mut prefix = Prefix::new();
         let mut rest = slots.as_slice();
+        // A gap belongs to the slot before it but is taken by the next
+        // one present, so an absent slot passes it on.
+        let mut spaced = false;
 
         while let Some(slot) = rest.first() {
             if let Shape::Delimited(_) = slot.shape {
@@ -789,13 +830,17 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                     .collect::<Vec<_>>();
 
                 rest = &rest[run.len()..];
-                prefix.extend(i.parse(enclosures(run))?);
+
+                let (parts, owed) = i.parse(enclosures(run, spaced))?;
+
+                prefix.extend(parts);
+                spaced = owed;
                 continue;
             }
 
             let mut parser = single(slot, &separator, &openers);
 
-            if slot.gap {
+            if spaced {
                 parser = just(' ').ignore_then(parser).boxed();
             }
 
@@ -811,6 +856,7 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                     value,
                     span,
                 });
+                spaced = slot.gap;
             }
 
             rest = &rest[1..];
@@ -925,6 +971,42 @@ mod tests {
             first: first.to_owned(),
             second: second.to_owned(),
         })
+    }
+
+    #[test]
+    fn test_prose_behind_a_gap_takes_the_description() {
+        let mut intention =
+            slot("intention", Shape::Bare(Class::Symbols), set(&["✨"]));
+        let separator =
+            slot("separator", Shape::Bare(Class::Symbol), set(&[":"]));
+        let scope = slot("scope", Shape::Delimited(['(', ')']), Values::Any);
+        let keywords =
+            slot("keywords", Shape::Bare(Class::Word), set(&["feat"]));
+
+        intention.required = true;
+        intention.gap = true;
+
+        assert_eq!(
+            context(vec![intention.clone(), scope.clone(), keywords.clone()]),
+            Err(Ambiguous::Description {
+                slot: "keywords".to_owned()
+            })
+        );
+        assert_eq!(
+            Ambiguous::Description {
+                slot: "keywords".to_owned()
+            }
+            .to_string(),
+            "`keywords` is optional after a gap, so it can take the start of \
+             the description"
+        );
+        assert!(context(vec![intention.clone(), scope, separator]).is_ok());
+
+        let mut keywords = keywords;
+
+        keywords.required = true;
+
+        assert!(context(vec![intention, keywords]).is_ok());
     }
 
     #[test]

@@ -63,31 +63,12 @@ header order:
 | `one-of`     | Options, each a slot with a `kind` or `delimiters` |
 | `values`     | `"any"` (default), or a list of accepted spellings |
 | `required`   | `false` (default), or `true`                       |
-| `gap`        | `false` (default), or `true` for one space before  |
+| `gap`        | `false` (default), or `true` for one space after   |
 
 A slot has exactly one of `kind`, `delimiters` or `one-of`. A `word` is
 a run of alphanumerics and `_`, `symbols` a run of other visible
 characters, `symbol` exactly one. A delimited slot holds a word from
 `values`, or anything but its delimiters when unrestricted.
-
-A `one-of` slot matches exactly one of its options. `required` and
-`gap` stay on the slot; `values` go on each option:
-
-```toml
-[[commit.slots]]
-name = "intention"
-required = true
-
-[[commit.slots.one-of]]
-name = "emoji"
-kind = "symbols"
-values = ["✨", "🐛"]
-
-[[commit.slots.one-of]]
-name = "shortcode"
-delimiters = [":", ":"]
-values = ["sparkles", "bug"]
-```
 
 ```toml
 [[commit.slots]]
@@ -107,6 +88,31 @@ values = [":"]
 required = true
 ```
 
+A `one-of` slot matches exactly one of its options. `required` and
+`gap` stay on the slot; `values` go on each option:
+
+```toml
+[[commit.slots]]
+name = "intention"
+required = true
+gap = true
+
+[[commit.slots.one-of]]
+name = "emoji"
+kind = "symbols"
+values = ["✨", "🐛"]
+
+[[commit.slots.one-of]]
+name = "shortcode"
+delimiters = [":", ":"]
+values = ["sparkles", "bug"]
+```
+
+A `gap` is taken by the next slot present, or by the description when
+none is. A delimited slot behind a gap is committed to once its opener
+follows the space, so with an optional `(...)` there, a description
+that starts with `(` is read as that slot.
+
 A section without `slots` still enforces the shape: a word, optional
 `(...)` and `[...]`, optional symbols, a separator symbol, then a space
 and a description.
@@ -115,8 +121,10 @@ Slots that cannot be told apart are rejected before any header is read:
 a word after a word, more symbols after unrestricted `symbols`,
 neighbouring spellings sharing a prefix, a closed set in front of an
 unrestricted slot of the same alphabet, two slots with the same
-delimiters, or two options of one slot that can start on the same input.
-An optional slot does not separate its neighbours.
+delimiters, two options of one slot that can start on the same input,
+or an optional word or unrestricted symbols behind a gap, which would
+take the start of the description. An optional slot does not separate
+its neighbours.
 
 `default-ignores` sits beside the slots; see [Default
 ignores](#default-ignores).
@@ -148,7 +156,9 @@ delimiters = ["[", "]"]
 before = "separator"
 ```
 
-- A matched `name` merges field by field; an unmatched one appends.
+- A matched `name` merges field by field. An unmatched one keeps its
+  place in its own file: right after the entry it follows there, or
+  first when it follows none. It appends when its file matches nothing.
 - `drop = true` removes the entry it names.
 - `before = "<name>"` places the entry ahead of the one named, moving it
   if already present. Naming no other entry is an error.
