@@ -68,7 +68,8 @@ header order:
 A slot has exactly one of `kind`, `delimiters` or `one-of`. A `word` is
 a run of alphanumerics and `_`, `symbols` a run of other visible
 characters, `symbol` exactly one. A delimited slot holds a word from
-`values`, or anything but its delimiters when unrestricted.
+`values`, or anything but its delimiters when unrestricted, and is never
+empty.
 
 ```toml
 [[commit.slots]]

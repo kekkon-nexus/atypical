@@ -190,7 +190,7 @@ fn conventional_preset() {
             ("fix(parser): handle empty input", Ok(())),
             ("feat(api)!: drop the v1 routes", Ok(())),
             ("revert: feat: an endpoint", Ok(())),
-            ("feat(): empty scope", Ok(())),
+            ("feat(): empty scope", Err((5..6, "expected `scope`"))),
             ("feat(a b): spaced scope", Ok(())),
             (
                 "add(lib): standard style",
@@ -366,7 +366,7 @@ fn flexible_enclosure() {
         &grammar(slots),
         &[
             ("add(anything goes): x", Ok(())),
-            ("add(): x", Ok(())),
+            ("add(): x", Err((4..5, "expected `scope`"))),
             (
                 "add(unclosed: x",
                 Err((

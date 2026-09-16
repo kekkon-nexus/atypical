@@ -621,10 +621,18 @@ fn enclosure<'i>(
     use chumsky::input::InputRef;
 
     let contents = match &slot.values {
-        Values::Any => none_of::<'i, _, _, Extra>([start, end])
-            .repeated()
-            .to_slice()
-            .boxed(),
+        Values::Any => {
+            let Slot { name, .. } = slot.clone();
+
+            none_of::<'i, _, _, Extra>([start, end])
+                .repeated()
+                .at_least(1)
+                .to_slice()
+                .map_err(move |error: Rich<'i, char>| {
+                    Rich::custom(*error.span(), format!("expected `{name}`"))
+                })
+                .boxed()
+        }
         Values::Set(allowed) => {
             let Slot { name, .. } = slot.clone();
             let allowed = allowed.clone();
