@@ -669,6 +669,29 @@ fn extends_to_a_missing_file_is_an_io_error() {
 }
 
 #[test]
+fn extends_an_npm_package_file_loads() {
+    let root = tree("extends-npm");
+    let file = root.join(atypical_config::FILE_NAME);
+    let package = root.join("node_modules/atypical-preset");
+
+    std::fs::create_dir_all(&package).unwrap();
+    std::fs::write(
+        package.join("package.json"),
+        "{ \"name\": \"atypical-preset\" }\n",
+    )
+    .unwrap();
+    std::fs::write(package.join("preset.toml"), "[commit]\nname = \"npm\"\n")
+        .unwrap();
+    std::fs::write(&file, "extends = \"npm:atypical-preset/preset.toml\"\n")
+        .unwrap();
+
+    assert_eq!(
+        atypical_config::load::<Section>(&file, "commit").unwrap(),
+        Some(Section { name: "npm".into() })
+    );
+}
+
+#[test]
 fn extends_an_absent_npm_package_is_a_resolve_error() {
     let root = tree("extends-npm-missing");
     let file = root.join(atypical_config::FILE_NAME);
