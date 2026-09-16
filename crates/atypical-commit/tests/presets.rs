@@ -759,35 +759,64 @@ fn an_opener_shared_with_a_later_slot_still_backtracks() {
     }
 }
 
+fn parts(config: &CommitConfig, header: &str) -> Vec<String> {
+    let tokens = atypical_commit::Tokens::try_from(config).unwrap();
+
+    header_parser(&tokens)
+        .parse(header)
+        .into_output()
+        .map(|header| header.prefix.iter().map(|p| p.name.clone()).collect())
+        .unwrap_or_default()
+}
+
+fn enclosure_shared(name: &str, required: bool) -> CommitConfig {
+    load(
+        name,
+        &format!(
+            indoc::indoc! {r#"
+                [[commit.slots]]
+                name = "intention"
+                kind = "symbols"
+                values = ["✨"]
+                required = true
+                gap = true
+
+                [[commit.slots]]
+                name = "reason"
+                delimiters = ["[", ")"]
+                required = {required}
+
+                [[commit.slots]]
+                name = "ticket"
+
+                [[commit.slots.one-of]]
+                name = "issue"
+                delimiters = ["[", "]"]
+                values = ["ABC"]
+            "#},
+            required = required
+        ),
+    )
+}
+
 #[test]
 fn an_enclosure_opener_shared_with_a_later_slot_still_backtracks() {
-    let config = load(
-        "enclosure-shared-opener.toml",
-        indoc::indoc! {r#"
-            [[commit.slots]]
-            name = "intention"
-            kind = "symbols"
-            values = ["✨"]
-            required = true
-            gap = true
-
-            [[commit.slots]]
-            name = "reason"
-            delimiters = ["[", ")"]
-
-            [[commit.slots]]
-            name = "ticket"
-
-            [[commit.slots.one-of]]
-            name = "issue"
-            delimiters = ["[", "]"]
-            values = ["ABC"]
-        "#},
-    );
+    let config = enclosure_shared("enclosure-shared-opener.toml", false);
 
     for header in ["✨ [ABC] Add", "✨ [x) Add", "✨ Add"] {
         assert!(errors(&config, header).is_empty(), "{header:?}");
     }
+
+    // A shared opener is tried, not committed on: `reason` claims `[x)`
+    // rather than leaving it to the description.
+    assert!(parts(&config, "✨ [x) Add").contains(&"reason".to_owned()));
+
+    // Required, the same header parses instead of failing for a `[` the
+    // run declined to open.
+    let required = enclosure_shared("enclosure-shared-required.toml", true);
+
+    assert!(errors(&required, "✨ [x) Add").is_empty());
+    assert!(!errors(&required, "✨ Add").is_empty());
 }
 
 #[test]

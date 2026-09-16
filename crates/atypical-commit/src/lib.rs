@@ -698,14 +698,8 @@ fn enclosures<'i>(
                 i.next();
             }
 
-            // Seeing the opener commits to the slot, so a bad value
-            // errors instead of backtracking into the description. An
-            // opener a later slot shares is no such promise, since the
-            // value may yet be that slot's; sharing within the run is,
-            // as `choice` tries each.
             let next = i.peek();
             let is_open = gapped == spaced
-                && !after.iter().any(|open| Some(*open) == next)
                 && run[index..]
                     .iter()
                     .any(|([open, _], _)| Some(*open) == next);
@@ -715,12 +709,30 @@ fn enclosures<'i>(
                 break;
             }
 
-            let parsers = run[index..]
-                .iter()
-                .map(|(delimiters, slot)| enclosure(*delimiters, slot))
-                .collect::<Vec<_>>();
+            let parsers = choice(
+                run[index..]
+                    .iter()
+                    .map(|(delimiters, slot)| enclosure(*delimiters, slot))
+                    .collect::<Vec<_>>(),
+            );
 
-            let (value, span, delimited_by) = i.parse(choice(parsers))?;
+            // Seeing the opener commits to the slot, so a bad value
+            // errors instead of backtracking into the description. An
+            // opener a later slot shares is no such promise, since the
+            // value may yet be that slot's, so it is tried without
+            // committing; sharing within the run is a promise, as
+            // `choice` tries each.
+            let shared = after.iter().any(|open| Some(*open) == next);
+            let matched = if shared {
+                i.parse(parsers.or_not())?
+            } else {
+                Some(i.parse(parsers)?)
+            };
+
+            let Some((value, span, delimited_by)) = matched else {
+                i.rewind(checkpoint);
+                break;
+            };
             // The position is within what is left of the run, since
             // everything before `index` is already spoken for.
             let position = run[index..]
