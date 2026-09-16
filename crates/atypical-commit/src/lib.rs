@@ -841,10 +841,6 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
     custom(|i: &mut InputRef<&'i str, Extra<'i>>| {
         let slots = i.ctx().tokens.slots.clone();
-        let separator = slots
-            .iter()
-            .find(|slot| slot.shape == Shape::Bare(Class::Symbol))
-            .map(|slot| slot.values.clone());
         let openers = slots
             .iter()
             .flat_map(forms)
@@ -882,6 +878,14 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                 continue;
             }
 
+            // A `symbols` run stops for the separator that follows it,
+            // which is the nearest `symbol` slot after this one, not the
+            // first in the grammar.
+            let separator = rest
+                .iter()
+                .skip(1)
+                .find(|slot| slot.shape == Shape::Bare(Class::Symbol))
+                .map(|slot| slot.values.clone());
             let mut parser = single(slot, &separator, &openers);
 
             if spaced {
