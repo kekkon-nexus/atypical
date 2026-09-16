@@ -657,14 +657,25 @@ fn extends_must_be_a_path_or_an_array_of_paths() {
 }
 
 #[test]
-fn extends_to_a_missing_target_is_a_resolve_error() {
+fn extends_to_a_missing_file_is_an_io_error() {
     let root = tree("extends-missing");
     let file = root.join(atypical_config::FILE_NAME);
 
-    std::fs::write(&file, "extends = \"missing-package\"\n").unwrap();
+    std::fs::write(&file, "extends = \"./nowhere.toml\"\n").unwrap();
 
-    // A bare name with no file beside the document is a package
-    // specifier, which does not resolve here.
+    assert!(matches!(
+        atypical_config::load::<Section>(&file, "commit"),
+        Err(atypical_config::Error::Io(_))
+    ));
+}
+
+#[test]
+fn extends_an_absent_npm_package_is_a_resolve_error() {
+    let root = tree("extends-npm-missing");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    std::fs::write(&file, "extends = \"npm:missing-package\"\n").unwrap();
+
     assert!(matches!(
         atypical_config::load::<Section>(&file, "commit"),
         Err(atypical_config::Error::Resolve(..))
@@ -672,7 +683,7 @@ fn extends_to_a_missing_target_is_a_resolve_error() {
 }
 
 #[test]
-fn extends_relative_path_needs_a_dot_prefix() {
+fn extends_dot_relative_path_loads() {
     let root = tree("extends-dot");
     let file = root.join(atypical_config::FILE_NAME);
 

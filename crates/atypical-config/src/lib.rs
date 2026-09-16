@@ -20,8 +20,7 @@ pub enum Error {
     Cycle(PathBuf),
     /// `extends` is not a string or an array of strings.
     Extends(PathBuf),
-    /// An `extends` target that is neither a file relative to the
-    /// document nor a resolvable package specifier.
+    /// An `npm:` specifier that does not resolve to a file.
     Resolve(String, ResolveError),
     /// An `extends` `scheme:` naming an ecosystem with no resolver yet.
     Scheme(String),
@@ -193,46 +192,37 @@ fn resolve_into(
 
 /// Turn an `extends` target into a file path.
 ///
-/// - `./x`, `../x` or an absolute path is a filesystem path relative to
-///   the extending file, as in Node import conventions.
-/// - A `scheme:spec` prefix names the ecosystem to resolve `spec` in;
-///   only `npm` is wired up, through the shared `node_modules` layout
-///   that npm, pnpm, yarn and bun all populate. Every other scheme is
-///   the seam where a per-ecosystem resolver (`cargo`, `pip`, ...) goes.
-/// - A bare name is a file beside the document when one exists, else an
-///   npm package, so every current preset reference keeps working.
+/// - A `scheme:spec` prefix names the ecosystem to resolve `spec` in.
+///   Only `npm` is wired up, through the shared `node_modules` layout
+///   npm, pnpm, yarn and bun populate; every other scheme is the seam a
+///   per-ecosystem resolver (`cargo`, `pip`, ...) drops into.
+/// - Anything else is a file relative to the extending file, written
+///   `./x`, `../x`, an absolute path, or a bare name.
 fn locate(dir: &Path, base: &str) -> Result<PathBuf, Error> {
-    if base.starts_with('.') || Path::new(base).is_absolute() {
-        return Ok(dir.join(base));
-    }
-
     match base.split_once(':') {
         Some((scheme, spec))
             if scheme.chars().all(|c| c.is_ascii_lowercase()) =>
         {
             match scheme {
-                "npm" => resolve_package(dir, spec),
+                "npm" => resolve_package(dir, base, spec),
                 _ => Err(Error::Scheme(scheme.to_owned())),
             }
         }
-        _ => {
-            let relative = dir.join(base);
-
-            if relative.exists() {
-                Ok(relative)
-            } else {
-                resolve_package(dir, base)
-            }
-        }
+        _ => Ok(dir.join(base)),
     }
 }
 
-/// Resolve an npm-style specifier through `node_modules`.
-fn resolve_package(dir: &Path, spec: &str) -> Result<PathBuf, Error> {
+/// Resolve an npm-style specifier through `node_modules`, naming the
+/// whole `label` (scheme included) if it fails.
+fn resolve_package(
+    dir: &Path,
+    label: &str,
+    spec: &str,
+) -> Result<PathBuf, Error> {
     Resolver::new(ResolveOptions::default())
         .resolve(dir, spec)
         .map(|resolution| resolution.path().to_path_buf())
-        .map_err(|error| Error::Resolve(spec.to_owned(), error))
+        .map_err(|error| Error::Resolve(label.to_owned(), error))
 }
 
 fn merge(base: &mut toml::Table, layer: toml::Table) -> Result<(), Conflict> {

@@ -152,11 +152,10 @@ selector (`⚡` for `⚡️`) is not matched.
 `extends` takes a target or an array of them, applied in order with the
 extending file last. A target is one of:
 
-| Form                    | Resolves to                                            |
-| ----------------------- | ------------------------------------------------------ |
-| `./x.toml`, `../x.toml` | A file relative to the extending file                  |
-| `npm:pkg/x.toml`        | A package file through `node_modules` (npm, pnpm, yarn, bun) |
-| bare `x.toml`           | A neighbouring file if one exists, else an npm package |
+| Form                              | Resolves to                                            |
+| --------------------------------- | ------------------------------------------------------ |
+| `./x.toml`, `../x.toml`, `x.toml` | A file relative to the extending file                  |
+| `npm:pkg/x.toml`                  | A package file through `node_modules` (npm, pnpm, yarn, bun) |
 
 Tables merge by key; `[[commit.slots]]` merges by `name`:
 
