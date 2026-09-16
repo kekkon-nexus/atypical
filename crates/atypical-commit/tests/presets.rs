@@ -693,6 +693,42 @@ fn a_gap_before_a_bare_slot_is_owed() {
 }
 
 #[test]
+fn an_optional_option_commits_on_its_opener() {
+    let config = load(
+        "one-of-optional.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "ticket"
+
+            [[commit.slots.one-of]]
+            name = "issue"
+            delimiters = ["[", "]"]
+            values = ["ABC"]
+
+            [[commit.slots.one-of]]
+            name = "epic"
+            delimiters = ["<", ">"]
+            values = ["ABC"]
+        "#},
+    );
+
+    for header in ["✨ [ABC] Add", "✨ <ABC> Add", "✨ Add"] {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    for header in ["✨ [BOGUS] Add", "✨ <BOGUS> Add"] {
+        assert!(!errors(&config, header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
 fn a_project_drops_one_form() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
 

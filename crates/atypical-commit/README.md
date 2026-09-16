@@ -159,6 +159,9 @@ before = "separator"
 - A matched `name` merges field by field. An unmatched one keeps its
   place in its own file: right after the entry it follows there, or
   first when it follows none. It appends when its file matches nothing.
+  So order the entries in an overriding file as they should read, and
+  list the base first in `extends`: the reverse order places the base's
+  own slots against the peer instead, for a different grammar.
 - `drop = true` removes the entry it names.
 - `before = "<name>"` places the entry ahead of the one named, moving it
   if already present. Naming no other entry is an error.

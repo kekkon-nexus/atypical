@@ -844,7 +844,24 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                 parser = just(' ').ignore_then(parser).boxed();
             }
 
-            let matched = if slot.required {
+            // An opener commits an optional slot, as within a run of
+            // enclosures, so a bad value errors instead of backtracking
+            // into the description.
+            let checkpoint = i.save();
+
+            if spaced && i.peek() == Some(' ') {
+                i.next();
+            }
+
+            let next = i.peek();
+            let opened = forms(slot).iter().any(|form| {
+                matches!(form.shape, Shape::Delimited([open, _])
+                    if Some(open) == next)
+            });
+
+            i.rewind(checkpoint);
+
+            let matched = if slot.required || opened {
                 Some(i.parse(parser)?)
             } else {
                 i.parse(parser.or_not())?
