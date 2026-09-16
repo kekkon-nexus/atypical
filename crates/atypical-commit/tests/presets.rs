@@ -976,6 +976,86 @@ fn a_symbol_slot_before_the_keyword_is_not_the_separator() {
 }
 
 #[test]
+fn gitmoji_preset() {
+    let config = preset("gitmoji.toml");
+
+    for header in [
+        "✨ Add a feature",
+        ":sparkles: Add a feature",
+        "🐛 (auth): Fix a bug",
+        ":bug: (auth): Fix a bug",
+        ":t-rex: Add old code", // hyphen in a delimited shortcode
+        "⚡️ Improve performance",
+    ] {
+        assert!(errors(&config, header).is_empty(), "{header:?}");
+    }
+
+    for header in [
+        "feat: no intention", // neither form
+        "✨:bug: both forms", // both forms
+        ":bogus: unknown shortcode",
+        "✨ (): empty scope",
+    ] {
+        assert!(!errors(&config, header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
+fn gitmoji_every_emoji_and_shortcode_lints() {
+    let config = preset("gitmoji.toml");
+    let slots = config.slots.as_ref().unwrap();
+    let intention = &slots[index(slots, "intention")];
+    let options = intention.one_of.as_ref().unwrap();
+    let values =
+        |name: &str| match options[index(options, name)].values.as_ref() {
+            Some(SetConfig::OneOf(values)) => values.clone(),
+            other => panic!("{name}: {other:?}"),
+        };
+
+    // The preset is the source of truth: every spelling it ships must
+    // lint, not just the handful the examples name.
+    for emoji in values("emoji") {
+        let header = format!("{emoji} a change");
+
+        assert!(errors(&config, &header).is_empty(), "{header:?}");
+    }
+
+    for code in values("shortcode") {
+        let header = format!(":{code}: a change");
+
+        assert!(errors(&config, &header).is_empty(), "{header:?}");
+    }
+}
+
+#[test]
+fn gitmoji_layers_onto_conventional() {
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
+    let presets = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../presets");
+    let file = dir.join("gitmoji-conventional.toml");
+
+    std::fs::write(
+        &file,
+        format!(
+            "extends = ['{}', '{}']\n",
+            presets.join("conventional.toml").display(),
+            presets.join("gitmoji.toml").display(),
+        ),
+    )
+    .unwrap();
+
+    let config: CommitConfig = atypical_config::load(&file, config::SECTION)
+        .unwrap()
+        .unwrap();
+
+    assert!(errors(&config, "✨ feat(api): add an endpoint").is_empty());
+    assert!(errors(&config, "🐛 fix(api)!: drop the v1 routes").is_empty());
+    // The conventional keyword is still enforced, and the emoji is now
+    // required in front of it.
+    assert!(!errors(&config, "✨ nope: unknown keyword").is_empty());
+    assert!(!errors(&config, "feat(api): no emoji").is_empty());
+}
+
+#[test]
 fn presets_are_reachable_through_extends() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     let preset = Path::new(env!("CARGO_MANIFEST_DIR"))

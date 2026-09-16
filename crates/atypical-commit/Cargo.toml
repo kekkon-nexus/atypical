@@ -24,7 +24,9 @@ semver = { workspace = true }
 serde = { workspace = true, features = ["alloc", "derive"] }
 
 [dev-dependencies]
+serde_json = { workspace = true, features = ["std"] }
 toml = { workspace = true, features = ["parse", "serde", "std"] }
+ureq = { workspace = true }
 
 [features]
 default = ["cli", "color", "std"]

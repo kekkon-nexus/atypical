@@ -42,6 +42,9 @@ jobs:
       - run: bun ci
       - run: mkdir -p target/llvm-cov
       - run: source <(cargo llvm-cov show-env --sh) && bun run test
+      # Ignored by default; run here so a PR catches an upstream gitmoji
+      # catalogue change. `curl` and `jq` ship on the runner.
+      - run: cargo nextest run -p atypical-commit --all-features --locked --run-ignored ignored-only
       - if: ${{ !cancelled() }}
         run: source <(cargo llvm-cov show-env --sh) && cargo llvm-cov report --workspace --fail-under-regions 90 --codecov --output-path target/llvm-cov/codecov.json
       - if: ${{ !cancelled() && github.ref_type != 'tag' }}

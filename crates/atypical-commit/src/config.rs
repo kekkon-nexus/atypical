@@ -132,9 +132,10 @@ fn kind(shape: &Shape) -> &'static str {
     }
 }
 
-/// Whether a slot of this shape could ever match this spelling. A
-/// delimited slot reads its contents as one word, as a bare word slot
-/// does. A `one-of` never gets here, as for [`kind`].
+/// Whether a slot of this shape could ever match this spelling. A bare
+/// word slot reads one word; a delimited slot allows a hyphen too, so a
+/// shortcode like `t-rex` fits. A `one-of` never gets here, as for
+/// [`kind`].
 fn fits(shape: &Shape, spelling: &str) -> bool {
     let word = |c: char| c.is_alphanumeric() || c == '_';
     let mut chars = spelling.chars();
@@ -146,8 +147,12 @@ fn fits(shape: &Shape, spelling: &str) -> bool {
         Shape::Bare(Class::Symbol) => {
             chars.next().is_some_and(crate::is_symbol) && chars.next().is_none()
         }
-        Shape::Delimited(_) | Shape::Bare(Class::Word) | Shape::OneOf(_) => {
+        Shape::Bare(Class::Word) | Shape::OneOf(_) => {
             !spelling.is_empty() && spelling.chars().all(word)
+        }
+        Shape::Delimited(_) => {
+            !spelling.is_empty()
+                && spelling.chars().all(|c| word(c) || c == '-')
         }
     }
 }
