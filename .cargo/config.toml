@@ -21,8 +21,10 @@ rustflags = [
 ]
 
 [target.aarch64-pc-windows-msvc]
-linker = "rust-lld.exe"
 rustflags = [
+  "-Zunstable-options",
+  "-Clink-self-contained=+linker",
+  "-Clinker-features=+lld",
   "-Zshare-generics=y",
   "-Zthreads=0",
 ]
@@ -54,8 +56,10 @@ rustflags = [
 ]
 
 [target.x86_64-pc-windows-msvc]
-linker = "rust-lld.exe"
 rustflags = [
+  "-Zunstable-options",
+  "-Clink-self-contained=+linker",
+  "-Clinker-features=+lld",
   "-Zshare-generics=y",
   "-Zthreads=0",
 ]
