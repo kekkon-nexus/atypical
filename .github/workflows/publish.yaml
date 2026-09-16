@@ -68,8 +68,6 @@ jobs:
       - uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.target }}
-      - if: runner.os == 'macOS'
-        run: brew install lld
       - uses: taiki-e/upload-rust-binary-action@v1
         id: build
         with:
