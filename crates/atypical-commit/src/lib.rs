@@ -724,7 +724,8 @@ fn enclosures<'i>(
             // `choice` tries each.
             let shared = after.iter().any(|open| Some(*open) == next);
             let matched = if shared {
-                i.parse(parsers.or_not())?
+                // `or_not` recovers the inner failure, so it never errors.
+                i.parse(parsers.or_not()).unwrap_or(None)
             } else {
                 Some(i.parse(parsers)?)
             };
