@@ -204,7 +204,8 @@ fn resolve_into(
 fn locate(dir: &Path, base: &str) -> Result<PathBuf, Error> {
     match base.split_once(':') {
         Some((scheme, spec))
-            if scheme.chars().all(|c| c.is_ascii_lowercase()) =>
+            if scheme.len() > 1
+                && scheme.chars().all(|c| c.is_ascii_lowercase()) =>
         {
             match scheme {
                 "npm" => resolve_package(dir, base, spec),

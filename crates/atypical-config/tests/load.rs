@@ -722,6 +722,27 @@ fn extends_dot_relative_path_loads() {
 }
 
 #[test]
+fn extends_a_prefix_under_two_chars_is_a_file() {
+    let root = tree("extends-short-prefix");
+    let file = root.join(atypical_config::FILE_NAME);
+
+    for (base, name) in [(":empty.toml", "empty"), ("c:drive.toml", "drive")] {
+        std::fs::write(
+            root.join(base),
+            format!("[commit]\nname = \"{name}\"\n"),
+        )
+        .unwrap();
+        std::fs::write(&file, format!("extends = \"{base}\"\n")).unwrap();
+
+        assert_eq!(
+            atypical_config::load::<Section>(&file, "commit").unwrap(),
+            Some(Section { name: name.into() }),
+            "{base}"
+        );
+    }
+}
+
+#[test]
 fn extends_unknown_scheme_is_rejected() {
     let root = tree("extends-scheme");
     let file = root.join(atypical_config::FILE_NAME);
