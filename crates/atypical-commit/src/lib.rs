@@ -846,7 +846,8 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
 
             // An opener commits an optional slot, as within a run of
             // enclosures, so a bad value errors instead of backtracking
-            // into the description.
+            // into the description. An opener another slot shares is no
+            // such promise: the value may yet be that slot's.
             let checkpoint = i.save();
 
             if spaced && i.peek() == Some(' ') {
@@ -854,10 +855,12 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             }
 
             let next = i.peek();
-            let opened = forms(slot).iter().any(|form| {
-                matches!(form.shape, Shape::Delimited([open, _])
-                    if Some(open) == next)
-            });
+            let shared = openers.iter().filter(|open| Some(**open) == next);
+            let opened = shared.count() == 1
+                && forms(slot).iter().any(|form| {
+                    matches!(form.shape, Shape::Delimited([open, _])
+                        if Some(open) == next)
+                });
 
             i.rewind(checkpoint);
 
