@@ -890,6 +890,92 @@ fn options_that_start_alike_are_rejected() {
 }
 
 #[test]
+fn a_description_may_not_start_with_whitespace() {
+    // The separator's one space is stripped; a second would otherwise
+    // fall into the description and pass, the gap fail-open one space
+    // wider.
+    let conv = preset("conventional.toml");
+
+    assert!(!errors(&conv, "feat:  x").is_empty());
+    assert!(errors(&conv, "feat: x").is_empty());
+
+    let gap = load(
+        "whitespace-gap.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "intention"
+            kind = "symbols"
+            values = ["✨"]
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            values = ["auth"]
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+        "#},
+    );
+
+    assert!(!errors(&gap, "✨  (bogus): Add").is_empty());
+    assert!(!errors(&gap, "✨  Add").is_empty());
+    assert!(errors(&gap, "✨ (auth): Add").is_empty());
+}
+
+#[test]
+fn an_unrestricted_enclosure_may_not_be_empty() {
+    let conv = preset("conventional.toml");
+
+    assert!(!errors(&conv, "feat(): x").is_empty());
+    assert!(errors(&conv, "feat(scope): x").is_empty());
+}
+
+#[test]
+fn a_symbol_slot_before_the_keyword_is_not_the_separator() {
+    // `modifiers` must stop on the real separator, not on the first
+    // `symbol` slot in the grammar.
+    let config = load(
+        "marker.toml",
+        indoc::indoc! {r##"
+            [[commit.slots]]
+            name = "marker"
+            kind = "symbol"
+            values = ["#"]
+
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+
+            [[commit.slots]]
+            name = "modifiers"
+            kind = "symbols"
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+        "##},
+    );
+
+    assert!(
+        errors(&config, "#feat!: x").is_empty(),
+        "{:?}",
+        errors(&config, "#feat!: x")
+    );
+    assert!(
+        errors(&config, "#feat: x").is_empty(),
+        "{:?}",
+        errors(&config, "#feat: x")
+    );
+}
+
+#[test]
 fn presets_are_reachable_through_extends() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     let preset = Path::new(env!("CARGO_MANIFEST_DIR"))
