@@ -7,7 +7,8 @@
 
 use std::path::{Path, PathBuf};
 
-use oxc_resolver::{ResolveError, ResolveOptions, Resolver};
+pub use oxc_resolver::ResolveError;
+use oxc_resolver::{ResolveOptions, Resolver};
 use serde::de::DeserializeOwned;
 
 pub const FILE_NAME: &str = "atypical.toml";
