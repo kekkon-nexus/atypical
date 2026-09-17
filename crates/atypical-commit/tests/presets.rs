@@ -503,6 +503,7 @@ fn every_enclosure_in_a_row_is_reachable() {
             values: anything(),
             required: false,
             gap: false,
+            tight: false,
         },
     );
 
@@ -871,6 +872,7 @@ fn options_that_start_alike_are_rejected() {
         )),
         required: false,
         gap: false,
+        tight: false,
     };
 
     slots[keywords].kind = None;
@@ -986,6 +988,8 @@ fn gitmoji_preset() {
         ":bug: (auth): Fix a bug",
         ":t-rex: Add old code", // hyphen in a delimited shortcode
         "⚡️ Improve performance",
+        "✨: Add a feature",
+        ":sparkles:: Add a feature",
     ] {
         assert!(errors(&config, header).is_empty(), "{header:?}");
     }
@@ -995,6 +999,8 @@ fn gitmoji_preset() {
         "✨:bug: both forms", // both forms
         ":bogus: unknown shortcode",
         "✨ (): empty scope",
+        "✨(auth): Add a feature",
+        "✨  Add a feature",
     ] {
         assert!(!errors(&config, header).is_empty(), "{header:?}");
     }
@@ -1053,6 +1059,60 @@ fn gitmoji_layers_onto_conventional() {
     // required in front of it.
     assert!(!errors(&config, "✨ nope: unknown keyword").is_empty());
     assert!(!errors(&config, "feat(api): no emoji").is_empty());
+    // `keywords` still owes the emoji's space, so the colon cannot attach.
+    assert!(!errors(&config, "✨: feat x").is_empty());
+}
+
+const TIGHT: &str = indoc::indoc! {r#"
+    [[commit.slots]]
+    name = "keywords"
+    kind = "word"
+    required = true
+    gap = true
+
+    [[commit.slots]]
+    name = "scope"
+    delimiters = ["(", ")"]
+    tight = true
+
+    [[commit.slots]]
+    name = "separator"
+    kind = "symbol"
+    values = [":"]
+    required = true
+    tight = true
+"#};
+
+#[test]
+fn a_tight_slot_attaches_and_passes_the_gap_on() {
+    let config = load("tight.toml", TIGHT);
+
+    check(
+        &config,
+        &[
+            ("add: x", Ok(())),
+            ("add(api): x", Ok(())),
+            ("add (api): x", Err((3..4, "found ' ' expected ':'"))),
+            ("add : x", Err((3..4, "found ' ' expected ':'"))),
+        ],
+    );
+}
+
+#[test]
+fn a_required_tight_enclosure_is_demanded_without_the_gap() {
+    let mut config = load("tight-required.toml", TIGHT);
+    let slots = config.slots.as_mut().unwrap();
+    let scope = index(slots, "scope");
+
+    slots[scope].required = true;
+
+    check(
+        &config,
+        &[
+            ("add: x", Err((3..3, "expected an opening `(`"))),
+            ("add (api): x", Err((3..3, "expected an opening `(`"))),
+        ],
+    );
 }
 
 #[test]

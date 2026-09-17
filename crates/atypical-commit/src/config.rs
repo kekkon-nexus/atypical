@@ -70,6 +70,10 @@ pub struct SlotConfig {
     pub required: bool,
     #[serde(default)]
     pub gap: bool,
+    /// Attaches to whatever precedes it rather than taking a `gap` owed
+    /// forward, which stays owed to the slot behind it.
+    #[serde(default)]
+    pub tight: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -194,6 +198,7 @@ impl TryFrom<&SlotConfig> for Slot {
             values: slot.values.as_ref().map_or(Values::Any, Values::from),
             required: slot.required,
             gap: slot.gap,
+            tight: slot.tight,
         })
     }
 }
@@ -211,6 +216,7 @@ fn option(option: &SlotConfig) -> Result<Slot, Invalid> {
     let key = [
         (option.required, "required"),
         (option.gap, "gap"),
+        (option.tight, "tight"),
         (option.one_of.is_some(), "one-of"),
     ]
     .into_iter()
@@ -411,6 +417,7 @@ mod tests {
             (one_of("values = [\"x\"]", ""), "intention", "values"),
             (one_of("", "required = true"), "emoji", "required"),
             (one_of("", "gap = true"), "emoji", "gap"),
+            (one_of("", "tight = true"), "emoji", "tight"),
         ] {
             let config: CommitConfig = toml::from_str(&toml).unwrap();
 

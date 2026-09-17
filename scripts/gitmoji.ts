@@ -63,6 +63,7 @@ delimiters = ["(", ")"]
 
 [[commit.slots]]
 name = "separator"
+tight = true
 kind = "symbol"
 values = [":"]
 `,
