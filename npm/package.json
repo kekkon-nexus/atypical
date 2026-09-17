@@ -29,13 +29,19 @@
     "commit-lint": "bin/commit-lint.js"
   },
   "files": [
-    "bin/commit-lint.js"
+    "bin/commit-lint.js",
+    "presets/"
   ],
   "type": "module",
+  "exports": {
+    "./*": "./presets/*.toml",
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
+    "prepack": "bun scripts/prepack.ts",
     "prepublishOnly": "bun scripts/prepublish.ts"
   },
   "optionalDependencies": {},

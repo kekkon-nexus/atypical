@@ -13,6 +13,12 @@ to run, it exits 127.
 npm i -D @atypical/commit
 ```
 
+The presets ship too, by name, for a config to extend:
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+```
+
 Usage, exit codes, configuration, and presets are in the
 [crate README](https://github.com/kekkon-nexus/atypical/tree/main/crates/atypical-commit#readme).
 
