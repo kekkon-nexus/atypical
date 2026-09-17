@@ -432,6 +432,23 @@ fn empty_commit_message_in_range_fails() {
 }
 
 #[test]
+fn range_lints_a_header_that_starts_with_a_hash() {
+    let dir =
+        repo("range-hash-header", &["add(exe)[int]: one", "#99 fix: two"]);
+    let root = rev(&dir, "HEAD~1");
+
+    let output = lint_in(&dir, &["--from", &root], None);
+    let stderr = stderr(&output);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(!stderr.contains("no commit message to lint."), "{stderr}");
+    assert!(
+        stderr.contains("Failed to parse commit message"),
+        "{stderr}"
+    );
+}
+
+#[test]
 fn range_without_merge_base_fails() {
     let dir = repo("range-unrelated", &["add(exe)[int]: one"]);
 

@@ -67,7 +67,8 @@ Each is pinned by tests; change a test only on purpose.
 
 - Exit codes: `Exit` and `after_help` in `main.rs` (`tests/cli.rs`).
 - The header is the first line neither blank nor a `#` comment; CRLF is
-  tolerated (`message_header`).
+  tolerated (`message_header`). In a range the message is already
+  cleaned, so the header is its first line (`recorded_header`).
 - No `[commit]` section lints nothing, and a range then never runs git.
   A section without `slots` lowers to `Tokens::default()`. Unknown keys
   are rejected, the removed fixed-layout keys included, with no

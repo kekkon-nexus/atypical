@@ -100,6 +100,16 @@ fn message_header(input: &str) -> Option<(usize, &str)> {
     None
 }
 
+/// A recorded message is already cleaned up, so its first line is the
+/// header even when it starts with `#`.
+fn recorded_header(message: &str) -> Option<(usize, &str)> {
+    message
+        .lines()
+        .next()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| (0, line))
+}
+
 fn header_parser<'i>(
     tokens: &atypical_commit::Tokens,
 ) -> Result<
@@ -151,6 +161,7 @@ fn report<'i>(
 /// giving the verdict for all of them.
 fn lint(
     messages: &[(String, String)],
+    header_of: fn(&str) -> Option<(usize, &str)>,
     config: &CommitConfig,
     to: &mut impl Write,
 ) -> Result<Exit> {
@@ -161,7 +172,7 @@ fn lint(
     let mut failed = false;
 
     for (name, message) in messages {
-        let Some((offset, header)) = message_header(message) else {
+        let Some((offset, header)) = header_of(message) else {
             writeln!(to, "{name}: no commit message to lint.")?;
             failed = true;
             continue;
@@ -195,7 +206,12 @@ fn main() -> Result<Exit> {
 
         let commits = range::commits(args.from.as_deref(), args.to.as_deref())?;
 
-        return lint(&commits, &config, &mut std::io::stderr());
+        return lint(
+            &commits,
+            recorded_header,
+            &config,
+            &mut std::io::stderr(),
+        );
     }
 
     let Some(input) = args.input else {
@@ -215,7 +231,12 @@ fn main() -> Result<Exit> {
         return Ok(Exit::Success);
     };
 
-    lint(&[(filename, contents)], &config, &mut std::io::stderr())
+    lint(
+        &[(filename, contents)],
+        message_header,
+        &config,
+        &mut std::io::stderr(),
+    )
 }
 
 #[cfg(test)]
@@ -240,7 +261,7 @@ mod tests {
             let messages = [("msg".to_owned(), message.to_owned())];
 
             assert!(
-                lint(&messages, &config, &mut full).is_err(),
+                lint(&messages, message_header, &config, &mut full).is_err(),
                 "wrote {message:?} anyway"
             );
         }
