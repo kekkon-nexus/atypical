@@ -1116,6 +1116,40 @@ fn a_required_tight_enclosure_is_demanded_without_the_gap() {
 }
 
 #[test]
+fn a_tight_enclosure_is_not_skipped_for_a_spaced_one() {
+    let config = load(
+        "tight-skipped.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            required = true
+            tight = true
+
+            [[commit.slots]]
+            name = "reason"
+            delimiters = ["[", "]"]
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+            tight = true
+        "#},
+    );
+
+    assert!(errors(&config, "add(api) [int]: x").is_empty());
+    assert!(!errors(&config, "add [int]: x").is_empty());
+}
+
+#[test]
 fn presets_are_reachable_through_extends() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     let preset = Path::new(env!("CARGO_MANIFEST_DIR"))
