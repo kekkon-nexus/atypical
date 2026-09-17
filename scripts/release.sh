@@ -7,7 +7,7 @@ major | minor | patch | alpha | beta | rc | release) cargo set-version --workspa
 *) cargo set-version --workspace "$1" ;;
 esac
 
-V=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+V=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[] | select(.name == "atypical-commit") | .version')
 npm --prefix npm version "$V" --no-git-tag-version --allow-same-version
 
 # git commit -am "release: v$V"
