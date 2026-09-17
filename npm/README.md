@@ -13,10 +13,10 @@ to run, it exits 127.
 npm i -D @atypical/commit
 ```
 
-The presets ship under `presets/`, for a config to extend:
+The presets ship too, by name, for a config to extend:
 
 ```toml
-extends = "npm:@atypical/commit/presets/conventional.toml"
+extends = "npm:@atypical/commit/conventional"
 ```
 
 Usage, exit codes, configuration, and presets are in the
