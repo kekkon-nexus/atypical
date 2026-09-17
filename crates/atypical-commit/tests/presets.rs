@@ -1074,6 +1074,44 @@ fn presets_are_reachable_through_extends() {
 }
 
 #[test]
+fn presets_are_reachable_through_the_npm_package() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("npm-presets");
+    let package = dir.join("node_modules/@atypical/commit");
+    let file = dir.join("atypical.toml");
+
+    std::fs::create_dir_all(package.join("presets")).unwrap();
+    std::fs::copy(root.join("npm/package.json"), package.join("package.json"))
+        .unwrap();
+
+    for name in ["conventional.toml", "gitmoji.toml"] {
+        std::fs::copy(
+            root.join("presets").join(name),
+            package.join("presets").join(name),
+        )
+        .unwrap();
+    }
+
+    std::fs::write(
+        &file,
+        indoc::indoc! {"
+            extends = [
+              'npm:@atypical/commit/presets/conventional.toml',
+              'npm:@atypical/commit/presets/gitmoji.toml',
+            ]
+        "},
+    )
+    .unwrap();
+
+    let config: CommitConfig = atypical_config::load(&file, config::SECTION)
+        .unwrap()
+        .unwrap();
+
+    assert!(errors(&config, "✨ feat(api): add an endpoint").is_empty());
+    assert!(!errors(&config, "feat(api): no emoji").is_empty());
+}
+
+#[test]
 fn a_preset_slot_is_narrowed_without_restating_the_rest() {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"));
     let preset = Path::new(env!("CARGO_MANIFEST_DIR"))
