@@ -33,6 +33,10 @@
     "presets/"
   ],
   "type": "module",
+  "exports": {
+    "./*": "./presets/*.toml",
+    "./package.json": "./package.json"
+  },
   "publishConfig": {
     "access": "public"
   },

@@ -1096,8 +1096,8 @@ fn presets_are_reachable_through_the_npm_package() {
         &file,
         indoc::indoc! {"
             extends = [
-              'npm:@atypical/commit/presets/conventional.toml',
-              'npm:@atypical/commit/presets/gitmoji.toml',
+              'npm:@atypical/commit/conventional',
+              'npm:@atypical/commit/gitmoji',
             ]
         "},
     )
