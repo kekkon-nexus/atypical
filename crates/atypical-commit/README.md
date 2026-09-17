@@ -139,8 +139,14 @@ holds `standard.toml`
 ([Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)),
 and `gitmoji.toml`
 ([Gitmoji](https://gitmoji.dev/specification)), which accepts a unicode
-emoji or a `:shortcode:` intention. They cannot be referenced remotely
-yet: copy one in, or vendor the repository.
+emoji or a `:shortcode:` intention. The npm package ships them, so
+after `npm i -D @atypical/commit` a config extends one directly:
+
+```toml
+extends = "npm:@atypical/commit/presets/conventional.toml"
+```
+
+Without npm, copy one in.
 
 `gitmoji.toml` stands alone or layers onto another preset:
 `extends = ["./conventional.toml", "./gitmoji.toml"]` requires an emoji in
