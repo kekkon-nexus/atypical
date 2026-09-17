@@ -891,13 +891,22 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             }
 
             // A `symbols` run stops for the separator that follows it,
-            // which is the nearest `symbol` slot after this one, not the
-            // first in the grammar.
-            let separator = rest
-                .iter()
-                .skip(1)
-                .find(|slot| slot.shape == Shape::Bare(Class::Symbol))
-                .map(|slot| slot.values.clone());
+            // which is the nearest slot after this one with a `symbol`
+            // form, not the first in the grammar, and stops for every
+            // such form it has.
+            let separator = rest.iter().skip(1).find_map(|slot| {
+                forms(slot)
+                    .iter()
+                    .filter(|form| form.shape == Shape::Bare(Class::Symbol))
+                    .map(|form| form.values.clone())
+                    .reduce(|values, other| match (values, other) {
+                        (Values::Set(mut set), Values::Set(other)) => {
+                            set.extend(other);
+                            Values::Set(set)
+                        }
+                        _ => Values::Any,
+                    })
+            });
             let mut parser = single(slot, &separator, &openers);
 
             if spaced {
