@@ -20,7 +20,7 @@
     "oxfmt": "0.68.0",
     "oxlint": "1.83.0",
     "oxlint-tsgolint": "^7.0.2001",
-    "tombi": "1.5.4",
+    "tombi": "1.5.5",
     "typescript": "^7.0.2",
     "v8r": "6.1.0"
   }
