@@ -26,8 +26,6 @@ indoc = "2"
 oxc_resolver = "11.24"
 semver = { version = "1.0", default-features = false }
 serde = { version = "1.0", default-features = false }
-serde_json = { version = "1.0", default-features = false }
 toml = { version = "1.1", default-features = false }
-ureq = { version = "3.1", default-features = false, features = ["rustls"] }
 
 atypical-config = { version = "0.4", path = "crates/atypical-config" }

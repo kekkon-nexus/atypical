@@ -13,8 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions-rust-lang/setup-rust-toolchain@v2
-      - uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
-      - run: cargo nextest run -p atypical-commit --all-features --locked --run-ignored ignored-only
+      - uses: oven-sh/setup-bun@v2
+      - run: bun scripts/gitmoji.ts
+      - run: git diff --exit-code presets/gitmoji.toml
