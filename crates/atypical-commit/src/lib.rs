@@ -764,6 +764,23 @@ fn enclosures<'i>(
             let outside = count(&mut openers.iter().copied())
                 - count(&mut run.iter().map(|([open, _], _)| *open));
             let shared = outside > 0;
+            // Whichever slot the opener turns out to name, one before it
+            // that is required is skipped, and saying so here beats
+            // reading the enclosure first: a deeper error wins the merge.
+            let candidate = run[index..]
+                .iter()
+                .position(|([open, _], _)| Some(*open) == next)
+                .unwrap_or(0);
+            let ahead = run[index..index + candidate]
+                .iter()
+                .find(|(_, slot)| slot.required);
+
+            if let (false, Some((delimiters, _))) = (shared, ahead) {
+                let message = opening(*delimiters, spaced);
+
+                return Err(Rich::custom(i.span_since(&before), message));
+            }
+
             let matched = if shared {
                 // `or_not` recovers the inner failure, so it never errors.
                 i.parse(parsers.or_not()).unwrap_or(None)

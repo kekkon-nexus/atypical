@@ -536,6 +536,82 @@ fn a_required_enclosure_is_demanded() {
 }
 
 #[test]
+fn a_skipped_required_enclosure_is_named_behind_a_gap() {
+    let config = load(
+        "trace-skipped.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            required = true
+
+            [[commit.slots]]
+            name = "reason"
+            delimiters = ["[", "]"]
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+        "#},
+    );
+
+    check(
+        &config,
+        &[
+            ("add (api): x", Ok(())),
+            ("add (api)[int]: x", Ok(())),
+            ("add [int]: x", Err((3..4, "expected an opening ` (`"))),
+            ("add[int]: x", Err((3..3, "expected an opening ` (`"))),
+        ],
+    );
+}
+
+#[test]
+fn a_shared_opener_still_demands_a_required_enclosure() {
+    let config = load(
+        "skipped-shared.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            required = true
+
+            [[commit.slots]]
+            name = "reason"
+            delimiters = ["[", "]"]
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+
+            [[commit.slots]]
+            name = "note"
+            delimiters = ["[", "}"]
+        "#},
+    );
+
+    assert!(errors(&config, "add(api)[int]: x").is_empty());
+    // Rejected, though the enclosure is read first, so the skip's
+    // message loses the merge to a deeper one.
+    assert!(!errors(&config, "add[int]: x").is_empty());
+}
+
+#[test]
 fn a_required_enclosure_is_demanded_with_its_gap() {
     let mut slots = slots("standard.toml");
     let scope = index(&slots, "scope");
