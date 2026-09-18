@@ -60,7 +60,8 @@ pub enum Shape {
     Delimited(DelimitedBy),
     Bare(Class),
     /// Exactly one of these options, each named and shaped as a slot of
-    /// its own. Whether it is required or has a gap is the outer slot's.
+    /// its own. Whether it is required, has a gap or is tight is the
+    /// outer slot's.
     OneOf(Vec<Slot>),
 }
 
@@ -79,9 +80,13 @@ pub struct Slot {
     pub shape: Shape,
     pub values: Values,
     pub required: bool,
-    /// One space after the slot, owed by whichever slot comes next and
-    /// is present. With none, the description's own space serves.
+    /// One space after the slot, owed by whichever slot comes next, is
+    /// present and takes it. With none, the description's own space
+    /// serves.
     pub gap: bool,
+    /// Attaches to whatever precedes it: never takes an owed space,
+    /// and passes the debt on to the slot behind it.
+    pub tight: bool,
 }
 
 /// The header grammar: its slots, in header order.
@@ -102,6 +107,7 @@ impl Default for Tokens {
             values: Values::Any,
             required,
             gap: false,
+            tight: false,
         };
 
         Self {
@@ -204,6 +210,7 @@ fn ambiguity(slots: &[Slot]) -> Option<Ambiguous> {
             .iter()
             .take_while(|_| slot.gap)
             .take_while(|next| !next.required)
+            .filter(|next| !next.tight)
             .find(|next| forms(next).iter().any(prose));
 
         if let Some(next) = landing {
@@ -719,10 +726,16 @@ fn enclosures<'i>(
             }
 
             let next = i.peek();
-            let is_open = gapped == spaced
-                && run[index..]
-                    .iter()
-                    .any(|([open, _], _)| Some(*open) == next);
+            let eligible = |slot: &Slot| {
+                if slot.tight {
+                    !gapped
+                } else {
+                    gapped == spaced
+                }
+            };
+            let is_open = run[index..]
+                .iter()
+                .any(|([open, _], slot)| Some(*open) == next && eligible(slot));
 
             if !is_open {
                 i.rewind(checkpoint);
@@ -732,6 +745,7 @@ fn enclosures<'i>(
             let parsers = choice(
                 run[index..]
                     .iter()
+                    .filter(|(_, slot)| eligible(slot))
                     .map(|(delimiters, slot)| enclosure(*delimiters, slot))
                     .collect::<Vec<_>>(),
             );
@@ -771,8 +785,8 @@ fn enclosures<'i>(
                 .iter()
                 .find(|(_, slot)| slot.required);
 
-            if let Some((delimiters, _)) = skipped {
-                let message = opening(*delimiters, spaced);
+            if let Some((delimiters, slot)) = skipped {
+                let message = opening(*delimiters, spaced && !slot.tight);
 
                 return Err(Rich::custom(i.span_since(&before), message));
             }
@@ -784,15 +798,15 @@ fn enclosures<'i>(
                 value,
                 span,
             });
-            spaced = slot.gap;
+            spaced = slot.gap || (slot.tight && spaced);
             index += position + 1;
         }
 
-        if let Some((delimiters, _)) =
+        if let Some((delimiters, slot)) =
             run[index..].iter().find(|(_, slot)| slot.required)
         {
             let here = i.cursor();
-            let message = opening(*delimiters, spaced);
+            let message = opening(*delimiters, spaced && !slot.tight);
 
             return Err(Rich::custom(i.span_since(&here), message));
         }
@@ -922,8 +936,9 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                     }
                 });
             let mut parser = single(slot, &separator, &openers);
+            let owed = spaced && !slot.tight;
 
-            if spaced {
+            if owed {
                 parser = just(' ').ignore_then(parser).boxed();
             }
 
@@ -933,7 +948,7 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
             // such promise: the value may yet be that slot's.
             let checkpoint = i.save();
 
-            if spaced && i.peek() == Some(' ') {
+            if owed && i.peek() == Some(' ') {
                 i.next();
             }
 
@@ -960,7 +975,7 @@ pub fn prefix<'i>() -> impl Parser<'i, &'i str, Prefix<'i>, Extra<'i>> {
                     value,
                     span,
                 });
-                spaced = slot.gap;
+                spaced = slot.gap || (slot.tight && spaced);
             }
 
             rest = &rest[1..];
@@ -990,6 +1005,7 @@ mod tests {
             values,
             required: false,
             gap: false,
+            tight: false,
         }
     }
 

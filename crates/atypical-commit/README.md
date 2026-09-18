@@ -64,6 +64,7 @@ header order:
 | `values`     | `"any"` (default), or a list of accepted spellings |
 | `required`   | `false` (default), or `true`                       |
 | `gap`        | `false` (default), or `true` for one space after   |
+| `tight`      | `false` (default), or `true` to never take a `gap` |
 
 A slot has exactly one of `kind`, `delimiters` or `one-of`. A `word` is
 a run of alphanumerics and `_`, `symbols` a run of other visible
@@ -89,8 +90,8 @@ values = [":"]
 required = true
 ```
 
-A `one-of` slot matches exactly one of its options. `required` and
-`gap` stay on the slot; `values` go on each option:
+A `one-of` slot matches exactly one of its options. `required`, `gap`
+and `tight` stay on the slot; `values` go on each option:
 
 ```toml
 [[commit.slots]]
@@ -110,9 +111,11 @@ values = ["sparkles", "bug"]
 ```
 
 A `gap` is taken by the next slot present, or by the description when
-none is. A delimited slot behind a gap is committed to once its opener
-follows the space, so with an optional `(...)` there, a description
-that starts with `(` is read as that slot.
+none is. A `tight` slot attaches to what precedes it and leaves the
+`gap` to the slot after it, which is how gitmoji's `✨: message` and
+`✨ (scope): message` both hold. A delimited slot behind a gap is
+committed to once its opener follows the space, so with an optional
+`(...)` there, a description that starts with `(` is read as that slot.
 
 A section without `slots` still enforces the shape: a word, optional
 `(...)` and `[...]`, optional symbols, a separator symbol, then a space
