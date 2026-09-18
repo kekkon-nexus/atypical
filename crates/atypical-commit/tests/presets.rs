@@ -575,6 +575,47 @@ fn a_skipped_required_enclosure_is_named_behind_a_gap() {
 }
 
 #[test]
+fn a_skipped_tight_enclosure_is_named_without_the_gap() {
+    let config = load(
+        "skipped-tight.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+            gap = true
+
+            [[commit.slots]]
+            name = "scope"
+            delimiters = ["(", ")"]
+            required = true
+            tight = true
+
+            [[commit.slots]]
+            name = "reason"
+            delimiters = ["[", "]"]
+
+            [[commit.slots]]
+            name = "separator"
+            kind = "symbol"
+            values = [":"]
+            required = true
+        "#},
+    );
+
+    // `scope` attaches to the keyword, so the opener it asks for carries
+    // no space, on the skip path as at the end of the run.
+    check(
+        &config,
+        &[
+            ("add(api) [int]: x", Ok(())),
+            ("add [int]: x", Err((3..4, "expected an opening `(`"))),
+            ("add[int]: x", Err((3..3, "expected an opening `(`"))),
+        ],
+    );
+}
+
+#[test]
 fn a_shared_opener_still_demands_a_required_enclosure() {
     let config = load(
         "skipped-shared.toml",

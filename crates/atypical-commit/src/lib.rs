@@ -775,8 +775,8 @@ fn enclosures<'i>(
                 .iter()
                 .find(|(_, slot)| slot.required);
 
-            if let (false, Some((delimiters, _))) = (shared, ahead) {
-                let message = opening(*delimiters, spaced);
+            if let (false, Some((delimiters, slot))) = (shared, ahead) {
+                let message = opening(*delimiters, spaced && !slot.tight);
 
                 return Err(Rich::custom(i.span_since(&before), message));
             }
