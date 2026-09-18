@@ -4,6 +4,7 @@
   "workspaces": {
     "packages": [
       "benches",
+      "docs",
       "npm"
     ],
     "catalogs": {
