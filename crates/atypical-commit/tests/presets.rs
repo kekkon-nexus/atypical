@@ -976,6 +976,47 @@ fn a_symbol_slot_before_the_keyword_is_not_the_separator() {
 }
 
 #[test]
+fn symbols_stop_for_every_option_of_the_separator() {
+    let config = load(
+        "one-of-separator.toml",
+        indoc::indoc! {r#"
+            [[commit.slots]]
+            name = "keywords"
+            kind = "word"
+            required = true
+
+            [[commit.slots]]
+            name = "modifiers"
+            kind = "symbols"
+
+            [[commit.slots]]
+            name = "separator"
+            required = true
+
+            [[commit.slots.one-of]]
+            name = "colon"
+            kind = "symbol"
+            values = [":"]
+
+            [[commit.slots.one-of]]
+            name = "arrow"
+            kind = "symbol"
+            values = [">"]
+        "#},
+    );
+
+    check(
+        &config,
+        &[
+            ("add: x", Ok(())),
+            ("add> x", Ok(())),
+            ("add!: x", Ok(())),
+            ("add!!> x", Ok(())),
+        ],
+    );
+}
+
+#[test]
 fn gitmoji_preset() {
     let config = preset("gitmoji.toml");
 
