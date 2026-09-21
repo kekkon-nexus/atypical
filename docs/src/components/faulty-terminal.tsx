@@ -94,7 +94,6 @@ export default function FaultyTerminal({
     if (!gl) return;
 
     const programInfo = createProgramInfo(gl, [vertex, fragment]);
-    if (!programInfo) return;
     const blockInfo = createUniformBlockInfo(gl, programInfo, uniformBlock);
     const set = (values: Record<string, number | number[]>) =>
       setBlockUniforms(
