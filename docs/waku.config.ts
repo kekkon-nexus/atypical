@@ -2,6 +2,8 @@ import tailwindcss from "@tailwindcss/vite";
 import { fumadocsMdx } from "fumadocs-mdx/vite";
 import { defineConfig } from "waku/config";
 
+import { wgslToGlsl } from "./plugins/wgsl-to-glsl";
+
 export default defineConfig({
   vite: {
     resolve: {
@@ -9,6 +11,6 @@ export default defineConfig({
       dedupe: ["waku"],
     },
 
-    plugins: [tailwindcss(), fumadocsMdx()],
+    plugins: [wgslToGlsl(), tailwindcss(), fumadocsMdx()],
   },
 });

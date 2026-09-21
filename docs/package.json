@@ -15,11 +15,11 @@
     "fumadocs-mdx": "15.4.1",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.15.11",
     "lucide-react": "^1.43.0",
-    "ogl": "^1.0.11",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-server-dom-webpack": "^19.2.8",
     "takumi-js": "^2.13.7",
+    "twgl.js": "^7.0.0",
     "waku": "1.0.0-rc.0"
   },
   "devDependencies": {
@@ -28,6 +28,7 @@
     "@types/node": "^26.5.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "naga-wasm": "^30.1.0",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.2.2"

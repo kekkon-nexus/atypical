@@ -13,6 +13,7 @@ export default defineConfig({
     extends: [oxlint, vp],
     env: {
       node: true,
+      browser: true,
     },
     options: {
       typeAware: true,
