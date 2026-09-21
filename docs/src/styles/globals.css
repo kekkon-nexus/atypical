@@ -1,12 +1,16 @@
 @import "tailwindcss";
 @import "fumadocs-ui/css/neutral.css";
 @import "fumadocs-ui/css/preset.css";
+@import "./fonts.css";
 
-html {
-  scrollbar-gutter: stable;
+@theme {
+  --font-sans: "InterVariable", "Inter", "SF Pro", Helvetica, Arial, ui-sans-serif, sans-serif;
+  --font-sans--font-feature-settings: "ss04", "ss07", "ss08", "cv01", "tnum";
+  --font-mono: "PaperMono", ui-monospace, "SF Mono", "Roboto Mono", "Cascadia Mono", monospace;
 }
 
-html > body[data-scroll-locked] {
-  margin-right: 0px !important;
-  --removed-body-scroll-bar-size: 0px !important;
+@layer base {
+  html {
+    @apply scrollbar-gutter-stable [&>body[data-scroll-locked]]:mr-0! [&>body[data-scroll-locked]]:[--removed-body-scroll-bar-size:0px]!;
+  }
 }
