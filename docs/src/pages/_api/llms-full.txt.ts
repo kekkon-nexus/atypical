@@ -4,7 +4,7 @@ export async function GET() {
   return new Response(await docsLlms.full());
 }
 
-export async function getConfig() {
+export function getConfig() {
   return {
     render: "static" as const,
   } as const;

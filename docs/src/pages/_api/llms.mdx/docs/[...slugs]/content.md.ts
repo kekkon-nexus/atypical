@@ -18,7 +18,7 @@ export async function GET(
   });
 }
 
-export async function getConfig() {
+export function getConfig() {
   const pages = source
     .generateParams()
     .map((item) => (item.lang ? [item.lang, ...item.slug] : item.slug));

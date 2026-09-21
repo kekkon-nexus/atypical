@@ -7,7 +7,7 @@ import {
   ViewOptionsPopover,
 } from "fumadocs-ui/layouts/docs/page";
 import { createRelativeLink } from "fumadocs-ui/mdx";
-import { PageProps } from "waku/router";
+import { type PageProps } from "waku/router";
 import { unstable_notFound } from "waku/router/server";
 
 import { getMDXComponents } from "@/components/mdx";
@@ -47,7 +47,7 @@ export default function Page({ slugs }: PageProps<"/docs/[...slugs]">) {
   );
 }
 
-export async function getConfig() {
+export function getConfig() {
   const pages = source
     .generateParams()
     .map((item) => (item.lang ? [item.lang, ...item.slug] : item.slug));

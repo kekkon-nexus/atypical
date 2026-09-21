@@ -14,7 +14,7 @@ export default function Home() {
   );
 }
 
-export async function getConfig() {
+export function getConfig() {
   return {
     render: "static",
   };
