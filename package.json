@@ -17,7 +17,7 @@
     "@types/bun": "latest",
     "@types/node": "^26.5.1",
     "lefthook": "2.1.14",
-    "oxfmt": "0.68.0",
+    "oxfmt": "0.70.0",
     "oxlint": "1.83.0",
     "oxlint-tsgolint": "^7.0.2001",
     "tombi": "1.5.5",
