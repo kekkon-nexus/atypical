@@ -1,6 +1,6 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
-  "style": "base-lyra",
+  "style": "base-nova",
   "rsc": true,
   "tsx": true,
   "tailwind": {
@@ -17,5 +17,5 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "iconLibrary": "remix"
+  "iconLibrary": "remixicon"
 }

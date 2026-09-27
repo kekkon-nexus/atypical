@@ -39,6 +39,7 @@
     "test": "bun run --sequential --no-exit-on-error test:*",
     "test:cargo": "cargo nextest run --workspace --all-targets --all-features --locked",
     "test:cargo:doc": "cargo test --doc --workspace --all-features --locked",
+    "docs": "bun --cwd ./docs run dev",
     "build": "cargo build --release -p atypical-commit",
     "bench": "sh benches/latency.sh"
   },
