@@ -21,19 +21,22 @@ export function wgslToGlsl(): Plugin {
           version: "300 es",
           stage,
           entryPoint,
+          reflect: true,
           flags: { adjustCoordinateSpace: false },
         });
-      const vertex = write("vertex", "vs_main");
-      const fragment = write("fragment", "fs_main");
+      const { code: vertex } = write("vertex", "vs_main");
+      const { code: fragment, reflection } = write("fragment", "fs_main");
 
       const block = /uniform (\w+) \{ \w+ (\w+); \};/.exec(fragment);
       if (!block) throw new Error(`${file}: no uniform block in the generated GLSL`);
+      const samplers = Object.keys(reflection.textures);
 
       return [
         `export const vertex = ${JSON.stringify(vertex)};`,
         `export const fragment = ${JSON.stringify(fragment)};`,
         `export const uniformBlock = ${JSON.stringify(block[1])};`,
         `export const uniformStruct = ${JSON.stringify(block[2])};`,
+        `export const samplers = ${JSON.stringify(samplers)};`,
       ].join("\n");
     },
   };

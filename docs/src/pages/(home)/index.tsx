@@ -3,7 +3,7 @@ import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import type { ReactNode } from "react";
 import { Link } from "waku";
 
-import FaultyTerminal from "@/components/faulty-terminal";
+import Dither from "@/components/dither";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -15,16 +15,7 @@ export default function Home() {
     <div className="pt-4 pb-6 md:pb-12">
       <div className="relative flex min-h-150 h-[70vh] max-h-225 border rounded-2xl overflow-hidden mx-auto w-full max-w-350 bg-origin-border">
         <div className="absolute inset-0">
-          <FaultyTerminal
-            scale={1.5}
-            digitSize={1.2}
-            timeScale={0.5}
-            brightness={1 / 3}
-            scanlineIntensity={0.15}
-            glitchAmount={0.1}
-            curvature={0.1}
-            mouseStrength={0.5}
-          />
+          <Dither size={32} shapeScale={1.2} timeScale={0.5} className="opacity-33" />
         </div>
         <div className="flex flex-col z-2 px-4 size-full md:p-12 max-md:items-center max-md:text-center">
           <p className="mt-12 text-xs text-fd-primary font-medium p-2 border rounded-lg border-fd-primary/50 bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs w-fit">
