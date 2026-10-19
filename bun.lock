@@ -5,23 +5,23 @@
     "": {
       "name": "atypical",
       "devDependencies": {
-        "@kekkon-nexus/config": "4.0.1",
-        "@types/bun": "latest",
-        "@types/node": "^26.6.5",
-        "lefthook": "2.2.2",
-        "oxfmt": "0.73.0",
-        "oxlint": "1.88.0",
-        "oxlint-tsgolint": "^7.0.2004",
-        "tombi": "1.8.8",
-        "typescript": "^7.0.2",
-        "v8r": "6.1.0",
+        "@kekkon-nexus/config": "catalog:dev",
+        "@types/bun": "catalog:dev",
+        "@types/node": "catalog:dev",
+        "lefthook": "catalog:dev",
+        "oxfmt": "catalog:dev",
+        "oxlint": "catalog:dev",
+        "oxlint-tsgolint": "catalog:dev",
+        "tombi": "catalog:dev",
+        "typescript": "catalog:dev",
+        "v8r": "catalog:dev",
       },
     },
     "benches": {
       "name": "benches",
       "devDependencies": {
-        "@commitlint/cli": "^21.2.4",
-        "@commitlint/config-conventional": "^21",
+        "@commitlint/cli": "catalog:dev",
+        "@commitlint/config-conventional": "catalog:dev",
       },
     },
     "npm": {
@@ -30,6 +30,22 @@
       "bin": {
         "commit-lint": "bin/commit-lint.js",
       },
+    },
+  },
+  "catalogs": {
+    "dev": {
+      "@commitlint/cli": "^21.2.4",
+      "@commitlint/config-conventional": "^21",
+      "@kekkon-nexus/config": "4.0.1",
+      "@types/bun": "latest",
+      "@types/node": "^26.6.5",
+      "lefthook": "2.2.2",
+      "oxfmt": "0.73.0",
+      "oxlint": "1.88.0",
+      "oxlint-tsgolint": "^7.0.2004",
+      "tombi": "1.8.8",
+      "typescript": "^7.0.2",
+      "v8r": "6.1.0",
     },
   },
   "packages": {

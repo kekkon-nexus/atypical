@@ -3,7 +3,7 @@
   "private": true,
   "description": "commitlint, for the latency head-to-head",
   "devDependencies": {
-    "@commitlint/cli": "^21.2.4",
-    "@commitlint/config-conventional": "^21"
+    "@commitlint/cli": "catalog:dev",
+    "@commitlint/config-conventional": "catalog:dev"
   }
 }
