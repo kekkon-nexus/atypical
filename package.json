@@ -15,12 +15,12 @@
   "devDependencies": {
     "@kekkon-nexus/config": "4.0.1",
     "@types/bun": "latest",
-    "@types/node": "^26.5.1",
-    "lefthook": "2.1.14",
+    "@types/node": "^26.6.5",
+    "lefthook": "2.2.2",
     "oxfmt": "0.73.0",
     "oxlint": "1.88.0",
     "oxlint-tsgolint": "^7.0.2004",
-    "tombi": "1.5.5",
+    "tombi": "1.8.8",
     "typescript": "^7.0.2",
     "v8r": "6.1.0"
   }
