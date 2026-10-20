@@ -18,27 +18,12 @@ command -v hyperfine >/dev/null 2>&1 || {
 bun run build
 [ -x "$BIN" ] || { echo "no binary at $BIN" >&2; exit 2; }
 
-# fixtures: each tool's valid msg (exits 0) + one invalid
+# fixtures: each tool's valid msg (exits 0) + invalid msg (exits 1)
 mkdir -p "$FIX"
 printf 'add(exe)[int]: initial commit linting\n' > "$FIX/atypical-valid.txt"
 printf 'feat[pre](lib): oops\n' > "$FIX/atypical-invalid.txt"
 printf 'feat(api): add thing\n' > "$FIX/conventional-valid.txt"
-
-# machine info
-{
-  echo "# latency"
-  echo
-  echo '```'
-  echo "date   : $(date -u +%FT%TZ)"
-  echo "host   : $(uname -srm)"
-  echo "cpu    : $(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ *//' || uname -p)"
-  echo "rustc  : $(rustc --version 2>/dev/null || echo '?')"
-  echo "binary : $BIN ($(wc -c <"$BIN") bytes)"
-  echo '```'
-  echo
-} >"$OUT"
-
-TMP=$(mktemp)
+printf 'bogus(api): add thing\n' > "$FIX/conventional-invalid.txt"
 
 # commitlint: bun install (benches workspace)
 CL=""
@@ -58,14 +43,36 @@ if [ -n "$CL" ] &&
   CL=""
 fi
 
-# one table. -N: no shell (matches the git hook), -i: tolerate the invalid lane's exit 1
+# machine info
+{
+  echo "# latency"
+  echo
+  echo '```'
+  echo "date   : $(date -u +%FT%TZ)"
+  echo "host   : $(uname -srm)"
+  echo "cpu    : $(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2- | sed 's/^ *//' || uname -p)"
+  echo "rustc  : $(rustc --version 2>/dev/null || echo '?')"
+  echo "binary : $BIN ($(wc -c <"$BIN") bytes)"
+  if [ -n "$CL" ]; then
+    echo "deps   : @commitlint/cli + config-conventional ($(node benches/footprint.mjs benches @commitlint/cli @commitlint/config-conventional))"
+    echo "node   : $(command -v node) ($(wc -c <"$(command -v node)") bytes)"
+  fi
+  echo '```'
+  echo
+} >"$OUT"
+
+TMP=$(mktemp)
+
+# one table. -N: no shell (matches the git hook), -i: tolerate the invalid lanes' exit 1
 set -- \
   --command-name "atypical (valid)" "$BIN -- $FIX/atypical-valid.txt" \
-  --command-name "atypical (invalid)" "$BIN -- $FIX/atypical-invalid.txt" \
+  --command-name "atypical (invalid)" "$BIN -- $FIX/atypical-invalid.txt"
 
 if [ -n "$CL" ]; then
-  set -- "$@" --command-name "commitlint (valid)" \
-    "$CL --config benches/commitlint.config.mjs --edit $FIX/conventional-valid.txt"
+  CLR="$CL --config benches/commitlint.config.mjs --edit"
+  set -- "$@" \
+    --command-name "commitlint (valid)" "$CLR $FIX/conventional-valid.txt" \
+    --command-name "commitlint (invalid)" "$CLR $FIX/conventional-invalid.txt"
 else
   echo ">> skipping commitlint  ->  bun install"
 fi
