@@ -78,3 +78,10 @@ export function latestBench(): Bench | undefined {
 
   return numbers.every((number) => Number.isFinite(number)) ? bench : undefined;
 }
+
+/** Rounds down to the leading digit: 512 becomes 500, 8.3 becomes 8. */
+export const floorLeading = (n: number) => {
+  const magnitude = 10 ** Math.floor(Math.log10(n));
+
+  return Math.floor(n / magnitude) * magnitude;
+};

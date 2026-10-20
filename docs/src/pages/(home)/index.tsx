@@ -7,7 +7,7 @@ import { BenchRace } from "@/components/bench-race";
 import Dither from "@/components/dither";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { latestBench } from "@/lib/bench";
+import { floorLeading, latestBench } from "@/lib/bench";
 import { appName } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
@@ -78,7 +78,10 @@ required = true`}
         </Feature>
         {bench && (
           <>
-            <SectionHeading>Faster. Smaller.</SectionHeading>
+            <SectionHeading>
+              +{floorLeading(bench.speedup)}× faster. {floorLeading(bench.size.commitlint / bench.size.atypical)}×
+              smaller.
+            </SectionHeading>
             <Card className="col-span-full p-6">
               <BenchRace bench={bench} />
             </Card>
