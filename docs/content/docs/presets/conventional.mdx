@@ -1,0 +1,34 @@
+---
+title: Conventional Commits
+description: type, scope and breaking-change marker.
+---
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+```
+
+| Slot        | Shape     | Values                                                                                 | Required |
+| ----------- | --------- | -------------------------------------------------------------------------------------- | -------- |
+| `keywords`  | `word`    | `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test` | yes |
+| `scope`     | `( )`     | anything                                                                               | no       |
+| `modifiers` | `symbols` | `!`                                                                                    | no       |
+| `separator` | `symbol`  | `:`                                                                                    | yes      |
+
+The types are those of
+[`@commitlint/config-conventional`](https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional).
+
+## Examples
+
+| Header                            | Result                                 |
+| --------------------------------- | -------------------------------------- |
+| `feat: an endpoint`               | Valid                                  |
+| `fix(parser): handle empty input` | Valid                                  |
+| `feat(api)!: drop the v1 routes`  | Valid                                  |
+| `feat(a b): spaced scope`         | Valid                                  |
+| `revert: feat: an endpoint`       | Valid                                  |
+| `feat!(api): x`                   | Invalid: `!` goes after the scope      |
+| `feat[api]: x`                    | Invalid: the scope takes parentheses   |
+| `feat!!: x`                       | Invalid: one `!` only                  |
+| `feat(): x`                       | Invalid: an empty scope                |
+
+`BREAKING CHANGE:` footers are not checked, since only the header is.

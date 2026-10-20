@@ -1,0 +1,72 @@
+---
+title: Customizing
+description: Recipes for changing a preset without copying it.
+---
+
+Override a preset by naming its slots in your own file. Only the
+fields you write change; see [Merging](/docs/configuration/merging).
+
+## Narrow the keywords
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "keywords"
+values = ["feat", "fix", "docs"]
+```
+
+`docs: x` and `feat(api)!: x` pass. `chore: x` fails with
+``` `chore` is not in `keywords`, expected one of: docs, feat, fix ```.
+
+## Require a scope
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "scope"
+required = true
+```
+
+## Restrict the scope
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "scope"
+values = ["api", "cli", "docs"]
+```
+
+## Add a ticket
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "ticket"
+delimiters = ["[", "]"]
+before = "separator"
+```
+
+`feat(api)![ABC-12]: x` now passes. The ticket takes anything but its own brackets.
+
+## Drop a slot
+
+```toml
+extends = "npm:@atypical/commit/standard"
+
+[[commit.slots]]
+name = "reason"
+drop = true
+```
+
+## Turn off the default ignores
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[commit]
+default-ignores = false
+```
