@@ -1,4 +1,5 @@
 import oxlint from "@kekkon-nexus/config/oxlint";
+import jsdoc from "@kekkon-nexus/config/oxlint/base/jsdoc";
 import { defineConfig } from "oxlint";
 
 export default defineConfig({
@@ -10,4 +11,10 @@ export default defineConfig({
     typeAware: true,
     typeCheck: true,
   },
+  overrides: [
+    {
+      files: ["*.js"],
+      ...jsdoc,
+    },
+  ],
 });
