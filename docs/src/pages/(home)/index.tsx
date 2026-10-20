@@ -103,16 +103,29 @@ export default function Home() {
                 {
                   value: "npm",
                   label: "npm",
-                  panel: <ServerCodeBlock code="npm i -D @atypical/commit" lang="bash" />,
+                  panel: (
+                    <ServerCodeBlock
+                      code="npm i -D @atypical/commit"
+                      lang="bash"
+                    />
+                  ),
                 },
                 {
                   value: "cargo",
                   label: "cargo",
-                  panel: <ServerCodeBlock code="cargo install atypical-commit" lang="bash" />,
+                  panel: (
+                    <ServerCodeBlock
+                      code="cargo install atypical-commit"
+                      lang="bash"
+                    />
+                  ),
                 },
               ]}
             />
-            <Link to="/docs" className="mt-6 w-fit font-medium text-fd-primary underline underline-offset-4">
+            <Link
+              to="/docs"
+              className="mt-6 w-fit font-medium text-fd-primary underline underline-offset-4"
+            >
               Then read the docs →
             </Link>
           </div>
@@ -159,7 +172,10 @@ export default function Home() {
             </>
           }
         >
-          <ServerCodeBlock code={`extends = "npm:@atypical/commit/standard"`} lang="toml" />
+          <ServerCodeBlock
+            code={`extends = "npm:@atypical/commit/standard"`}
+            lang="toml"
+          />
         </Feature>
         <Feature
           icon={<RiBracesLine />}
@@ -200,7 +216,10 @@ required = true`}
                   </div>
                   <ul className="flex flex-col gap-2 font-mono text-sm">
                     {headers.map(([header, valid]) => (
-                      <li key={header} className="flex flex-row items-center gap-2">
+                      <li
+                        key={header}
+                        className="flex flex-row items-center gap-2"
+                      >
                         {valid ? (
                           <RiCheckLine
                             className="size-4 shrink-0 text-fd-primary"
@@ -238,7 +257,10 @@ required = true`}
           title="Or the whole range."
           description="Lint every commit a pull request brings in."
         >
-          <ServerCodeBlock code="npx commit-lint --from origin/main" lang="bash" />
+          <ServerCodeBlock
+            code="npx commit-lint --from origin/main"
+            lang="bash"
+          />
         </Feature>
         <SectionHeading>Lint the history you already have.</SectionHeading>
         <Feature
@@ -275,7 +297,10 @@ npx commit-lint --from origin/main`}
 function Actions() {
   return (
     <div className="flex flex-row items-center gap-4 flex-wrap w-fit">
-      <Link to="/docs" className={cn(buttonVariants({ size: "lg" }))}>
+      <Link
+        to="/docs"
+        className={cn(buttonVariants({ size: "lg" }))}
+      >
         Read docs
       </Link>
       <a

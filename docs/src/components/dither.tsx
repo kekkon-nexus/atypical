@@ -22,10 +22,10 @@ import * as imageShader from "./dither-image.wgsl?glsl";
 import * as patternShader from "./dither-pattern.wgsl?glsl";
 import * as ditherShader from "./dither.wgsl?glsl";
 
-const MODES = { random: 1, "2x2": 2, "4x4": 3, "8x8": 4, halftone: 5 } as const;
+const MODES = { "random": 1, "2x2": 2, "4x4": 3, "8x8": 4, "halftone": 5 } as const;
 const LOAD_DURATION = 2000;
 
-type Settings = {
+interface Settings {
   type: keyof typeof MODES;
   size: number;
   colorSteps: number;
@@ -42,7 +42,7 @@ type Settings = {
   image?: string;
   pause: boolean;
   pageLoadAnimation: boolean;
-};
+}
 
 export type DitherProps = HTMLAttributes<HTMLCanvasElement> & Partial<Settings>;
 
@@ -114,7 +114,13 @@ export default function Dither({
     pageLoadAnimation,
   ]);
 
-  return <canvas ref={canvasRef} className={cn("block size-full", className)} {...rest} />;
+  return (
+    <canvas
+      ref={canvasRef}
+      className={cn("block size-full", className)}
+      {...rest}
+    />
+  );
 }
 
 function createRenderer(canvas: HTMLCanvasElement) {
@@ -141,10 +147,16 @@ function createRenderer(canvas: HTMLCanvasElement) {
   };
   let res: ReturnType<typeof setup> | null = setup();
 
-  const set = (block: UniformBlockInfo, struct: string, values: Record<string, number | number[]>) =>
+  const set = (
+    block: UniformBlockInfo,
+    struct: string,
+    values: Record<string, number | number[]>,
+  ) =>
     setBlockUniforms(
       block,
-      Object.fromEntries(Object.entries(values).map(([name, value]) => [`${struct}.${name}`, value])),
+      Object.fromEntries(
+        Object.entries(values).map(([name, value]) => [`${struct}.${name}`, value]),
+      ),
     );
 
   let settings: Settings | undefined;
@@ -162,37 +174,6 @@ function createRenderer(canvas: HTMLCanvasElement) {
   const dropPicture = () => {
     if (picture) gl.deleteTexture(picture.texture);
     picture = undefined;
-  };
-
-  // The shader reads one texel per cell, so the image is shrunk before it becomes a texture.
-  const loadPicture = (src: string) => {
-    void fetch(src)
-      .then((response) => response.blob())
-      .then(
-        (blob) =>
-          new Compressor(blob, {
-            maxWidth: 1200,
-            maxHeight: 1200,
-            quality: 0.8,
-            success(result) {
-              const url = URL.createObjectURL(result);
-              createTexture(gl, { src: url, minMag: gl.NEAREST, wrap: gl.CLAMP_TO_EDGE }, (error, texture, source) => {
-                URL.revokeObjectURL(url);
-                if (error || settings?.image !== src) {
-                  gl.deleteTexture(texture);
-                  return;
-                }
-                const image = source as HTMLImageElement;
-                dropPicture();
-                picture = { src, texture, aspect: image.naturalWidth / image.naturalHeight };
-                loadStart = undefined;
-                draw();
-                schedule();
-              });
-            },
-          }),
-      )
-      .catch(() => {});
   };
 
   const progress = () => {
@@ -279,6 +260,41 @@ function createRenderer(canvas: HTMLCanvasElement) {
     }
   };
 
+  // The shader reads one texel per cell, so the image is shrunk before it becomes a texture.
+  const loadPicture = (src: string) => {
+    void fetch(src)
+      .then((response) => response.blob())
+      .then(
+        (blob) =>
+          new Compressor(blob, {
+            maxWidth: 1200,
+            maxHeight: 1200,
+            quality: 0.8,
+            success(result) {
+              const url = URL.createObjectURL(result);
+              createTexture(
+                gl,
+                { src: url, minMag: gl.NEAREST, wrap: gl.CLAMP_TO_EDGE },
+                (error, texture, source) => {
+                  URL.revokeObjectURL(url);
+                  if (error || settings?.image !== src) {
+                    gl.deleteTexture(texture);
+                    return;
+                  }
+                  const image = source as HTMLImageElement;
+                  dropPicture();
+                  picture = { src, texture, aspect: image.naturalWidth / image.naturalHeight };
+                  loadStart = undefined;
+                  draw();
+                  schedule();
+                },
+              );
+            },
+          }),
+      )
+      .catch(() => {});
+  };
+
   const probe = Object.assign(doc.createElement("canvas"), { width: 1, height: 1 }).getContext(
     "2d",
     { willReadFrequently: true },
@@ -293,7 +309,10 @@ function createRenderer(canvas: HTMLCanvasElement) {
   };
   readColor();
   const themeObserver = new MutationObserver(readColor);
-  themeObserver.observe(doc.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+  themeObserver.observe(doc.documentElement, {
+    attributes: true,
+    attributeFilter: ["class", "style"],
+  });
 
   const resizeObserver = new ResizeObserver(([entry]) => {
     const css = entry?.contentBoxSize[0];
@@ -362,7 +381,7 @@ function createRenderer(canvas: HTMLCanvasElement) {
       gl.deleteProgram(res.dither.program);
       dropPicture();
       gl.deleteFramebuffer(res.grid.framebuffer);
-      for (const attachment of res.grid.attachments) gl.deleteTexture(attachment as WebGLTexture);
+      for (const attachment of res.grid.attachments) gl.deleteTexture(attachment);
       res = null;
     },
   };

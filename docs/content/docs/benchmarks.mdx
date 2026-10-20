@@ -6,21 +6,21 @@ icon: RiTimerLine
 
 ## Method
 
-| Item       | Value                                                                   |
-| ---------- | ----------------------------------------------------------------------- |
-| Runner     | [hyperfine](https://github.com/sharkdp/hyperfine), `-N` (no shell)      |
-| Runs       | 10 warmup, 100 measured                                                 |
-| Metric     | Mean wall-clock time                                                    |
+| Item       | Value                                                                                    |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| Runner     | [hyperfine](https://github.com/sharkdp/hyperfine), `-N` (no shell)                       |
+| Runs       | 10 warmup, 100 measured                                                                  |
+| Metric     | Mean wall-clock time                                                                     |
 | atypical   | `target/release/commit-lint` against the repository's `atypical.toml` (Standard Commits) |
-| commitlint | `@commitlint/cli` with `config-conventional`, via `benches/commitlint.config.mjs` |
-| Footprint  | On-disk bytes of each package and its transitive dependencies, each file counted once |
+| commitlint | `@commitlint/cli` with `config-conventional`, via `benches/commitlint.config.mjs`        |
+| Footprint  | On-disk bytes of each package and its transitive dependencies, each file counted once    |
 
-| Lane                   | Header                                   |
-| ---------------------- | ---------------------------------------- |
-| `atypical (valid)`     | `add(exe)[int]: initial commit linting`  |
-| `atypical (invalid)`   | `feat[pre](lib): oops`                   |
-| `commitlint (valid)`   | `feat(api): add thing`                   |
-| `commitlint (invalid)` | `bogus(api): add thing`                  |
+| Lane                   | Header                                  |
+| ---------------------- | --------------------------------------- |
+| `atypical (valid)`     | `add(exe)[int]: initial commit linting` |
+| `atypical (invalid)`   | `feat[pre](lib): oops`                  |
+| `commitlint (valid)`   | `feat(api): add thing`                  |
+| `commitlint (invalid)` | `bogus(api): add thing`                 |
 
 ## Results
 

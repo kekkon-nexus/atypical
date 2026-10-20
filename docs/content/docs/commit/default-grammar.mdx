@@ -16,13 +16,13 @@ restricted spellings:
 
 The slot names in this table appear in messages.
 
-| Header                           | Result                                 |
-| -------------------------------- | -------------------------------------- |
-| `add(lib)[int]: standard style`  | Valid                                  |
-| `feat(api)!: conventional style` | Valid                                  |
-| `yolo(whatever)> ship it`        | Valid                                  |
-| `wip!!~ kitchen sink`            | Valid                                  |
+| Header                           | Result                                  |
+| -------------------------------- | --------------------------------------- |
+| `add(lib)[int]: standard style`  | Valid                                   |
+| `feat(api)!: conventional style` | Valid                                   |
+| `yolo(whatever)> ship it`        | Valid                                   |
+| `wip!!~ kitchen sink`            | Valid                                   |
 | `feat!(api): x`                  | Invalid: `!` is parsed as the separator |
-| `no separator here`              | Invalid: ``expected `modifiers` ``     |
+| `no separator here`              | Invalid: ``expected `modifiers` ``      |
 
 `default-ignores` applies as usual.

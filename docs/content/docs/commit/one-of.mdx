@@ -23,26 +23,26 @@ delimiters = [":", ":"]
 values = ["sparkles", "bug"]
 ```
 
-| Header                    | Result                    |
-| ------------------------- | ------------------------- |
-| `✨ add a feature`        | Valid                     |
-| `:sparkles: add a feature` | Valid                    |
-| `✨:bug: x`               | Invalid: two forms        |
+| Header                     | Result             |
+| -------------------------- | ------------------ |
+| `✨ add a feature`         | Valid              |
+| `:sparkles: add a feature` | Valid              |
+| `✨:bug: x`                | Invalid: two forms |
 
 ## Key placement
 
-| Key                          | Belongs on   |
-| ---------------------------- | ------------ |
-| `required`, `gap`, `tight`   | Outer slot   |
-| `values`                     | Each option  |
+| Key                        | Belongs on  |
+| -------------------------- | ----------- |
+| `required`, `gap`, `tight` | Outer slot  |
+| `values`                   | Each option |
 
-| Misplaced key                 | Error                                             |
-| ----------------------------- | ------------------------------------------------- |
-| `values` on the outer slot    | `` `values` does not apply to slot `intention` `` |
-| `required` on an option       | `` `required` does not apply to slot `emoji` ``   |
-| `gap` on an option            | `` `gap` does not apply to slot `emoji` ``        |
-| `tight` on an option          | `` `tight` does not apply to slot `emoji` ``      |
-| `one-of` inside an option     | `` `one-of` does not apply to slot `emoji` ``     |
+| Misplaced key              | Error                                             |
+| -------------------------- | ------------------------------------------------- |
+| `values` on the outer slot | `` `values` does not apply to slot `intention` `` |
+| `required` on an option    | `` `required` does not apply to slot `emoji` ``   |
+| `gap` on an option         | `` `gap` does not apply to slot `emoji` ``        |
+| `tight` on an option       | `` `tight` does not apply to slot `emoji` ``      |
+| `one-of` inside an option  | `` `one-of` does not apply to slot `emoji` ``     |
 
 ## Overlap
 

@@ -11,22 +11,22 @@ side are checked against each other too.
 
 ## Malformed slots
 
-| Error                                                                | Cause                                                        |
-| -------------------------------------------------------------------- | ------------------------------------------------------------ |
-| ``slot `x` needs exactly one of `kind`, `delimiters` or `one-of` ``  | None of them, or more than one                               |
-| ``slot `separator` is a `symbol`, so it cannot match `::` ``         | A spelling the kind cannot match                             |
-| ``` `gap` does not apply to slot `emoji` ```                         | A misplaced key on a [`one-of`](/docs/commit/one-of#key-placement) |
+| Error                                                               | Cause                                                              |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| ``slot `x` needs exactly one of `kind`, `delimiters` or `one-of` `` | None of them, or more than one                                     |
+| ``slot `separator` is a `symbol`, so it cannot match `::` ``        | A spelling the kind cannot match                                   |
+| `` `gap` does not apply to slot `emoji` ``                          | A misplaced key on a [`one-of`](/docs/commit/one-of#key-placement) |
 
 ## Indistinguishable slots
 
-| Error                                                                   | Cause                                                        | Resolution                                  |
-| ----------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------- |
-| `` `a` takes the whole run, leaving nothing for `b` ``                  | A `word`, or unrestricted `symbols`, followed by the same kind | A symbol or delimited slot between them    |
-| `` `a` and `b` both start with `x` ``                                   | Neighbouring spellings share a prefix                        | Distinct first characters                   |
-| `` `b` takes anything, `a`'s spellings included ``                      | A closed set before an unrestricted slot of the same alphabet | Close the second slot's `values`           |
-| `` `a` and `b` carry the same delimiters ``                             | Two delimited slots with the same pair, at any distance      | A different pair; a shared opener alone is allowed |
-| `` `a` and `b` can start on the same input ``                           | Overlapping [`one-of`](/docs/commit/one-of#overlap) options  | Close or separate the options               |
-| `` `a` is optional after a gap, so it can take the start of the description `` | An optional `word` or unrestricted `symbols` slot after a `gap` | `required = true`, or a delimited slot |
+| Error                                                                          | Cause                                                           | Resolution                                         |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------- | -------------------------------------------------- |
+| `` `a` takes the whole run, leaving nothing for `b` ``                         | A `word`, or unrestricted `symbols`, followed by the same kind  | A symbol or delimited slot between them            |
+| `` `a` and `b` both start with `x` ``                                          | Neighbouring spellings share a prefix                           | Distinct first characters                          |
+| `` `b` takes anything, `a`'s spellings included ``                             | A closed set before an unrestricted slot of the same alphabet   | Close the second slot's `values`                   |
+| `` `a` and `b` carry the same delimiters ``                                    | Two delimited slots with the same pair, at any distance         | A different pair; a shared opener alone is allowed |
+| `` `a` and `b` can start on the same input ``                                  | Overlapping [`one-of`](/docs/commit/one-of#overlap) options     | Close or separate the options                      |
+| `` `a` is optional after a gap, so it can take the start of the description `` | An optional `word` or unrestricted `symbols` slot after a `gap` | `required = true`, or a delimited slot             |
 
 `word` is one alphabet; `symbols` and `symbol` share the other.
 

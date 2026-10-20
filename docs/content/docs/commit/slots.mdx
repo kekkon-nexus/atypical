@@ -42,16 +42,16 @@ required = true
 
 ## Fields
 
-| Field        | Type                                       | Default |
-| ------------ | ------------------------------------------ | ------- |
-| `name`       | string                                     | none, required |
-| `kind`       | `"word"`, `"symbols"` or `"symbol"`        | none    |
-| `delimiters` | two characters, such as `["(", ")"]`       | none    |
-| `one-of`     | array of option slots; see [One of](/docs/commit/one-of) | none |
-| `values`     | `"any"`, or an array of spellings          | `"any"` |
-| `required`   | boolean                                    | `false` |
-| `gap`        | boolean; see [Spacing](/docs/commit/spacing) | `false` |
-| `tight`      | boolean; see [Spacing](/docs/commit/spacing) | `false` |
+| Field        | Type                                                     | Default        |
+| ------------ | -------------------------------------------------------- | -------------- |
+| `name`       | string                                                   | none, required |
+| `kind`       | `"word"`, `"symbols"` or `"symbol"`                      | none           |
+| `delimiters` | two characters, such as `["(", ")"]`                     | none           |
+| `one-of`     | array of option slots; see [One of](/docs/commit/one-of) | none           |
+| `values`     | `"any"`, or an array of spellings                        | `"any"`        |
+| `required`   | boolean                                                  | `false`        |
+| `gap`        | boolean; see [Spacing](/docs/commit/spacing)             | `false`        |
+| `tight`      | boolean; see [Spacing](/docs/commit/spacing)             | `false`        |
 
 - A slot has exactly one of `kind`, `delimiters` or `one-of`.
 - `name` appears in messages and is the key for
@@ -59,11 +59,11 @@ required = true
 
 ## Kinds
 
-| Kind      | Matches                                                       |
-| --------- | ------------------------------------------------------------- |
-| `word`    | A run of Unicode letters, digits and `_`                      |
-| `symbols` | A run of visible characters other than word characters        |
-| `symbol`  | One visible character other than a word character             |
+| Kind      | Matches                                                |
+| --------- | ------------------------------------------------------ |
+| `word`    | A run of Unicode letters, digits and `_`               |
+| `symbols` | A run of visible characters other than word characters |
+| `symbol`  | One visible character other than a word character      |
 
 An unrestricted `symbols` run stops before any delimiter opener in the
 grammar and before the separator that follows it. With an unrestricted
@@ -71,10 +71,10 @@ separator, the last symbol of the run is the separator.
 
 ## Delimited slots
 
-| `values`  | Contents                                          |
-| --------- | ------------------------------------------------- |
-| `"any"`   | Any characters except the slot's two delimiters, spaces included |
-| A list    | Word characters and `-`                           |
+| `values` | Contents                                                         |
+| -------- | ---------------------------------------------------------------- |
+| `"any"`  | Any characters except the slot's two delimiters, spaces included |
+| A list   | Word characters and `-`                                          |
 
 - A delimited slot is never empty.
 - Consecutive delimited slots each appear at most once, in declaration

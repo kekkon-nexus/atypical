@@ -23,17 +23,17 @@ extends = "npm:@atypical/commit/standard"
 
 ## Examples
 
-| Header                   | Result                                     |
-| ------------------------ | ------------------------------------------ |
-| `add(exe)[int]: initial` | Valid                                      |
-| `rem?(lib): x`           | Valid                                      |
-| `ref!![eff]: x`          | Valid                                      |
-| `fix!(ci)[sec]: x`       | Valid                                      |
-| `release: v1.2.3`        | Valid                                      |
-| `feat: x`                | Invalid: `feat` is not a keyword           |
-| `add(exe)!: x`           | Invalid: the modifier precedes the scope   |
-| `add[pre](lib): x`       | Invalid: the scope precedes the reason     |
-| `add(): x`               | Invalid: empty scope                       |
+| Header                   | Result                                   |
+| ------------------------ | ---------------------------------------- |
+| `add(exe)[int]: initial` | Valid                                    |
+| `rem?(lib): x`           | Valid                                    |
+| `ref!![eff]: x`          | Valid                                    |
+| `fix!(ci)[sec]: x`       | Valid                                    |
+| `release: v1.2.3`        | Valid                                    |
+| `feat: x`                | Invalid: `feat` is not a keyword         |
+| `add(exe)!: x`           | Invalid: the modifier precedes the scope |
+| `add[pre](lib): x`       | Invalid: the scope precedes the reason   |
+| `add(): x`               | Invalid: empty scope                     |
 
 The Standard Commits rules for the summary, body and footer are not
 checked.

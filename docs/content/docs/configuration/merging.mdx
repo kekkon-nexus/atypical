@@ -3,11 +3,11 @@ title: Merging
 description: How a file combines with the files it extends.
 ---
 
-| Value                                  | Merge                                    |
-| -------------------------------------- | ---------------------------------------- |
-| Table                                  | Key by key                               |
-| Array whose every entry has a `name`   | Entry by entry, matched on `name`        |
-| Any other value, unnamed arrays included | Replaces the value beneath             |
+| Value                                    | Merge                             |
+| ---------------------------------------- | --------------------------------- |
+| Table                                    | Key by key                        |
+| Array whose every entry has a `name`     | Entry by entry, matched on `name` |
+| Any other value, unnamed arrays included | Replaces the value beneath        |
 
 ## Named arrays
 
@@ -42,11 +42,11 @@ Result: `keywords` has `kind = "word"` and `required = true`.
 
 An unmatched entry is placed by its neighbours in its own file:
 
-| Case                                      | Position                              |
-| ----------------------------------------- | ------------------------------------- |
-| Follows an entry in its own file          | Right after that entry                |
-| Follows no entry, file matches some entry | First                                 |
-| File matches no entry beneath it          | Appended at the end                   |
+| Case                                      | Position               |
+| ----------------------------------------- | ---------------------- |
+| Follows an entry in its own file          | Right after that entry |
+| Follows no entry, file matches some entry | First                  |
+| File matches no entry beneath it          | Appended at the end    |
 
 ```toml title="peer.toml"
 [[commit.slots]]
@@ -97,14 +97,14 @@ drop = true
 
 Swapping two targets can produce a different grammar.
 
-| `extends`                    | Leading slots                |
-| ---------------------------- | ---------------------------- |
-| `[conventional, gitmoji]`    | `intention`, `keywords`, ... |
-| `[gitmoji, conventional]`    | `keywords`, `intention`, ... |
+| `extends`                 | Leading slots                |
+| ------------------------- | ---------------------------- |
+| `[conventional, gitmoji]` | `intention`, `keywords`, ... |
+| `[gitmoji, conventional]` | `keywords`, `intention`, ... |
 
 ## Errors
 
-| Error                                               | Cause                                                  |
-| --------------------------------------------------- | ------------------------------------------------------ |
-| `` `before = "x"` in <path> names no other entry `` | `x` is absent, or is the entry itself                  |
-| `two entries named "x" in one array in <path>`      | One file gives two entries of one array the same name  |
+| Error                                               | Cause                                                 |
+| --------------------------------------------------- | ----------------------------------------------------- |
+| `` `before = "x"` in <path> names no other entry `` | `x` is absent, or is the entry itself                 |
+| `two entries named "x" in one array in <path>`      | One file gives two entries of one array the same name |

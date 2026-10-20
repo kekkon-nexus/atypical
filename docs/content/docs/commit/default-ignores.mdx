@@ -12,13 +12,13 @@ headers pass without parsing, as in
 default-ignores = false
 ```
 
-| Kind          | Headers                                                                                                   |
-| ------------- | --------------------------------------------------------------------------------------------------------- |
+| Kind          | Headers                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------- |
 | Merges        | `Merge pull request ...`, `Merge branch ...`, `Merge tag ...`, `Merge x into y`, `Merge remote-tracking branch ...` |
-| Forge merges  | `Merged x in y`, `Merged x into y`, `Merged PR 1: ...`, `Automatic merge ...`, `Auto-merged x into y`    |
-| Reverts       | `Revert ...`, `revert ...`, `Reapply ...`, `reapply ...`                                                  |
-| Autosquash    | `fixup! ...`, `squash! ...`, `amend! ...`                                                                 |
-| Release bumps | A semver version, with optional `v`, optionally behind `chore:` or `chore(<scope>):`, with an optional skip marker |
+| Forge merges  | `Merged x in y`, `Merged x into y`, `Merged PR 1: ...`, `Automatic merge ...`, `Auto-merged x into y`               |
+| Reverts       | `Revert ...`, `revert ...`, `Reapply ...`, `reapply ...`                                                            |
+| Autosquash    | `fixup! ...`, `squash! ...`, `amend! ...`                                                                           |
+| Release bumps | A semver version, with optional `v`, optionally behind `chore:` or `chore(<scope>):`, with an optional skip marker  |
 
 The skip marker is `skip ci` or `ci skip`, joined by a space or `-`, in
 any case, inside `[...]` or `(...)`.

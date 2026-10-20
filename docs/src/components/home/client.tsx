@@ -114,7 +114,9 @@ export function Terminal({ lines }: { lines: TerminalLine[] }) {
         <div>
           {typingLine.input && prompt}
           {typingLine.input ? typingLine.text.slice(0, current.chars) : typingLine.text}
-          {typingLine.input && <span className="ms-px inline-block h-4 w-2 translate-y-0.5 bg-fd-primary" />}
+          {typingLine.input && (
+            <span className="ms-px inline-block h-4 w-2 translate-y-0.5 bg-fd-primary" />
+          )}
         </div>
       )}
       {!typingLine && (
@@ -270,9 +272,7 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
   const { end, ticks } = axis(Math.max(...totals));
 
   return (
-    <div
-      className="flex flex-col gap-6"
-    >
+    <div className="flex flex-col gap-6">
       <ToggleGroup
         variant="outline"
         value={[metric]}
@@ -334,11 +334,15 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
                 <div
                   key={segment.className}
                   className={cn("h-full min-w-1", segment.className)}
-                  style={{ width: `${((metric === "latency" ? shown : segment.amount) / end) * 100}%` }}
+                  style={{
+                    width: `${((metric === "latency" ? shown : segment.amount) / end) * 100}%`,
+                  }}
                 />
               ))}
               {racing && shown < total && (
-                <span className="self-center px-2 text-xs whitespace-nowrap text-fd-muted-foreground">still going…</span>
+                <span className="self-center px-2 text-xs whitespace-nowrap text-fd-muted-foreground">
+                  still going…
+                </span>
               )}
             </Row>
           );
@@ -387,9 +391,14 @@ function Row({
   return (
     <div className="grid grid-cols-[5.5rem_1fr_4.5rem] items-center gap-3 text-sm">
       <span className={cn(highlight && "font-medium")}>{name}</span>
-      <div className={cn("flex", name && "h-6 overflow-hidden rounded-sm bg-fd-muted")}>{children}</div>
+      <div className={cn("flex", name && "h-6 overflow-hidden rounded-sm bg-fd-muted")}>
+        {children}
+      </div>
       <span
-        className={cn("text-end font-mono tabular-nums", highlight ? "font-bold text-base" : "text-fd-muted-foreground")}
+        className={cn(
+          "text-end font-mono tabular-nums",
+          highlight ? "font-bold text-base" : "text-fd-muted-foreground",
+        )}
       >
         {value}
       </span>

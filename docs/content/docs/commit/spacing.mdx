@@ -6,23 +6,23 @@ description: gap and tight, for spaces inside the prefix.
 Without `gap`, slots are adjacent and the only space is the one before
 the description.
 
-| Field   | Behavior                                                                  |
-| ------- | ------------------------------------------------------------------------- |
+| Field   | Behavior                                                                                                                          |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `gap`   | Owes one space after the slot. The next present slot takes it, or the description if none is present. An absent slot passes it on |
-| `tight` | Attaches to the preceding text without a space, and passes any owed space to the following slot |
+| `tight` | Attaches to the preceding text without a space, and passes any owed space to the following slot                                   |
 
 ## Example
 
 The [gitmoji preset](/docs/presets/gitmoji): `intention` with `gap`,
 an optional `scope`, and an optional `tight` separator.
 
-| Header                     | Result                                            |
-| -------------------------- | ------------------------------------------------- |
-| `✨ Add a feature`         | Valid: the description takes the gap              |
-| `✨ (auth): Add a feature` | Valid: `scope` takes the gap                      |
+| Header                     | Result                                                       |
+| -------------------------- | ------------------------------------------------------------ |
+| `✨ Add a feature`         | Valid: the description takes the gap                         |
+| `✨ (auth): Add a feature` | Valid: `scope` takes the gap                                 |
 | `✨: Add a feature`        | Valid: the separator attaches; the description takes the gap |
-| `✨(auth): Add a feature`  | Invalid: `scope` is not tight and needs the space |
-| `✨  Add a feature`        | Invalid: two spaces                               |
+| `✨(auth): Add a feature`  | Invalid: `scope` is not tight and needs the space            |
+| `✨  Add a feature`        | Invalid: two spaces                                          |
 
 ## Openers after a gap
 

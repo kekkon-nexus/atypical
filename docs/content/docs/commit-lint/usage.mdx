@@ -12,14 +12,14 @@ commit-lint --last
 
 ## Arguments
 
-| Argument         | Meaning                                                              |
-| ---------------- | -------------------------------------------------------------------- |
-| `<file>`         | A commit message file                                                |
-| `-`              | Read the message from stdin                                          |
-| `--from <REV>`   | Lower end of a commit range, excluded; see [CI](/docs/commit-lint/ci) |
-| `--to <REV>`     | Upper end of a commit range, included; defaults to `HEAD`            |
-| `--last`         | Lint only the commit at `HEAD`; see [CI](/docs/commit-lint/ci#last-commit) |
-| `-c`, `--config <FILE>` | Read this file instead of the nearest `atypical.toml`         |
+| Argument                | Meaning                                                                    |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `<file>`                | A commit message file                                                      |
+| `-`                     | Read the message from stdin                                                |
+| `--from <REV>`          | Lower end of a commit range, excluded; see [CI](/docs/commit-lint/ci)      |
+| `--to <REV>`            | Upper end of a commit range, included; defaults to `HEAD`                  |
+| `--last`                | Lint only the commit at `HEAD`; see [CI](/docs/commit-lint/ci#last-commit) |
+| `-c`, `--config <FILE>` | Read this file instead of the nearest `atypical.toml`                      |
 
 `<file>` and `-` conflict with `--from` and `--to`. `--last` conflicts
 with all four.
@@ -49,11 +49,11 @@ or of the file given to `--config`. Without a file, or without a
 
 ## Exit codes
 
-| Exit | Meaning                                                  |
-| ---- | -------------------------------------------------------- |
-| `0`  | Valid, or no `[commit]` section to lint against          |
-| `1`  | Failed linting, an empty recorded message, or an error   |
-| `2`  | Usage error, or no commit message to lint                |
+| Exit | Meaning                                                |
+| ---- | ------------------------------------------------------ |
+| `0`  | Valid, or no `[commit]` section to lint against        |
+| `1`  | Failed linting, an empty recorded message, or an error |
+| `2`  | Usage error, or no commit message to lint              |
 
 Errors with exit `1` include an invalid config, an unreadable file, a
 failing `git`, and `--last` without a commit at `HEAD`. A message containing only blank lines and comments

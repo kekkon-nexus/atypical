@@ -3,10 +3,10 @@ title: Installation
 description: Distribution channels for the commit-lint binary.
 ---
 
-| Channel   | Command                       | Presets included |
-| --------- | ----------------------------- | ---------------- |
-| npm       | `npm i -D @atypical/commit`   | Yes, by name     |
-| crates.io | `cargo install atypical-commit` | No             |
+| Channel   | Command                         | Presets included |
+| --------- | ------------------------------- | ---------------- |
+| npm       | `npm i -D @atypical/commit`     | Yes, by name     |
+| crates.io | `cargo install atypical-commit` | No               |
 
 ## npm
 
@@ -15,15 +15,15 @@ dependency named `@atypical/commit-<platform>-<arch>`, with a `-musl`
 suffix on musl Linux. The packages have no install scripts. The wrapper
 requires Node 18 or later.
 
-| Platform | Architectures  | libc           |
-| -------- | -------------- | -------------- |
-| Linux    | x64, arm64     | glibc, musl    |
-| macOS    | x64, arm64     |                |
-| Windows  | x64, arm64     |                |
+| Platform | Architectures | libc        |
+| -------- | ------------- | ----------- |
+| Linux    | x64, arm64    | glibc, musl |
+| macOS    | x64, arm64    |             |
+| Windows  | x64, arm64    |             |
 
-| Variable             | Effect                                         |
-| -------------------- | ---------------------------------------------- |
-| `COMMIT_LINT_BINARY` | Path of the binary the wrapper runs instead    |
+| Variable             | Effect                                      |
+| -------------------- | ------------------------------------------- |
+| `COMMIT_LINT_BINARY` | Path of the binary the wrapper runs instead |
 
 The wrapper exits `127` when no binary is available: an unsupported
 platform, skipped optional dependencies, or a binary that fails to
@@ -40,7 +40,7 @@ The crate does not include the presets. Copies are in
 
 ## Minimal setup
 
-| File                 | Contents                                       |
-| -------------------- | ---------------------------------------------- |
-| `atypical.toml`      | `extends = "npm:@atypical/commit/conventional"` |
-| `.husky/commit-msg`  | `commit-lint -- "$1"`                          |
+| File                | Contents                                        |
+| ------------------- | ----------------------------------------------- |
+| `atypical.toml`     | `extends = "npm:@atypical/commit/conventional"` |
+| `.husky/commit-msg` | `commit-lint -- "$1"`                           |

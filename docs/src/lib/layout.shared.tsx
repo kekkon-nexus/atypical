@@ -9,7 +9,9 @@ export function baseOptions(): BaseLayoutProps {
   return {
     nav: {
       title: (
-        <span className="rounded-md bg-primary-foreground px-1.5 py-0.5 font-medium text-primary">{appName}</span>
+        <span className="rounded-md bg-primary-foreground px-1.5 py-0.5 font-medium text-primary">
+          {appName}
+        </span>
       ),
     },
     slots: { searchTrigger, themeSwitch: ThemeSwitch },

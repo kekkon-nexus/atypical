@@ -13,25 +13,25 @@ extends = "npm:@atypical/commit/gitmoji"
 
 ## Slots
 
-| Slot        | Shape                                                                                          | Required |
-| ----------- | ---------------------------------------------------------------------------------------------- | -------- |
-| `intention` | One of `emoji` (`symbols`) or `shortcode` (`: :`), with a [gap](/docs/commit/spacing)          | Yes      |
-| `scope`     | `( )`, any                                                                                     | No       |
-| `separator` | `symbol` `:`, [tight](/docs/commit/spacing)                                                    | No       |
+| Slot        | Shape                                                                                 | Required |
+| ----------- | ------------------------------------------------------------------------------------- | -------- |
+| `intention` | One of `emoji` (`symbols`) or `shortcode` (`: :`), with a [gap](/docs/commit/spacing) | Yes      |
+| `scope`     | `( )`, any                                                                            | No       |
+| `separator` | `symbol` `:`, [tight](/docs/commit/spacing)                                           | No       |
 
 ## Examples
 
-| Header                     | Result                              |
-| -------------------------- | ----------------------------------- |
-| `✨ Add a feature`         | Valid                               |
-| `:sparkles: Add a feature` | Valid                               |
-| `🐛 (auth): Fix a bug`     | Valid                               |
-| `✨: Add a feature`        | Valid                               |
-| `:t-rex: Add old code`     | Valid                               |
-| `feat: no intention`       | Invalid: no intention               |
-| `✨:bug: both forms`       | Invalid: two forms                  |
-| `:bogus: x`                | Invalid: unknown shortcode          |
-| `✨(auth): x`              | Invalid: the scope needs the space  |
+| Header                     | Result                             |
+| -------------------------- | ---------------------------------- |
+| `✨ Add a feature`         | Valid                              |
+| `:sparkles: Add a feature` | Valid                              |
+| `🐛 (auth): Fix a bug`     | Valid                              |
+| `✨: Add a feature`        | Valid                              |
+| `:t-rex: Add old code`     | Valid                              |
+| `feat: no intention`       | Invalid: no intention              |
+| `✨:bug: both forms`       | Invalid: two forms                 |
+| `:bogus: x`                | Invalid: unknown shortcode         |
+| `✨(auth): x`              | Invalid: the scope needs the space |
 
 ## Layered on Conventional Commits
 
@@ -39,12 +39,12 @@ extends = "npm:@atypical/commit/gitmoji"
 extends = ["npm:@atypical/commit/conventional", "npm:@atypical/commit/gitmoji"]
 ```
 
-| Header                          | Result                     |
-| ------------------------------- | -------------------------- |
-| `✨ feat(api): add an endpoint` | Valid                      |
-| `🐛 fix(api)!: drop the v1 routes` | Valid                   |
-| `✨ nope: unknown keyword`      | Invalid: unknown keyword   |
-| `feat(api): no emoji`           | Invalid: no intention      |
+| Header                             | Result                   |
+| ---------------------------------- | ------------------------ |
+| `✨ feat(api): add an endpoint`    | Valid                    |
+| `🐛 fix(api)!: drop the v1 routes` | Valid                    |
+| `✨ nope: unknown keyword`         | Invalid: unknown keyword |
+| `feat(api): no emoji`              | Invalid: no intention    |
 
 The reverse `extends` order builds a different grammar; see
 [Merging](/docs/configuration/merging#order-in-extends).

@@ -25,17 +25,17 @@ The keywords match the types of
 
 ## Examples
 
-| Header                            | Result                                 |
-| --------------------------------- | -------------------------------------- |
-| `feat: an endpoint`               | Valid                                  |
-| `fix(parser): handle empty input` | Valid                                  |
-| `feat(api)!: drop the v1 routes`  | Valid                                  |
-| `feat(a b): spaced scope`         | Valid                                  |
-| `revert: feat: an endpoint`       | Valid                                  |
-| `feat!(api): x`                   | Invalid: `!` follows the scope         |
-| `feat[api]: x`                    | Invalid: the scope uses parentheses    |
-| `feat!!: x`                       | Invalid: one `!` only                  |
-| `feat(): x`                       | Invalid: empty scope                   |
+| Header                            | Result                              |
+| --------------------------------- | ----------------------------------- |
+| `feat: an endpoint`               | Valid                               |
+| `fix(parser): handle empty input` | Valid                               |
+| `feat(api)!: drop the v1 routes`  | Valid                               |
+| `feat(a b): spaced scope`         | Valid                               |
+| `revert: feat: an endpoint`       | Valid                               |
+| `feat!(api): x`                   | Invalid: `!` follows the scope      |
+| `feat[api]: x`                    | Invalid: the scope uses parentheses |
+| `feat!!: x`                       | Invalid: one `!` only               |
+| `feat(): x`                       | Invalid: empty scope                |
 
 `BREAKING CHANGE:` footers are not checked.
 
