@@ -66,6 +66,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "waku@1.0.0-rc.3": "patches/waku@1.0.0-rc.3.patch",
+  },
   "overrides": {
     "oxfmt": "catalog:dev",
     "oxlint": "catalog:dev",

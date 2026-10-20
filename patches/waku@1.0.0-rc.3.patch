@@ -1,0 +1,13 @@
+diff --git a/dist/router/define-router-utils/request-handler.js b/dist/router/define-router-utils/request-handler.js
+index df38a73b928c3d9399b2f7261e622464cd894655..71b3827e5c044ac098b0da3f5b87928521a29373 100644
+--- a/dist/router/define-router-utils/request-handler.js
++++ b/dist/router/define-router-utils/request-handler.js
+@@ -212,7 +212,7 @@ export const createRequestHandler = ({ resolve, routeEntries, runHandled, getExt
+                 if (typeof resolved === 'function') {
+                     const url = new URL(req.url);
+                     url.pathname = pathname;
+-                    const apiReq = new Request(url, req);
++                    const apiReq = new Request(url, { method: req.method, headers: req.headers, body: req.body, signal: req.signal, duplex: "half" });
+                     return resolved(apiReq);
+                 }
+                 const renderPage = async (pathname, query, status = 200, resolvedRoute)=>{

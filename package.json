@@ -92,5 +92,8 @@
     "oxfmt": "catalog:dev",
     "oxlint": "catalog:dev",
     "vite": "catalog:dev"
+  },
+  "patchedDependencies": {
+    "waku@1.0.0-rc.3": "patches/waku@1.0.0-rc.3.patch"
   }
 }
