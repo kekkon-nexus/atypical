@@ -10,7 +10,7 @@
       "dev": {
         "@commitlint/cli": "^21.2.4",
         "@commitlint/config-conventional": "^21",
-        "@kekkon-nexus/config": "4.0.1",
+        "@kekkon-nexus/config": "4.0.2",
         "@types/bun": "latest",
         "@types/node": "^26.6.5",
         "lefthook": "2.2.2",

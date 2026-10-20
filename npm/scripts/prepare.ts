@@ -23,7 +23,7 @@ if (import.meta.main) {
   const download = async (url: string) => {
     const res = await fetch(url);
     if (!res.ok) {
-      throw new Error(`GET ${url} failed: ${String(res.status)} ${res.statusText}`);
+      throw new Error(`GET ${url} failed: ${res.status} ${res.statusText}`);
     }
     return Buffer.from(await res.arrayBuffer());
   };
@@ -52,7 +52,7 @@ if (import.meta.main) {
     const [expected] = checksum.toString().trim().split(/\s+/);
     const actual = crypto.createHash("sha256").update(data).digest("hex");
     if (actual !== expected) {
-      throw new Error(`${archive}: checksum mismatch (${actual} != ${String(expected)})`);
+      throw new Error(`${archive}: checksum mismatch (${actual} != ${expected})`);
     }
 
     const name = `${main.name}-${platform}`;
