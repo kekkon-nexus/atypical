@@ -1,42 +1,139 @@
-import { RiFileSettingsLine, RiGitBranchLine, RiScalesLine, RiTerminalLine } from "@remixicon/react";
+import {
+  RiCheckLine,
+  RiCloseLine,
+  RiFileSettingsLine,
+  RiGitBranchLine,
+  RiScalesLine,
+  RiTerminalLine,
+} from "@remixicon/react";
 import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import type { ReactNode } from "react";
 import { Link } from "waku";
 
 import { BenchRace } from "@/components/bench-race";
 import Dither from "@/components/dither";
+import { Switcher } from "@/components/switcher";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { floorLeading, latestBench } from "@/lib/bench";
+import { release } from "@/lib/release";
 import { appName } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
 const repository = "https://github.com/kekkon-nexus/atypical";
 
+const presets = [
+  {
+    value: "standard",
+    label: "Standard Commits",
+    headers: [
+      ["add(exe)[int]: initial", true],
+      ["ref!![eff]: x", true],
+      ["fix!(ci)[sec]: x", true],
+      ["feat: x", false],
+      ["add(exe)!: x", false],
+    ],
+  },
+  {
+    value: "conventional",
+    label: "Conventional Commits",
+    headers: [
+      ["feat: an endpoint", true],
+      ["fix(parser): handle empty input", true],
+      ["feat(api)!: drop the v1 routes", true],
+      ["feat!(api): x", false],
+      ["feat[api]: x", false],
+    ],
+  },
+  {
+    value: "gitmoji",
+    label: "Gitmoji",
+    headers: [
+      ["✨ Add a feature", true],
+      [":sparkles: Add a feature", true],
+      ["🐛 (auth): Fix a bug", true],
+      ["feat: no intention", false],
+      ["✨(auth): x", false],
+    ],
+  },
+] satisfies { value: string; label: string; headers: [string, boolean][] }[];
+
 export default function Home() {
   const bench = latestBench();
+  const { version, url } = release();
 
   return (
     <div className="pt-4 pb-6 md:pb-12">
       <title>{appName}</title>
-      <div className="relative flex min-h-150 h-[70vh] max-h-225 border rounded-2xl overflow-hidden mx-auto w-full max-w-350 bg-origin-border">
+      <div className="relative border rounded-2xl overflow-hidden mx-auto w-full max-w-350 bg-origin-border">
         <div className="absolute inset-0">
           <Dither size={32} shapeScale={1.2} timeScale={0.5} className="opacity-33" />
         </div>
-        <div className="flex flex-col z-2 px-4 size-full md:p-12 max-md:items-center max-md:text-center">
-          <p className="mt-12 text-xs text-fd-primary font-medium p-2 border rounded-lg border-fd-primary/50 bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs w-fit">
-            (Non)standard enforcing DX.
-          </p>
-          <h1 className="text-4xl my-8 leading-tighter font-medium xl:text-5xl xl:mb-12">
-            Enforce <br className="md:hidden" />
-            <span className="text-fd-primary bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs">
-              your conventions
-            </span>
-            ,
-            <br />
-            not ours.
-          </h1>
-          <Actions />
+        <div className="relative z-2 grid grid-cols-1 gap-10 p-4 md:p-12 lg:grid-cols-2 lg:items-center">
+          <div className="flex flex-col">
+            <a
+              href={url}
+              className="mt-8 text-xs text-fd-primary font-mono font-medium uppercase p-2 border rounded-lg border-fd-primary/50 bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs w-fit"
+            >
+              v{version} released →
+            </a>
+            <h1 className="text-4xl my-8 leading-tighter font-medium xl:text-5xl">
+              Enforce{" "}
+              <span className="text-fd-primary bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs">
+                your conventions
+              </span>
+              ,
+              <br />
+              not ours.
+            </h1>
+            <p className="max-w-120 text-lg text-fd-muted-foreground">
+              A commit message linter configured from one <code>atypical.toml</code>. A native
+              binary, no Node.js runtime.
+            </p>
+            <p className="mt-8 mb-2 text-sm font-medium">Install atypical v{version}</p>
+            <Switcher
+              className="flex max-w-120 flex-col-reverse gap-2"
+              options={[
+                {
+                  value: "npm",
+                  label: "npm",
+                  panel: (
+                    <ServerCodeBlock
+                      code="npm i -D @atypical/commit"
+                      lang="bash"
+                    />
+                  ),
+                },
+                {
+                  value: "cargo",
+                  label: "cargo",
+                  panel: (
+                    <ServerCodeBlock
+                      code="cargo install atypical-commit"
+                      lang="bash"
+                    />
+                  ),
+                },
+              ]}
+            />
+            <Link
+              to="/docs"
+              className="mt-6 w-fit font-medium underline underline-offset-4"
+            >
+              Then read the docs →
+            </Link>
+          </div>
+          {bench && (
+            <div className="flex flex-col gap-4">
+              <p className="text-2xl font-medium tracking-tight text-fd-primary lg:text-3xl">
+                +{floorLeading(bench.speedup)}× faster.{" "}
+                {floorLeading(bench.size.commitlint / bench.size.atypical)}× smaller.
+              </p>
+              <Card className="p-6">
+                <BenchRace bench={bench} />
+              </Card>
+            </div>
+          )}
         </div>
       </div>
       <div className="grid grid-cols-1 gap-10 mt-12 px-6 mx-auto w-full max-w-350 md:px-12 lg:grid-cols-2 lg:mt-20">
@@ -46,7 +143,6 @@ export default function Home() {
           <span className="text-fd-primary font-medium">one file</span> in which each tool reads its
           own section. Bring your grammar, not someone else&apos;s.
         </p>
-        <TryItOut />
         <Feature
           icon={<RiFileSettingsLine />}
           title="One file, every tool."
@@ -58,7 +154,7 @@ export default function Home() {
           }
         >
           <ServerCodeBlock
-            code={`extends = "presets/standard.toml"`}
+            code={`extends = "npm:@atypical/commit/standard"`}
             lang="toml"
           />
         </Feature>
@@ -76,17 +172,54 @@ required = true`}
             lang="toml"
           />
         </Feature>
-        {bench && (
-          <>
-            <SectionHeading>
-              +{floorLeading(bench.speedup)}× faster. {floorLeading(bench.size.commitlint / bench.size.atypical)}×
-              smaller.
-            </SectionHeading>
-            <Card className="col-span-full p-6">
-              <BenchRace bench={bench} />
-            </Card>
-          </>
-        )}
+        <SectionHeading>Bring a grammar, or start from one.</SectionHeading>
+        <Card className="col-span-full p-6">
+          <Switcher
+            className="flex flex-col gap-6"
+            options={presets.map(({ value, label, headers }) => ({
+              value,
+              label,
+              panel: (
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                  <div className="flex flex-col gap-4">
+                    <ServerCodeBlock
+                      codeblock={{ title: "atypical.toml" }}
+                      code={`extends = "npm:@atypical/commit/${value}"`}
+                      lang="toml"
+                    />
+                    <Link
+                      to={`/docs/presets/${value}`}
+                      className="w-fit text-sm font-medium underline underline-offset-4"
+                    >
+                      {label} preset →
+                    </Link>
+                  </div>
+                  <ul className="flex flex-col gap-2 font-mono text-sm">
+                    {headers.map(([header, valid]) => (
+                      <li
+                        key={header}
+                        className="flex flex-row items-center gap-2"
+                      >
+                        {valid ? (
+                          <RiCheckLine
+                            className="size-4 shrink-0 text-fd-primary"
+                            aria-label="valid"
+                          />
+                        ) : (
+                          <RiCloseLine
+                            className="size-4 shrink-0 text-red-400"
+                            aria-label="invalid"
+                          />
+                        )}
+                        {header}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ),
+            }))}
+          />
+        </Card>
         <SectionHeading>Hooks and CI.</SectionHeading>
         <Feature
           title="Catch it at commit."
@@ -104,7 +237,25 @@ required = true`}
           description="Lint every commit a pull request brings in."
         >
           <ServerCodeBlock
-            code="commit-lint --from origin/main"
+            code="npx commit-lint --from origin/main"
+            lang="bash"
+          />
+        </Feature>
+        <SectionHeading>Lint the history you already have.</SectionHeading>
+        <Feature
+          className="col-span-full"
+          icon={<RiTerminalLine />}
+          title="No hook needed yet."
+          description={
+            <>
+              Every commit since <code>origin/main</code> is checked against the preset.
+            </>
+          }
+        >
+          <ServerCodeBlock
+            code={`npm i -D @atypical/commit
+echo 'extends = "npm:@atypical/commit/conventional"' > atypical.toml
+npx commit-lint --from origin/main`}
             lang="bash"
           />
         </Feature>
@@ -172,35 +323,6 @@ function Feature({
         <CardDescription className="text-sm">{description}</CardDescription>
       </CardHeader>
       <CardContent>{children}</CardContent>
-    </Card>
-  );
-}
-
-function TryItOut() {
-  return (
-    <Card className="col-span-full mx-auto w-full max-w-200 p-2">
-      <div className="flex flex-row gap-2">
-        <h2 className="text-fd-primary content-center font-mono font-bold uppercase [text-box-trim:both] [text-box-edge:cap_alphabetic] border-2 border-fd-primary/50 px-2 rounded-xl">
-          Try it out
-        </h2>
-        <ServerCodeBlock
-          code="npm i -D @atypical/commit"
-          lang="bash"
-          codeblock={{ className: "bg-fd-secondary flex-1" }}
-        />
-      </div>
-      <div className="bg-fd-secondary rounded-xl border shadow-md">
-        <div className="flex flex-row items-center gap-2 border-b p-2 text-fd-muted-foreground">
-          <RiTerminalLine className="size-4" />
-          <span className="text-xs font-medium">Terminal</span>
-          <div className="ms-auto me-2 size-2 rounded-full bg-red-400" />
-        </div>
-        <pre className="p-2 text-sm font-mono text-fd-secondary-foreground/80 whitespace-pre-wrap">
-          {`$ echo 'add(lib)[int]: something' | npx commit-lint -
-$ echo $?
-0`}
-        </pre>
-      </div>
     </Card>
   );
 }
