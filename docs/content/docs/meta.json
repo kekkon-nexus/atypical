@@ -6,6 +6,7 @@
     "configuration",
     "commit",
     "presets",
-    "migration"
+    "migration",
+    "library"
   ]
 }

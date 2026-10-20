@@ -1,0 +1,41 @@
+---
+title: atypical-config
+description: Find and load atypical.toml from your own tool.
+---
+
+```sh
+cargo add atypical-config
+```
+
+The crate knows no section schema. Each tool deserializes its own
+section with serde, and gets [discovery](/docs/configuration/discovery),
+[`extends`](/docs/configuration/extends) and
+[merging](/docs/configuration/merging) for free.
+
+```rust
+#[derive(serde::Deserialize)]
+struct Section {
+    enabled: bool,
+}
+
+if let Some(path) = atypical_config::find(std::env::current_dir()?) {
+    let section: Option<Section> = atypical_config::load(path, "tool")?;
+}
+```
+
+## Functions
+
+| Function  | Does                                                                      |
+| --------- | ------------------------------------------------------------------------- |
+| `find`    | The nearest `atypical.toml` in a directory or its ancestors               |
+| `load`    | Resolves `extends`, then deserializes one section, `None` when absent     |
+| `resolve` | Resolves `extends` and returns the merged `toml::Table`                   |
+| `section` | Deserializes one section of a document as written, without `extends`     |
+
+Errors are an `atypical_config::Error` enum implementing `Display` and
+`std::error::Error`.
+
+Inside a named array, `name`, `drop` and `before` are
+[reserved](/docs/configuration/reserved-keys) for every tool.
+
+Full API on [docs.rs](https://docs.rs/atypical-config).
