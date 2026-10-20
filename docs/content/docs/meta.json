@@ -7,6 +7,7 @@
     "commit",
     "presets",
     "migration",
+    "benchmarks",
     "---[RiCodeSSlashLine]Library---",
     "external:[atypical-config](https://docs.rs/atypical-config)",
     "external:[atypical-commit](https://docs.rs/atypical-commit)"

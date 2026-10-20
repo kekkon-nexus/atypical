@@ -1,0 +1,42 @@
+---
+title: Benchmarks
+description: Latency and install footprint of commit-lint and commitlint.
+icon: RiTimerLine
+---
+
+## Method
+
+| Item       | Value                                                                   |
+| ---------- | ----------------------------------------------------------------------- |
+| Runner     | [hyperfine](https://github.com/sharkdp/hyperfine), `-N` (no shell)      |
+| Runs       | 10 warmup, 100 measured                                                 |
+| Metric     | Mean wall-clock time                                                    |
+| atypical   | `target/release/commit-lint` against the repository's `atypical.toml` (Standard Commits) |
+| commitlint | `@commitlint/cli` with `config-conventional`, via `benches/commitlint.config.mjs` |
+| Footprint  | On-disk bytes of each package and its transitive dependencies, each file counted once |
+
+| Lane                   | Header                                   |
+| ---------------------- | ---------------------------------------- |
+| `atypical (valid)`     | `add(exe)[int]: initial commit linting`  |
+| `atypical (invalid)`   | `feat[pre](lib): oops`                   |
+| `commitlint (valid)`   | `feat(api): add thing`                   |
+| `commitlint (invalid)` | `bogus(api): add thing`                  |
+
+## Results
+
+<BenchTable />
+
+## Reproduce
+
+```sh
+bun install
+bun run bench
+```
+
+- Requires hyperfine.
+- The commitlint lanes require the `benches` workspace to be installed;
+  without it they are skipped.
+- `RUNS` and `WARMUP` override the run counts.
+- Output goes to `benches/results.md`, which is not committed. Committed
+  snapshots are named `benches/result-YYYY-MM-DD.md`; the newest one is
+  shown on this page.

@@ -31,23 +31,7 @@ other rules.
 
 ### Latency
 
-`bun run bench` runs [hyperfine](https://github.com/sharkdp/hyperfine)
-on one valid and one invalid header per tool.
-
-| Command               | Mean wall time  |
-| --------------------- | --------------- |
-| `commit-lint` valid   | 1.3 ± 0.2 ms    |
-| `commit-lint` invalid | 1.3 ± 0.3 ms    |
-| `commitlint` valid    | 643.3 ± 60.1 ms |
-| `commitlint` invalid  | 650.5 ± 46.9 ms |
-
-| Footprint                                      | Size                          |
-| ---------------------------------------------- | ----------------------------- |
-| `commit-lint` release binary                   | 1.2 MB                        |
-| `@commitlint/cli` with `config-conventional`   | 10 MB in 70 packages, plus Node |
-
-Measured 2026-10-20 on an Intel Core i5-1135G7, Linux, rustc
-1.101.0-nightly.
+See [Benchmarks](/docs/benchmarks).
 
 ## From the fixed-layout keys
 
