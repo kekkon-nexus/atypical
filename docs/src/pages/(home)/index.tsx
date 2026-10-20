@@ -66,19 +66,24 @@ export default function Home() {
       <title>{appName}</title>
       <div className="relative border rounded-2xl overflow-hidden mx-auto w-full max-w-350 bg-origin-border">
         <div className="absolute inset-0">
-          <Dither size={32} shapeScale={1.2} timeScale={0.5} className="text-fd-primary opacity-50" />
+          <Dither
+            size={32}
+            shapeScale={1.2}
+            timeScale={0.5}
+            className="text-fd-primary opacity-50"
+          />
         </div>
         <div className="relative z-2 grid grid-cols-1 gap-10 p-4 md:px-12 md:py-16 lg:min-h-176 lg:grid-cols-2 lg:items-center">
           <div className="flex flex-col">
             <a
               href={url}
-              className="mt-8 text-xs text-fd-primary font-mono font-medium uppercase p-2 border rounded-lg border-fd-primary/50 bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs w-fit"
+              className="mt-8 text-xs text-fd-primary font-mono font-medium uppercase p-2 border rounded-lg border-fd-primary/50 backdrop-blur-xs w-fit"
             >
               v{version} released →
             </a>
             <h1 className="text-4xl my-8 leading-tighter font-medium xl:text-5xl">
               Enforce{" "}
-              <span className="text-fd-primary bg-fd-primary-foreground dark:bg-fd-primary-foreground/50 backdrop-blur-xs">
+              <span className="text-fd-primary dark:bg-fd-primary-foreground/50 backdrop-blur-xs">
                 your conventions
               </span>
               ,
@@ -96,29 +101,16 @@ export default function Home() {
                 {
                   value: "npm",
                   label: "npm",
-                  panel: (
-                    <ServerCodeBlock
-                      code="npm i -D @atypical/commit"
-                      lang="bash"
-                    />
-                  ),
+                  panel: <ServerCodeBlock code="npm i -D @atypical/commit" lang="bash" />,
                 },
                 {
                   value: "cargo",
                   label: "cargo",
-                  panel: (
-                    <ServerCodeBlock
-                      code="cargo install atypical-commit"
-                      lang="bash"
-                    />
-                  ),
+                  panel: <ServerCodeBlock code="cargo install atypical-commit" lang="bash" />,
                 },
               ]}
             />
-            <Link
-              to="/docs"
-              className="mt-6 w-fit font-medium underline underline-offset-4"
-            >
+            <Link to="/docs" className="mt-6 w-fit font-medium underline underline-offset-4">
               Then read the docs →
             </Link>
           </div>
@@ -165,10 +157,7 @@ export default function Home() {
             </>
           }
         >
-          <ServerCodeBlock
-            code={`extends = "npm:@atypical/commit/standard"`}
-            lang="toml"
-          />
+          <ServerCodeBlock code={`extends = "npm:@atypical/commit/standard"`} lang="toml" />
         </Feature>
         <Feature
           title="Your grammar, declared."
@@ -208,10 +197,7 @@ required = true`}
                   </div>
                   <ul className="flex flex-col gap-2 font-mono text-sm">
                     {headers.map(([header, valid]) => (
-                      <li
-                        key={header}
-                        className="flex flex-row items-center gap-2"
-                      >
+                      <li key={header} className="flex flex-row items-center gap-2">
                         {valid ? (
                           <RiCheckLine
                             className="size-4 shrink-0 text-fd-primary"
@@ -248,10 +234,7 @@ required = true`}
           title="Or the whole range."
           description="Lint every commit a pull request brings in."
         >
-          <ServerCodeBlock
-            code="npx commit-lint --from origin/main"
-            lang="bash"
-          />
+          <ServerCodeBlock code="npx commit-lint --from origin/main" lang="bash" />
         </Feature>
         <SectionHeading>Lint the history you already have.</SectionHeading>
         <Feature
@@ -288,10 +271,7 @@ npx commit-lint --from origin/main`}
 function Actions() {
   return (
     <div className="flex flex-row items-center gap-4 flex-wrap w-fit">
-      <Link
-        to="/docs"
-        className={cn(buttonVariants({ size: "lg" }))}
-      >
+      <Link to="/docs" className={cn(buttonVariants({ size: "lg" }))}>
         Read docs
       </Link>
       <a
@@ -359,7 +339,8 @@ const report = (
     {"\n "}
     <span className={faint}>{"  │"}</span>
     {"   "}
-    <span className={label}>╰───</span> `feat` is not in `keywords`, expected one of: release, undo, add, fix, ref, rem
+    <span className={label}>╰───</span> `feat` is not in `keywords`, expected one of: release, undo,
+    add, fix, ref, rem
     {"\n"}
     <span className={margin}>───╯</span>
   </>
