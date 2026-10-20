@@ -15,6 +15,7 @@
     "class-variance-authority": "catalog:shadcn",
     "cmdk": "catalog:shadcn",
     "cn": "catalog:shadcn",
+    "compressorjs": "catalog:",
     "fumadocs-core": "catalog:fumadocs",
     "fumadocs-mdx": "catalog:fumadocs",
     "fumadocs-ui": "catalog:fumadocs",

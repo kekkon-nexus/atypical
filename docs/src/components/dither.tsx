@@ -1,5 +1,6 @@
 "use client";
 
+import Compressor from "compressorjs";
 import { type HTMLAttributes, useEffect, useRef } from "react";
 import {
   type AttachmentOptions,
@@ -163,19 +164,35 @@ function createRenderer(canvas: HTMLCanvasElement) {
     picture = undefined;
   };
 
+  // The shader reads one texel per cell, so the image is shrunk before it becomes a texture.
   const loadPicture = (src: string) => {
-    createTexture(gl, { src, minMag: gl.NEAREST, wrap: gl.CLAMP_TO_EDGE }, (error, texture, source) => {
-      if (error || settings?.image !== src) {
-        gl.deleteTexture(texture);
-        return;
-      }
-      const image = source as HTMLImageElement;
-      dropPicture();
-      picture = { src, texture, aspect: image.naturalWidth / image.naturalHeight };
-      loadStart = undefined;
-      draw();
-      schedule();
-    });
+    void fetch(src)
+      .then((response) => response.blob())
+      .then(
+        (blob) =>
+          new Compressor(blob, {
+            maxWidth: 1200,
+            maxHeight: 1200,
+            quality: 0.8,
+            success(result) {
+              const url = URL.createObjectURL(result);
+              createTexture(gl, { src: url, minMag: gl.NEAREST, wrap: gl.CLAMP_TO_EDGE }, (error, texture, source) => {
+                URL.revokeObjectURL(url);
+                if (error || settings?.image !== src) {
+                  gl.deleteTexture(texture);
+                  return;
+                }
+                const image = source as HTMLImageElement;
+                dropPicture();
+                picture = { src, texture, aspect: image.naturalWidth / image.naturalHeight };
+                loadStart = undefined;
+                draw();
+                schedule();
+              });
+            },
+          }),
+      )
+      .catch(() => {});
   };
 
   const progress = () => {

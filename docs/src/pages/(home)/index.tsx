@@ -143,7 +143,17 @@ export default function Home() {
           <span className="text-fd-primary font-medium">one file</span> in which each tool reads its
           own section. Bring your grammar, not someone else&apos;s.
         </p>
-        <TryItOut />
+        <div className="relative col-span-full overflow-hidden rounded-2xl border p-4 md:p-12">
+          <div className="absolute inset-0">
+            <Dither
+              image="/su-san-lee-g3PyXO4A0yc-unsplash.jpg"
+              type="4x4"
+              size={4}
+              className="text-fd-primary"
+            />
+          </div>
+          <TryItOut />
+        </div>
         <Feature
           icon={<RiFileSettingsLine />}
           title="One file, every tool."
@@ -356,7 +366,7 @@ const report = (
 
 function TryItOut() {
   return (
-    <Card className="col-span-full mx-auto w-full max-w-200 p-2">
+    <Card className="relative mx-auto w-full max-w-200 p-2">
       <div className="flex flex-row gap-2">
         <h2 className="text-fd-primary content-center font-mono font-bold uppercase [text-box-trim:both] [text-box-edge:cap_alphabetic] border-2 border-fd-primary/50 px-2 rounded-xl">
           Try it out
