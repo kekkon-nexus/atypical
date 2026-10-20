@@ -1,0 +1,48 @@
+---
+title: Installation
+description: Get the commit-lint binary from npm or crates.io.
+---
+
+## From npm
+
+```sh
+npm i -D @atypical/commit
+```
+
+pnpm, yarn and bun work the same way. The package is a small Node
+wrapper. The binary itself arrives as an optional dependency named
+`@atypical/commit-<platform>-<arch>`, with a `-musl` suffix on musl
+Linux. Nothing runs at install time.
+
+The wrapper needs Node 18 or later. It exits with `127` when no binary
+can be found, either because the platform has no prebuilt package or
+because optional dependencies were skipped (`--no-optional`,
+`--omit=optional`).
+
+To run a binary you built or installed yourself, point the wrapper at
+it:
+
+```sh
+COMMIT_LINT_BINARY=/path/to/commit-lint npx commit-lint -- .git/COMMIT_EDITMSG
+```
+
+The npm package also ships the [presets](/docs/presets) by name, so a
+config can `extends = "npm:@atypical/commit/conventional"` without
+copying anything.
+
+## From crates.io
+
+```sh
+cargo install atypical-commit
+```
+
+This installs `commit-lint` into `~/.cargo/bin`. Without npm, copy a
+preset from
+[`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
+into your repository and extend it by path.
+
+## Check it
+
+```sh
+commit-lint --version
+```

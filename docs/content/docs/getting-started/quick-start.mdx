@@ -1,0 +1,46 @@
+---
+title: Quick start
+description: Lint your first commit in three steps.
+---
+
+## 1. Pick a grammar
+
+Create `atypical.toml` at the root of your repository:
+
+```toml title="atypical.toml"
+extends = "npm:@atypical/commit/conventional"
+```
+
+Without npm, copy
+[`conventional.toml`](https://github.com/kekkon-nexus/atypical/blob/main/presets/conventional.toml)
+next to it and write `extends = "conventional.toml"`.
+
+## 2. Hook it into git
+
+With [husky](https://typicode.github.io/husky/), add `.husky/commit-msg`:
+
+```sh title=".husky/commit-msg"
+commit-lint -- "$1"
+```
+
+Without husky, see [Hooks](/docs/commit-lint/hooks).
+
+## 3. Commit
+
+```sh
+git commit -m "add: a feature"
+```
+
+The commit is refused, and the report under the header reads:
+
+```txt
+`add` is not in `keywords`, expected one of: refactor, revert, build, chore, style, docs, feat, perf, test, fix, ci
+```
+
+`git commit -m "feat: a feature"` goes through.
+
+## Next
+
+- Lint every commit a pull request brings in: [CI](/docs/commit-lint/ci).
+- Change the grammar: [Customizing a preset](/docs/presets/customizing).
+- Write one from scratch: [Slots](/docs/commit/slots).
