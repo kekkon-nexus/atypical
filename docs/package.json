@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "waku dev",
     "build": "waku build",
-    "start": "waku start",
-    "types:check": "tsc --noEmit"
+    "start": "wrangler dev",
+    "deploy": "bun run build && wrangler deploy",
+    "preview": "NODE_ENV=production bun run build && wrangler dev",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@base-ui/react": "catalog:shadcn",
@@ -20,6 +22,7 @@
     "fumadocs-mdx": "catalog:fumadocs",
     "fumadocs-ui": "catalog:fumadocs",
     "hast-util-to-jsx-runtime": "catalog:",
+    "hono": "catalog:",
     "next-themes": "catalog:",
     "react": "catalog:react",
     "react-dom": "catalog:react",
@@ -31,6 +34,7 @@
     "waku": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:dev",
     "@tailwindcss/vite": "catalog:dev",
     "@types/mdx": "catalog:dev",
     "@types/node": "catalog:dev",
@@ -39,6 +43,7 @@
     "naga-wasm": "catalog:dev",
     "tailwindcss": "catalog:dev",
     "typescript": "catalog:dev",
-    "vite": "catalog:dev"
+    "vite": "catalog:dev",
+    "wrangler": "catalog:dev"
   }
 }
