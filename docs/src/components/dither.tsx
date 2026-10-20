@@ -6,6 +6,7 @@ import {
   bindFramebufferInfo,
   createFramebufferInfo,
   createProgramInfo,
+  createTexture,
   createUniformBlockInfo,
   resizeFramebufferInfo,
   setBlockUniforms,
@@ -16,6 +17,7 @@ import {
 
 import { cn } from "@/lib/utils";
 
+import * as imageShader from "./dither-image.wgsl?glsl";
 import * as patternShader from "./dither-pattern.wgsl?glsl";
 import * as ditherShader from "./dither.wgsl?glsl";
 
@@ -35,6 +37,8 @@ type Settings = {
   noiseAmp: number;
   timeScale: number;
   seed?: number;
+  /** An image URL to dither instead of the animated noise. */
+  image?: string;
   pause: boolean;
   pageLoadAnimation: boolean;
 };
@@ -54,6 +58,7 @@ export default function Dither({
   noiseAmp = 1,
   timeScale = 0.3,
   seed,
+  image,
   pause = false,
   pageLoadAnimation = true,
   className,
@@ -86,6 +91,7 @@ export default function Dither({
       noiseAmp,
       timeScale,
       seed,
+      image,
       pause,
       pageLoadAnimation,
     });
@@ -102,6 +108,7 @@ export default function Dither({
     noiseAmp,
     timeScale,
     seed,
+    image,
     pause,
     pageLoadAnimation,
   ]);
@@ -119,11 +126,14 @@ function createRenderer(canvas: HTMLCanvasElement) {
   ];
   const setup = () => {
     const pattern = createProgramInfo(gl, [patternShader.vertex, patternShader.fragment]);
+    const picture = createProgramInfo(gl, [imageShader.vertex, imageShader.fragment]);
     const dither = createProgramInfo(gl, [ditherShader.vertex, ditherShader.fragment]);
     return {
       pattern,
+      picture,
       dither,
       patternBlock: createUniformBlockInfo(gl, pattern, patternShader.uniformBlock),
+      pictureBlock: createUniformBlockInfo(gl, picture, imageShader.uniformBlock),
       ditherBlock: createUniformBlockInfo(gl, dither, ditherShader.uniformBlock),
       grid: createFramebufferInfo(gl, attachments, 1, 1),
     };
@@ -146,6 +156,27 @@ function createRenderer(canvas: HTMLCanvasElement) {
   let visible = !doc.hidden;
   let inView = true;
   let color = [0, 0, 0, 1];
+  let picture: { src: string; texture: WebGLTexture; aspect: number } | undefined;
+
+  const dropPicture = () => {
+    if (picture) gl.deleteTexture(picture.texture);
+    picture = undefined;
+  };
+
+  const loadPicture = (src: string) => {
+    createTexture(gl, { src, minMag: gl.NEAREST, wrap: gl.CLAMP_TO_EDGE }, (error, texture, source) => {
+      if (error || settings?.image !== src) {
+        gl.deleteTexture(texture);
+        return;
+      }
+      const image = source as HTMLImageElement;
+      dropPicture();
+      picture = { src, texture, aspect: image.naturalWidth / image.naturalHeight };
+      loadStart = undefined;
+      draw();
+      schedule();
+    });
+  };
 
   const progress = () => {
     if (!settings?.pageLoadAnimation) return 1;
@@ -165,14 +196,26 @@ function createRenderer(canvas: HTMLCanvasElement) {
       resizeFramebufferInfo(gl, res.grid, attachments, gridW, gridH);
     }
 
-    set(res.patternBlock, patternShader.uniformStruct, {
-      time,
-      noiseAmp: settings.noiseAmp,
-      loadProgress: progress(),
-    });
     bindFramebufferInfo(gl, res.grid);
-    gl.useProgram(res.pattern.program);
-    setUniformBlock(gl, res.pattern, res.patternBlock);
+    if (settings.image) {
+      if (picture?.src !== settings.image) return;
+      set(res.pictureBlock, imageShader.uniformStruct, {
+        gridSize: [gridW, gridH],
+        imageAspect: picture.aspect,
+        loadProgress: progress(),
+      });
+      gl.useProgram(res.picture.program);
+      setUniformBlock(gl, res.picture, res.pictureBlock);
+      setUniforms(res.picture, { [imageShader.samplers[0] as string]: picture.texture });
+    } else {
+      set(res.patternBlock, patternShader.uniformStruct, {
+        time,
+        noiseAmp: settings.noiseAmp,
+        loadProgress: progress(),
+      });
+      gl.useProgram(res.pattern.program);
+      setUniformBlock(gl, res.pattern, res.patternBlock);
+    }
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     set(res.ditherBlock, ditherShader.uniformStruct, {
@@ -195,7 +238,9 @@ function createRenderer(canvas: HTMLCanvasElement) {
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   };
 
-  const running = () => !!res && visible && inView && (!settings?.pause || progress() < 1);
+  // A still image only needs frames for its load fade.
+  const running = () =>
+    !!res && visible && inView && ((!settings?.pause && !settings?.image) || progress() < 1);
 
   const frame = (now: number) => {
     raf = 0;
@@ -266,6 +311,8 @@ function createRenderer(canvas: HTMLCanvasElement) {
   const onRestored = () => {
     res = setup();
     gridSize = "";
+    picture = undefined;
+    if (settings?.image) loadPicture(settings.image);
     draw();
     schedule();
   };
@@ -274,7 +321,12 @@ function createRenderer(canvas: HTMLCanvasElement) {
 
   return {
     update(next: Settings) {
+      const imageChanged = next.image !== settings?.image;
       settings = next;
+      if (imageChanged) {
+        dropPicture();
+        if (next.image) loadPicture(next.image);
+      }
       time ??= (next.seed ?? Math.random() * 100) * next.timeScale;
       draw();
       schedule();
@@ -289,7 +341,9 @@ function createRenderer(canvas: HTMLCanvasElement) {
       canvas.removeEventListener("webglcontextrestored", onRestored);
       if (!res) return;
       gl.deleteProgram(res.pattern.program);
+      gl.deleteProgram(res.picture.program);
       gl.deleteProgram(res.dither.program);
+      dropPicture();
       gl.deleteFramebuffer(res.grid.framebuffer);
       for (const attachment of res.grid.attachments) gl.deleteTexture(attachment as WebGLTexture);
       res = null;
