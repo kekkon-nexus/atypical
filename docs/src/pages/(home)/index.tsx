@@ -184,7 +184,7 @@ function TryItOut() {
           Try it out
         </h2>
         <ServerCodeBlock
-          code="cargo install atypical-commit"
+          code="npm i -D @atypical/commit"
           lang="bash"
           codeblock={{ className: "bg-fd-secondary flex-1" }}
         />
@@ -196,7 +196,7 @@ function TryItOut() {
           <div className="ms-auto me-2 size-2 rounded-full bg-red-400" />
         </div>
         <pre className="p-2 text-sm font-mono text-fd-secondary-foreground/80 whitespace-pre-wrap">
-          {`$ echo 'add(lib)[int]: something' | commit-lint -
+          {`$ echo 'add(lib)[int]: something' | npx commit-lint -
 $ echo $?
 0`}
         </pre>
