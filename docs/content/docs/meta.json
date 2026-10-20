@@ -1,3 +1,11 @@
 {
-  "pages": ["index", "getting-started", "commit-lint", "configuration", "commit", "presets"]
+  "pages": [
+    "index",
+    "getting-started",
+    "commit-lint",
+    "configuration",
+    "commit",
+    "presets",
+    "migration"
+  ]
 }
