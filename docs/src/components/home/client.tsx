@@ -272,9 +272,6 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
   return (
     <div
       className="flex flex-col gap-6"
-      onMouseEnter={() => {
-        if (metric === "latency" && !racing) setRun((n) => n + 1);
-      }}
     >
       <ToggleGroup
         variant="outline"
