@@ -151,6 +151,14 @@ export default function Home() {
         </div>
         <Feature
           icon={<RiFileSettingsLine />}
+          art={
+            <Dither
+              type="8x8"
+              size={3}
+              timeScale={0.2}
+              className="text-fd-primary"
+            />
+          }
           title="One file, every tool."
           description={
             <>
@@ -224,6 +232,15 @@ required = true`}
         <SectionHeading>Hooks and CI.</SectionHeading>
         <Feature
           icon={<RiGitCommitLine />}
+          art={
+            <Dither
+              type="random"
+              size={3}
+              pause
+              pageLoadAnimation={false}
+              className="text-fd-primary"
+            />
+          }
           title="Catch it at commit."
           description="Drop it into a commit-msg hook, husky or plain git."
         >
@@ -302,17 +319,25 @@ function Feature({
   icon,
   title,
   description,
+  art,
   className,
   children,
 }: {
   icon?: ReactNode;
   title: ReactNode;
   description: ReactNode;
+  /** Drawn behind the card, fading out toward its title. */
+  art?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn(art && "relative isolate overflow-hidden", className)}>
+      {art && (
+        <div className="absolute inset-0 -z-1 mask-[linear-gradient(to_top,white_30%,transparent_calc(100%-120px))]">
+          {art}
+        </div>
+      )}
       <CardHeader>
         {icon && <div className="text-fd-primary mb-2">{icon}</div>}
         <CardTitle className="text-xl font-medium tracking-tight lg:text-2xl">{title}</CardTitle>
