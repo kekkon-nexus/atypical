@@ -30,7 +30,6 @@ const metrics: { value: Metric; label: string }[] = [
 
 const ours = "bg-fd-primary";
 const theirs = "bg-fd-muted-foreground/60";
-const runtime = "bg-fd-muted-foreground/25";
 
 const mb = (bytes: number) => bytes / 1e6;
 
@@ -57,7 +56,7 @@ function charts({ latency, size, packages }: Omit<Bench, "lanes" | "file">): Rec
     },
     size: {
       title: "Install footprint",
-      unit: "megabytes on disk (lower is better) · lighter: the Node.js runtime",
+      unit: "megabytes on disk (lower is better)",
       tick: (amount) => `${amount}MB`,
       bars: [
         {
@@ -67,11 +66,8 @@ function charts({ latency, size, packages }: Omit<Bench, "lanes" | "file">): Rec
         },
         {
           name: "commitlint",
-          value: `${mb(size.commitlint + size.node).toFixed(0)}MB`,
-          segments: [
-            { amount: mb(size.commitlint), className: theirs },
-            { amount: mb(size.node), className: runtime },
-          ],
+          value: `${mb(size.commitlint).toFixed(1)}MB`,
+          segments: [{ amount: mb(size.commitlint), className: theirs }],
         },
       ],
     },
@@ -106,7 +102,7 @@ function axis(max: number) {
 
 /**
  * The race clock in measured milliseconds, running `slowdown` times slower than real time from each change of `run` until
- * `finish`. Reduced motion jumps straight to `finish`.
+ * `finish`. A `run` of 0 stops it at zero. Reduced motion jumps straight to `finish`.
  *
  * @returns The milliseconds elapsed on the clock.
  */
@@ -114,7 +110,10 @@ function useRaceClock(run: number, finish: number) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
-    if (run === 0) return;
+    if (run === 0) {
+      setElapsed(0);
+      return;
+    }
 
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
       setElapsed(finish);
@@ -197,7 +196,7 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
           <button
             type="button"
             className="shrink-0 text-sm tabular-nums text-fd-muted-foreground hover:text-fd-foreground"
-            onClick={() => setRun((n) => n + 1)}
+            onClick={() => setRun((n) => (racing ? 0 : n + 1))}
           >
             {racing ? (
               <span className="font-mono">
