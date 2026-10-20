@@ -39,6 +39,6 @@ export default defineConfig({
 
       return [`vp fmt ${files.join(" ")}`, ...v8r];
     },
-    "*.{js,ts}": "vp check --fix",
+    "*.{js,jsx,ts,tsx,mjs,cjs}": "vp check --fix",
   },
 });

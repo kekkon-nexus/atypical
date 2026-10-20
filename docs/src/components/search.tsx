@@ -1,8 +1,11 @@
 "use client";
 
 import { useRouter } from "fumadocs-core/framework";
-import { useFetchSearch } from "fumadocs-core/search/client";
-import type { SearchResultItem, SearchResultRecord } from "fumadocs-core/search/client";
+import {
+  useFetchSearch,
+  type SearchResultItem,
+  type SearchResultRecord,
+} from "fumadocs-core/search/client";
 import type { SharedProps } from "fumadocs-ui/components/dialog/search";
 import { type Components, toJsxRuntime } from "hast-util-to-jsx-runtime";
 import type { ReactNode } from "react";
@@ -38,8 +41,12 @@ const cells: Partial<Components> = {
 
 const row = "grid auto-cols-fr grid-flow-col gap-3";
 
-function render(hast: SearchResultRecord["hastContent"], components?: Partial<Components>) {
-  return toJsxRuntime(hast, { Fragment, jsx, jsxs, components });
+function render(
+  hast: SearchResultRecord["hastContent"],
+  components?: Partial<Components>,
+): ReactNode {
+  // hast-util-to-jsx-runtime types its result as the global `JSX.Element`, which React 19 removed
+  return toJsxRuntime(hast, { Fragment, jsx, jsxs, components }) as ReactNode;
 }
 
 interface Group {
@@ -50,15 +57,17 @@ interface Group {
 function toGroups(items: SearchResultItem[], query: string) {
   const groups: Group[] = [];
   for (const item of items) {
-    if (item.type === "page" || groups.length === 0) {
+    const last = groups.at(-1);
+    if (item.type === "page" || !last) {
       groups.push(item.type === "page" ? { page: item, matches: [] } : { matches: [item] });
     } else {
-      groups.at(-1)!.matches.push(item);
+      last.matches.push(item);
     }
   }
   const term = query.toLowerCase();
-  const inTitle = (group: Group) => Number(group.page?.content.toLowerCase().includes(term) ?? false);
-  return groups.sort((a, b) => inTitle(b) - inTitle(a));
+  const inTitle = (group: Group) =>
+    Number(group.page?.content.toLowerCase().includes(term) ?? false);
+  return groups.toSorted((a, b) => inTitle(b) - inTitle(a));
 }
 
 export function SearchDialog({ open, onOpenChange }: SharedProps) {
@@ -71,7 +80,11 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
     onOpenChange(false);
   };
 
-  const item = (record: SearchResultRecord, className?: string, components?: Partial<Components>) => (
+  const item = (
+    record: SearchResultRecord,
+    className?: string,
+    components?: Partial<Components>,
+  ) => (
     <CommandItem
       key={record.id}
       value={record.id}
@@ -113,7 +126,11 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
                           </div>
                         )}
                         {match.rows.map((r) =>
-                          item(r, `${row} *:[svg]:hidden`, match.header ? { ...cells, thead: () => null } : cells),
+                          item(
+                            r,
+                            `${row} *:[svg]:hidden`,
+                            match.header ? { ...cells, thead: () => undefined } : cells,
+                          ),
                         )}
                       </Fragment>
                     ) : (
