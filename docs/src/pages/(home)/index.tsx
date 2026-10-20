@@ -68,7 +68,7 @@ export default function Home() {
       <title>{appName}</title>
       <div className="relative border rounded-2xl overflow-hidden mx-auto w-full max-w-350 bg-origin-border">
         <div className="absolute inset-0">
-          <Dither size={32} shapeScale={1.2} timeScale={0.5} className="opacity-33" />
+          <Dither size={32} shapeScale={1.2} timeScale={0.5} className="opacity-15" />
         </div>
         <div className="relative z-2 grid grid-cols-1 gap-10 p-4 md:p-12 lg:grid-cols-2 lg:items-center">
           <div className="flex flex-col">
