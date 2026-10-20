@@ -1,5 +1,3 @@
-import { relative } from "node:path";
-
 import oxfmt from "@kekkon-nexus/config/oxfmt";
 import oxlint from "@kekkon-nexus/config/oxlint";
 import jsdoc from "@kekkon-nexus/config/oxlint/base/jsdoc";
@@ -33,10 +31,7 @@ export default defineConfig({
       "cargo clippy --workspace --all-targets --all-features --allow-staged --allow-dirty --fix -- -D warnings",
     ],
     "*.toml": ["tombi format", "tombi lint"],
-    "*.{json,yml,yaml}": [
-      "vp fmt",
-      (files) => `v8r ${files.map((f) => `'${relative(process.cwd(), f)}'`).join(" ")}`,
-    ],
+    "*.{json,yml,yaml}": ["vp fmt", "v8r"],
     "*.{js,ts}": "vp check --fix",
   },
 });
