@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Link } from "waku";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -104,6 +104,41 @@ function axis(max: number) {
   return { end, ticks: Array.from({ length: end / step + 1 }, (_, i) => i * step) };
 }
 
+/**
+ * The race clock in measured milliseconds, running `slowdown` times slower than real time from each change of `run` until
+ * `finish`. Reduced motion jumps straight to `finish`.
+ *
+ * @returns The milliseconds elapsed on the clock.
+ */
+function useRaceClock(run: number, finish: number) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (run === 0) return;
+
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setElapsed(finish);
+      return;
+    }
+
+    setElapsed(0);
+
+    const start = performance.now();
+    let frame = 0;
+    const tick = (now: number) => {
+      const ms = (now - start) / slowdown;
+
+      setElapsed(Math.min(ms, finish));
+      if (ms < finish) frame = requestAnimationFrame(tick);
+    };
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [run, finish]);
+
+  return elapsed;
+}
+
 export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
   const [metric, setMetric] = useState<Metric>("latency");
   const [run, setRun] = useState(0);
@@ -121,6 +156,9 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
     return () => observer.disconnect();
   }, []);
 
+  const finish = Math.max(bench.latency.atypical, bench.latency.commitlint);
+  const elapsed = useRaceClock(run, finish);
+  const racing = metric === "latency" && run > 0 && elapsed < finish;
   const chart = charts(bench)[metric];
   const totals = chart.bars.map((bar) => bar.segments.reduce((sum, { amount }) => sum + amount, 0));
   const { end, ticks } = axis(Math.max(...totals));
@@ -155,7 +193,13 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
           <h3 className="font-medium">{chart.title}</h3>
           <p className="text-sm text-fd-muted-foreground">{chart.unit}</p>
         </div>
-        {metric === "latency" && (
+        {racing && (
+          <span className="shrink-0 font-mono text-sm tabular-nums text-fd-muted-foreground">
+            <span className="me-1.5 inline-block size-2 bg-fd-primary" />
+            {elapsed.toFixed(1)}ms
+          </span>
+        )}
+        {metric === "latency" && !racing && (
           <button
             type="button"
             className="shrink-0 text-sm text-fd-muted-foreground hover:text-fd-foreground"
@@ -167,32 +211,30 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
       </div>
 
       <div className="flex flex-col gap-3">
-        {chart.bars.map((bar, index) => (
-          <Row
-            key={bar.name}
-            name={bar.name}
-            value={bar.value}
-            highlight={index === 0}
-          >
-            {bar.segments.map((segment) =>
-              metric === "latency" ? (
-                <Race
-                  key={`${segment.className}-${run}`}
-                  run={run}
-                  share={segment.amount / end}
-                  seconds={(segment.amount * slowdown) / 1000}
-                  className={segment.className}
-                />
-              ) : (
+        {chart.bars.map((bar, index) => {
+          const total = totals[index] ?? 0;
+          const shown = metric === "latency" ? Math.min(elapsed, total) : total;
+
+          return (
+            <Row
+              key={bar.name}
+              name={bar.name}
+              value={metric === "latency" ? `${shown.toFixed(1)}ms` : bar.value}
+              highlight={index === 0}
+            >
+              {bar.segments.map((segment) => (
                 <div
                   key={segment.className}
                   className={cn("h-full min-w-1", segment.className)}
-                  style={{ width: `${(segment.amount / end) * 100}%` }}
+                  style={{ width: `${((metric === "latency" ? shown : segment.amount) / end) * 100}%` }}
                 />
-              ),
-            )}
-          </Row>
-        ))}
+              ))}
+              {racing && shown < total && (
+                <span className="self-center px-2 text-xs whitespace-nowrap text-fd-muted-foreground">still going…</span>
+              )}
+            </Row>
+          );
+        })}
         <Row>
           <div className="relative h-5 w-full border-t border-fd-border text-[0.65rem] text-fd-muted-foreground font-mono">
             {ticks.map((tick) => (
@@ -244,23 +286,5 @@ function Row({
         {value}
       </span>
     </div>
-  );
-}
-
-/**
- * Grows to `share` of the axis over `seconds`, the measured milliseconds slowed down `slowdown` times, so every bar grows at the
- * same speed and stops at its own value. Restarts whenever `run` changes.
- */
-function Race({ run, share, seconds, className }: { run: number; share: number; seconds: number; className: string }) {
-  return (
-    <div
-      className={cn("h-full w-0 min-w-1 motion-reduce:w-(--to) motion-reduce:animate-none!", className)}
-      style={
-        {
-          "--to": `${share * 100}%`,
-          animation: run > 0 ? `bench-race ${seconds}s linear forwards` : undefined,
-        } as CSSProperties
-      }
-    />
   );
 }
