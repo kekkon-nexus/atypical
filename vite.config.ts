@@ -39,6 +39,7 @@ export default defineConfig({
 
       return [`vp fmt ${files.join(" ")}`, ...v8r];
     },
+    "*.jsonc": "vp fmt",
     "*.{js,jsx,ts,tsx,mjs,cjs}": "vp check --fix",
   },
 });
