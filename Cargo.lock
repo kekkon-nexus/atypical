@@ -101,7 +101,7 @@ checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
 
 [[package]]
 name = "atypical-commit"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "anyhow",
  "ariadne",
@@ -117,7 +117,7 @@ dependencies = [
 
 [[package]]
 name = "atypical-config"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "indoc",
  "oxc_resolver",
