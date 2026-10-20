@@ -329,13 +329,31 @@ function Feature({
   );
 }
 
-const report = `[03] Error: Failed to parse commit message
-   ╭─[ -:1:1 ]
-   │
- 1 │ feat: add a parser
-   │ ──┬─
-   │   ╰─── \`feat\` is not in \`keywords\`, expected one of: release, undo, add, fix, ref, rem
-───╯`;
+const margin = "text-fd-muted-foreground";
+const faint = "text-fd-muted-foreground/60";
+const label = "text-fuchsia-500";
+
+/** `commit-lint`'s report for `feat: add a parser`, in ariadne's colors. */
+const report = (
+  <>
+    <span className="text-red-500">[03] Error:</span> Failed to parse commit message
+    {"\n   "}
+    <span className={margin}>╭─[</span> -:1:1 <span className={margin}>]</span>
+    {"\n   "}
+    <span className={margin}>│</span>
+    {"\n "}
+    <span className={margin}>1 │</span> <span className={label}>feat</span>
+    <span className={faint}>: add a parser</span>
+    {"\n "}
+    <span className={faint}>{"  │"}</span> <span className={label}>──┬─</span>
+    {"\n "}
+    <span className={faint}>{"  │"}</span>
+    {"   "}
+    <span className={label}>╰───</span> `feat` is not in `keywords`, expected one of: release, undo, add, fix, ref, rem
+    {"\n"}
+    <span className={margin}>───╯</span>
+  </>
+);
 
 function TryItOut() {
   return (

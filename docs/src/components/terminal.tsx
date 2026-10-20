@@ -1,11 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
-export interface TerminalLine {
-  input: boolean;
-  text: string;
-}
+export type TerminalLine = { input: true; text: string } | { input: false; text: ReactNode };
+
+const prompt = <span className="text-fd-primary">$ </span>;
 
 const typing = 35;
 const beforeTyping = 500;
@@ -23,7 +22,7 @@ export function Terminal({ lines }: { lines: TerminalLine[] }) {
               chars,
               delay: chars === 0 ? beforeTyping : typing,
             }))
-          : [{ line: index, chars: line.text.length, delay: beforeOutput }],
+          : [{ line: index, chars: 0, delay: beforeOutput }],
       ),
       { line: lines.length, chars: 0, delay: beforeOutput },
     ],
@@ -74,17 +73,21 @@ export function Terminal({ lines }: { lines: TerminalLine[] }) {
       className="min-h-64 overflow-x-auto p-3 text-sm font-mono text-fd-secondary-foreground/80"
     >
       {lines.slice(0, current.line).map((line, index) => (
-        <div key={index}>{line.input ? `$ ${line.text}` : line.text}</div>
+        <div key={index}>
+          {line.input && prompt}
+          {line.text}
+        </div>
       ))}
       {typingLine && (
         <div>
-          {typingLine.input ? `$ ${typingLine.text.slice(0, current.chars)}` : typingLine.text}
+          {typingLine.input && prompt}
+          {typingLine.input ? typingLine.text.slice(0, current.chars) : typingLine.text}
           {typingLine.input && <span className="ms-px inline-block h-4 w-2 translate-y-0.5 bg-fd-primary" />}
         </div>
       )}
       {!typingLine && (
         <div>
-          {"$ "}
+          {prompt}
           <span className="inline-block h-4 w-2 translate-y-0.5 bg-fd-primary" />
         </div>
       )}
