@@ -1,7 +1,9 @@
 import {
+  RiBracesLine,
   RiCheckLine,
   RiCloseLine,
   RiFileSettingsLine,
+  RiGitCommitLine,
   RiGitBranchLine,
   RiScalesLine,
   RiTerminalLine,
@@ -110,7 +112,7 @@ export default function Home() {
                 },
               ]}
             />
-            <Link to="/docs" className="mt-6 w-fit font-medium underline underline-offset-4">
+            <Link to="/docs" className="mt-6 w-fit font-medium text-fd-primary underline underline-offset-4">
               Then read the docs →
             </Link>
           </div>
@@ -160,6 +162,7 @@ export default function Home() {
           <ServerCodeBlock code={`extends = "npm:@atypical/commit/standard"`} lang="toml" />
         </Feature>
         <Feature
+          icon={<RiBracesLine />}
           title="Your grammar, declared."
           description="A commit header is a list of slots in header order: words, symbols, or delimited values."
         >
@@ -205,7 +208,7 @@ required = true`}
                           />
                         ) : (
                           <RiCloseLine
-                            className="size-4 shrink-0 text-red-400"
+                            className="size-4 shrink-0 text-red-500"
                             aria-label="invalid"
                           />
                         )}
@@ -220,6 +223,7 @@ required = true`}
         </Card>
         <SectionHeading>Hooks and CI.</SectionHeading>
         <Feature
+          icon={<RiGitCommitLine />}
           title="Catch it at commit."
           description="Drop it into a commit-msg hook, husky or plain git."
         >
