@@ -11,6 +11,7 @@ export default function RootElement({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
+        <meta charSet="utf-8" />
         <link
           rel="icon"
           href="/favicon.ico"
