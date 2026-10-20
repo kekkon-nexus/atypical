@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync } from "node:fs";
-import path from "node:path";
-
-const dir = path.resolve(process.cwd(), "../benches");
+const results = import.meta.glob<string>("../../../benches/result-*.md", {
+  query: "?raw",
+  import: "default",
+  eager: true,
+});
 
 export interface Lane {
   name: string;
@@ -34,14 +35,15 @@ function count(text: string, unit: string) {
  * @returns The parsed `benches/result-YYYY-MM-DD.md`, or `undefined` without one that has the commitlint lanes.
  */
 export function latestBench(): Bench | undefined {
-  const file = readdirSync(dir)
-    .filter((name) => /^result-\d{4}-\d{2}-\d{2}\.md$/.test(name))
+  const latest = Object.keys(results)
+    .filter((key) => /\/result-\d{4}-\d{2}-\d{2}\.md$/.test(key))
     .toSorted()
     .at(-1);
 
-  if (!file) return;
+  if (!latest) return;
 
-  const text = readFileSync(path.join(dir, file), "utf8");
+  const file = latest.slice(latest.lastIndexOf("/") + 1);
+  const text = results[latest] ?? "";
   const lanes = text
     .split("\n")
     .filter((line) => line.startsWith("| `"))

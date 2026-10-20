@@ -1,6 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-
+import manifest from "../../../Cargo.toml?raw";
 import { gitConfig } from "./shared";
 
 /**
@@ -9,7 +7,6 @@ import { gitConfig } from "./shared";
  * @returns The version and the GitHub release it is tagged as.
  */
 export function release() {
-  const manifest = readFileSync(path.resolve(process.cwd(), "../Cargo.toml"), "utf8");
   const version = /^\[workspace\.package\][^[]*?^version = "([^"]+)"/ms.exec(manifest)?.[1] ?? "";
 
   return {
