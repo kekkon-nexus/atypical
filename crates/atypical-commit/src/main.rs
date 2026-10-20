@@ -62,6 +62,10 @@ struct Args {
     /// HEAD.
     #[arg(long, value_name = "REV", conflicts_with = "input")]
     to: Option<String>,
+
+    /// Lint only the commit at HEAD.
+    #[arg(long, conflicts_with_all = ["input", "from", "to"])]
+    last: bool,
 }
 
 /// The `[commit]` section of the nearest (or given) atypical.toml.
@@ -199,12 +203,16 @@ fn main() -> Result<Exit> {
 
     // A range with nothing to enforce must not demand a repository:
     // the config decides before git is ever asked anything.
-    if args.from.is_some() || args.to.is_some() {
+    if args.last || args.from.is_some() || args.to.is_some() {
         let Some(config) = commit_config(args.config)? else {
             return Ok(Exit::Success);
         };
 
-        let commits = range::commits(args.from.as_deref(), args.to.as_deref())?;
+        let commits = if args.last {
+            range::last()?
+        } else {
+            range::commits(args.from.as_deref(), args.to.as_deref())?
+        };
 
         return lint(
             &commits,

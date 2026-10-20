@@ -65,8 +65,21 @@ pub fn commits(
         }
     }
 
+    log(&[], &range(from, to))
+}
+
+/// The commit at `HEAD`.
+pub fn last() -> Result<Vec<(String, String)>> {
+    log(&["-1"], "HEAD")
+}
+
+fn log(options: &[&str], revision: &str) -> Result<Vec<(String, String)>> {
     let format = format!("--format=%h{FIELD}%B{RECORD}");
-    let log = git(&["log", &format, "--end-of-options", &range(from, to)])?;
+    let log =
+        git(
+            &[&["log", &format], options, &["--end-of-options", revision]]
+                .concat(),
+        )?;
 
     if !log.status.success() {
         bail!("{}", String::from_utf8_lossy(&log.stderr).trim());

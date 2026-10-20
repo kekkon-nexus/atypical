@@ -23,7 +23,10 @@ npm i -D @atypical/commit
 commit-lint -- .git/COMMIT_EDITMSG
 echo 'add(lib)[int]: something' | commit-lint -
 commit-lint --from origin/main
+commit-lint --last
 ```
+
+`--last` lints only the commit at `HEAD`.
 
 `--from` and `--to` lint every commit in `from..to` instead of an input.
 `to` defaults to `HEAD`; without `from`, the whole history reachable

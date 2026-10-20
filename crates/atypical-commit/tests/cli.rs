@@ -482,6 +482,31 @@ fn range_conflicts_with_input() {
 }
 
 #[test]
+fn last_lints_only_head() {
+    let dir = repo("last-valid", &["feat: bad root", "add(exe)[int]: good"]);
+
+    let output = lint_in(&dir, &["--last"], None);
+
+    assert_eq!(output.status.code(), Some(0), "{}", stderr(&output));
+
+    let dir = repo("last-invalid", &["add(exe)[int]: good", "feat: bad"]);
+
+    let output = lint_in(&dir, &["--last"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stderr(&output).contains("`feat` is not in `keywords`"));
+}
+
+#[test]
+fn last_conflicts_with_input_and_range() {
+    for args in [&["--last", "-"][..], &["--last", "--from", "HEAD"]] {
+        let output = lint(args, Some("add: message\n"));
+
+        assert_eq!(output.status.code(), Some(2), "{args:?}");
+    }
+}
+
+#[test]
 fn range_without_git_fails() {
     let dir = repo("range-no-git", &["add(exe)[int]: one"]);
 
