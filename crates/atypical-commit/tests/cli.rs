@@ -498,6 +498,15 @@ fn last_lints_only_head() {
 }
 
 #[test]
+fn last_without_commits_fails() {
+    let dir = repo("last-unborn", &[]);
+
+    let output = lint_in(&dir, &["--last"], None);
+
+    assert_eq!(output.status.code(), Some(1));
+}
+
+#[test]
 fn last_conflicts_with_input_and_range() {
     for args in [&["--last", "-"][..], &["--last", "--from", "HEAD"]] {
         let output = lint(args, Some("add: message\n"));
