@@ -132,7 +132,7 @@ export default function Home() {
           {bench && (
             <Card className="flex flex-col gap-6 p-6">
               <p className="text-2xl font-medium tracking-tight lg:text-3xl">
-                <span className="text-fd-primary">+{floorLeading(bench.speedup)}×</span> faster.{" "}
+                <span className="text-fd-primary">{floorLeading(bench.speedup)}×</span> faster.{" "}
                 <span className="text-fd-primary">
                   {floorLeading(bench.size.commitlint / bench.size.atypical)}×
                 </span>{" "}
