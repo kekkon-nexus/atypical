@@ -13,6 +13,7 @@ import { Link } from "waku";
 import { BenchRace } from "@/components/bench-race";
 import Dither from "@/components/dither";
 import { Switcher } from "@/components/switcher";
+import { Terminal } from "@/components/terminal";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { floorLeading, latestBench } from "@/lib/bench";
@@ -143,6 +144,7 @@ export default function Home() {
           <span className="text-fd-primary font-medium">one file</span> in which each tool reads its
           own section. Bring your grammar, not someone else&apos;s.
         </p>
+        <TryItOut />
         <Feature
           icon={<RiFileSettingsLine />}
           title="One file, every tool."
@@ -323,6 +325,47 @@ function Feature({
         <CardDescription className="text-sm">{description}</CardDescription>
       </CardHeader>
       <CardContent>{children}</CardContent>
+    </Card>
+  );
+}
+
+const report = `[03] Error: Failed to parse commit message
+   ╭─[ -:1:1 ]
+   │
+ 1 │ feat: add a parser
+   │ ──┬─
+   │   ╰─── \`feat\` is not in \`keywords\`, expected one of: release, undo, add, fix, ref, rem
+───╯`;
+
+function TryItOut() {
+  return (
+    <Card className="col-span-full mx-auto w-full max-w-200 p-2">
+      <div className="flex flex-row gap-2">
+        <h2 className="text-fd-primary content-center font-mono font-bold uppercase [text-box-trim:both] [text-box-edge:cap_alphabetic] border-2 border-fd-primary/50 px-2 rounded-xl">
+          Try it out
+        </h2>
+        <ServerCodeBlock
+          code="npm i -D @atypical/commit"
+          lang="bash"
+          codeblock={{ className: "bg-fd-secondary flex-1" }}
+        />
+      </div>
+      <div className="bg-fd-secondary rounded-xl border shadow-md">
+        <div className="flex flex-row items-center gap-2 border-b p-2 text-fd-muted-foreground">
+          <RiTerminalLine className="size-4" />
+          <span className="text-xs font-medium">Terminal</span>
+          <div className="ms-auto me-2 size-2 rounded-full bg-red-400" />
+        </div>
+        <Terminal
+          lines={[
+            { input: true, text: "echo 'feat: add a parser' | npx commit-lint -" },
+            { input: false, text: report },
+            { input: true, text: "echo 'add(lib)[int]: add a parser' | npx commit-lint -" },
+            { input: true, text: "echo $?" },
+            { input: false, text: "0" },
+          ]}
+        />
+      </div>
     </Card>
   );
 }
