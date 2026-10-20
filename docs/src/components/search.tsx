@@ -2,7 +2,7 @@
 
 import { useRouter } from "fumadocs-core/framework";
 import { useFetchSearch } from "fumadocs-core/search/client";
-import type { SearchResultRecord } from "fumadocs-core/search/client";
+import type { SearchResultItem, SearchResultRecord } from "fumadocs-core/search/client";
 import type { SharedProps } from "fumadocs-ui/components/dialog/search";
 import { type Components, toJsxRuntime } from "hast-util-to-jsx-runtime";
 import type { ReactNode } from "react";
@@ -16,6 +16,7 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
+  CommandSeparator,
 } from "@/components/ui/command";
 
 function Children({ children }: { children?: ReactNode }) {
@@ -35,8 +36,29 @@ const cells: Partial<Components> = {
   td: Cell,
 };
 
+const row = "grid auto-cols-fr grid-flow-col gap-3";
+
 function render(hast: SearchResultRecord["hastContent"], components?: Partial<Components>) {
   return toJsxRuntime(hast, { Fragment, jsx, jsxs, components });
+}
+
+interface Group {
+  page?: SearchResultRecord;
+  matches: SearchResultItem[];
+}
+
+function toGroups(items: SearchResultItem[], query: string) {
+  const groups: Group[] = [];
+  for (const item of items) {
+    if (item.type === "page" || groups.length === 0) {
+      groups.push(item.type === "page" ? { page: item, matches: [] } : { matches: [item] });
+    } else {
+      groups.at(-1)!.matches.push(item);
+    }
+  }
+  const term = query.toLowerCase();
+  const inTitle = (group: Group) => Number(group.page?.content.toLowerCase().includes(term) ?? false);
+  return groups.sort((a, b) => inTitle(b) - inTitle(a));
 }
 
 export function SearchDialog({ open, onOpenChange }: SharedProps) {
@@ -49,12 +71,12 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
     onOpenChange(false);
   };
 
-  const item = (record: SearchResultRecord, components?: Partial<Components>) => (
+  const item = (record: SearchResultRecord, className?: string, components?: Partial<Components>) => (
     <CommandItem
       key={record.id}
       value={record.id}
       onSelect={() => onSelect(record.url)}
-      className={components && "grid grid-flow-col auto-cols-fr gap-3"}
+      className={className}
     >
       {render(record.hastContent, components)}
     </CommandItem>
@@ -64,6 +86,7 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
+      className="top-1/2 -translate-y-1/2 sm:max-w-2xl"
     >
       <Command shouldFilter={false}>
         <CommandInput
@@ -71,30 +94,35 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
           onValueChange={onSearchChange}
           placeholder="Search docs..."
         />
-        <CommandList>
+        <CommandList className="max-h-[50vh]">
           <CommandEmpty>
             {isLoading ? "Searching..." : data ? "No results." : "Type to search."}
           </CommandEmpty>
-          {data?.items.map((entry) =>
-            entry.type === "table" ? (
-              <CommandGroup
-                key={entry.id}
-                heading={
-                  entry.header && (
-                    <div className="grid grid-flow-col auto-cols-fr gap-3">
-                      {render(entry.header, cells)}
-                    </div>
-                  )
-                }
-              >
-                {entry.rows.map((row) =>
-                  item(row, entry.header ? { ...cells, thead: () => null } : cells),
-                )}
-              </CommandGroup>
-            ) : (
-              item(entry)
-            ),
-          )}
+          {data &&
+            toGroups(data.items, data.query).map((group, i) => (
+              <Fragment key={group.page?.id ?? i}>
+                {i > 0 && <CommandSeparator alwaysRender />}
+                <CommandGroup>
+                  {group.page && item(group.page, "font-semibold")}
+                  {group.matches.map((match) =>
+                    match.type === "table" ? (
+                      <Fragment key={match.id}>
+                        {match.header && (
+                          <div className={`${row} px-2 py-1.5 text-xs text-muted-foreground`}>
+                            {render(match.header, cells)}
+                          </div>
+                        )}
+                        {match.rows.map((r) =>
+                          item(r, `${row} *:[svg]:hidden`, match.header ? { ...cells, thead: () => null } : cells),
+                        )}
+                      </Fragment>
+                    ) : (
+                      item(match)
+                    ),
+                  )}
+                </CommandGroup>
+              </Fragment>
+            ))}
         </CommandList>
       </Command>
     </CommandDialog>
