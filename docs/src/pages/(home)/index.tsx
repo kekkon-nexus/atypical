@@ -23,9 +23,6 @@ import { cn } from "@/lib/utils";
 
 const repository = "https://github.com/kekkon-nexus/atypical";
 
-// Opaque, so the dithered frame behind the try-it-out card does not show through.
-const tinted = "border-fd-primary/25 bg-[color-mix(in_oklab,var(--color-fd-primary)_6%,var(--color-fd-card))]";
-
 const presets = [
   {
     value: "standard",
@@ -180,7 +177,7 @@ required = true`}
           />
         </Feature>
         <SectionHeading>Bring a grammar, or start from one.</SectionHeading>
-        <Card className={cn("col-span-full p-6", tinted)}>
+        <Card className="col-span-full p-6">
           <Switcher
             className="flex flex-col gap-6"
             options={presets.map(({ value, label, headers }) => ({
@@ -315,7 +312,7 @@ function Feature({
   children: ReactNode;
 }) {
   return (
-    <Card className={cn(tinted, className)}>
+    <Card className={className}>
       <CardHeader>
         {icon && <div className="text-fd-primary mb-2">{icon}</div>}
         <CardTitle className="text-xl font-medium tracking-tight lg:text-2xl">{title}</CardTitle>
@@ -355,7 +352,7 @@ const report = (
 
 function TryItOut() {
   return (
-    <Card className={cn("relative mx-auto w-full max-w-200 p-2", tinted)}>
+    <Card className="relative mx-auto w-full max-w-200 p-2">
       <div className="flex flex-row gap-2">
         <h2 className="text-fd-primary content-center font-mono font-bold uppercase [text-box-trim:both] [text-box-edge:cap_alphabetic] border-2 border-fd-primary/50 px-2 rounded-xl">
           Try it out
