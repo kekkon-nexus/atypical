@@ -1,0 +1,52 @@
+---
+title: Usage
+description: Inputs, options and exit codes.
+---
+
+```sh
+commit-lint -- .git/COMMIT_EDITMSG
+echo 'add(lib)[int]: something' | commit-lint -
+commit-lint --from origin/main
+```
+
+## Input
+
+| Argument            | Meaning                                                          |
+| ------------------- | ---------------------------------------------------------------- |
+| `<file>`            | A commit message file, as git hands to a `commit-msg` hook       |
+| `-`                 | Read the message from stdin                                      |
+| `--from`, `--to`    | Lint every commit in a range instead; see [CI](/docs/commit-lint/ci) |
+| `-c`, `--config`    | Use this file instead of the nearest `atypical.toml`             |
+
+A file or `-` cannot be combined with `--from` or `--to`.
+
+## What gets linted
+
+Only the header. For a message file, that is the first line that is
+neither blank nor a `#` comment, the same line git keeps when it cleans
+the message up. A trailing `\r` is ignored, so CRLF files work. The body
+and footer are not checked.
+
+Before parsing, the header is checked against the
+[default ignores](/docs/commit/default-ignores), so merges, reverts and
+release bumps pass unless `default-ignores = false`.
+
+## Configuration
+
+`commit-lint` reads the `[commit]` section of the nearest
+`atypical.toml`, walking up from the working directory, or of the file
+given to `--config`. With no file, or a file without a `[commit]`
+section, there is no convention to enforce and every message passes.
+See [Discovery](/docs/configuration/discovery).
+
+## Exit codes
+
+| Exit | Meaning                                                  |
+| ---- | -------------------------------------------------------- |
+| `0`  | Valid, or no `[commit]` section to lint against          |
+| `1`  | Failed linting, an empty message in a range, or an error |
+| `2`  | Usage error, or no commit message to lint                |
+
+An invalid config, an unreadable file or a failing `git` exits `1` with
+the error on stderr. A message made only of blank lines and comments
+exits `2`.

@@ -1,0 +1,38 @@
+---
+title: Hooks
+description: Lint each commit as it is made.
+---
+
+`commit-lint` takes the message file git passes to a `commit-msg` hook
+as its first argument. A non-zero exit aborts the commit and keeps the
+report on screen.
+
+## husky
+
+```sh title=".husky/commit-msg"
+commit-lint -- "$1"
+```
+
+husky puts `node_modules/.bin` on the hook's `PATH`, so the npm package
+works without `npx`.
+
+## Plain git
+
+Create `.git/hooks/commit-msg` and make it executable
+(`chmod +x .git/hooks/commit-msg`):
+
+```sh title=".git/hooks/commit-msg"
+#!/bin/sh
+commit-lint -- "$1"
+```
+
+Here `commit-lint` must be on `PATH`, as it is after `cargo install`.
+With only the npm package installed, call `npx commit-lint` instead.
+
+`.git/hooks` is not versioned, so every clone needs the hook installed
+again. A hook manager such as husky keeps it in the repository.
+
+## The `--` separator
+
+`--` ends option parsing, so a message file whose path starts with `-`
+is still read as a file.

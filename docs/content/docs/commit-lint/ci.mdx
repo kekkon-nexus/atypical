@@ -1,0 +1,62 @@
+---
+title: CI
+description: Lint every commit in a range.
+---
+
+Hooks are local and skippable with `--no-verify`, so check the commits
+a pull request brings in on CI too:
+
+```sh
+commit-lint --from origin/main
+```
+
+## Ranges
+
+`--from` and `--to` select commits the way `git log <from>..<to>` does:
+
+- `--from` is excluded.
+- `--to` is included and defaults to `HEAD`.
+- Without `--from`, the whole history reachable from `--to` is linted.
+
+Every commit in the range is linted and every failure is reported,
+each labelled with its short hash, before the run exits. A commit with
+an empty message fails with `<hash>: no commit message to lint.`
+
+A recorded message has already been cleaned up by git, so its header
+is its first line, even if that line starts with `#`.
+
+With no `[commit]` section to lint against, the run exits `0` before
+it asks `git` anything, so it also works outside a repository.
+
+## Shallow clones
+
+With `--from`, the two ends need a merge base. Most CI checkouts are
+shallow and lack it, which fails with:
+
+```txt
+Cannot find merge-base between 'origin/main' and 'HEAD'. This typically indicates incomplete git history (e.g. a shallow clone). Consider fetching more history.
+```
+
+Fetch the history the range covers.
+
+## GitHub Actions
+
+```yaml title=".github/workflows/commits.yaml"
+name: Commits
+
+on:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: npm ci
+      - run: npx commit-lint --from ${{ github.event.pull_request.base.sha }}
+```
+
+`fetch-depth: 0` fetches the full history, so the base commit and the
+merge base are both present.
