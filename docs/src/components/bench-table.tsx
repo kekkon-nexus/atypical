@@ -8,7 +8,8 @@ export function BenchTable() {
 
   if (!bench) return <p>No benchmark snapshot with the commitlint lanes is committed.</p>;
 
-  const source = `https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/benches/${bench.file}`;
+  const encodedFile = encodeURIComponent(bench.file);
+  const source = `https://github.com/${gitConfig.user}/${gitConfig.repo}/blob/${gitConfig.branch}/benches/${encodedFile}`;
 
   return (
     <>
