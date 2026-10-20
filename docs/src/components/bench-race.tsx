@@ -34,6 +34,8 @@ const runtime = "bg-fd-muted-foreground/25";
 
 const mb = (bytes: number) => bytes / 1e6;
 
+const slowdown = 10;
+
 function charts({ latency, size, packages }: Omit<Bench, "lanes" | "file">): Record<Metric, Chart> {
   return {
     latency: {
@@ -159,7 +161,7 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
             className="shrink-0 text-sm text-fd-muted-foreground hover:text-fd-foreground"
             onClick={() => setRun((n) => n + 1)}
           >
-            <span className="text-fd-primary">▶</span> replay at 1/1000 speed
+            <span className="text-fd-primary">▶</span> replay at 1/{slowdown} speed
           </button>
         )}
       </div>
@@ -178,7 +180,7 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
                   key={`${segment.className}-${run}`}
                   run={run}
                   share={segment.amount / end}
-                  seconds={segment.amount}
+                  seconds={(segment.amount * slowdown) / 1000}
                   className={segment.className}
                 />
               ) : (
@@ -246,7 +248,7 @@ function Row({
 }
 
 /**
- * Grows to `share` of the axis over `seconds`, the measured milliseconds slowed down 1000×, so every bar grows at the
+ * Grows to `share` of the axis over `seconds`, the measured milliseconds slowed down `slowdown` times, so every bar grows at the
  * same speed and stops at its own value. Restarts whenever `run` changes.
  */
 function Race({ run, share, seconds, className }: { run: number; share: number; seconds: number; className: string }) {
