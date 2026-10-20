@@ -1,25 +1,64 @@
 "use client";
 
 import { useRouter } from "fumadocs-core/framework";
-import { useDocsSearch } from "fumadocs-core/search/client";
-import { fetchClient } from "fumadocs-core/search/client/fetch";
+import { useFetchSearch } from "fumadocs-core/search/client";
+import type { SearchResultRecord } from "fumadocs-core/search/client";
 import type { SharedProps } from "fumadocs-ui/components/dialog/search";
+import { type Components, toJsxRuntime } from "hast-util-to-jsx-runtime";
+import type { ReactNode } from "react";
+import { Fragment, jsx, jsxs } from "react/jsx-runtime";
 
 import {
   Command,
   CommandDialog,
   CommandEmpty,
+  CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
 
+function Children({ children }: { children?: ReactNode }) {
+  return children;
+}
+
+function Cell({ children }: { children?: ReactNode }) {
+  return <span className="min-w-0 not-last:truncate last:line-clamp-2">{children}</span>;
+}
+
+const cells: Partial<Components> = {
+  table: Children,
+  thead: Children,
+  tbody: Children,
+  tr: Children,
+  th: Cell,
+  td: Cell,
+};
+
+function render(hast: SearchResultRecord["hastContent"], components?: Partial<Components>) {
+  return toJsxRuntime(hast, { Fragment, jsx, jsxs, components });
+}
+
 export function SearchDialog({ open, onOpenChange }: SharedProps) {
   const router = useRouter();
-  const { search, setSearch, query } = useDocsSearch({
-    client: fetchClient(),
-  });
-  const items = query.data === "empty" ? [] : query.data;
+  const { search, onSearchChange, isLoading, data } = useFetchSearch();
+
+  const onSelect = (url: string) => {
+    // oxlint-disable-next-line no-void
+    void router.push(url);
+    onOpenChange(false);
+  };
+
+  const item = (record: SearchResultRecord, components?: Partial<Components>) => (
+    <CommandItem
+      key={record.id}
+      value={record.id}
+      onSelect={() => onSelect(record.url)}
+      className={components && "grid grid-flow-col auto-cols-fr gap-3"}
+    >
+      {render(record.hastContent, components)}
+    </CommandItem>
+  );
 
   return (
     <CommandDialog
@@ -29,30 +68,33 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
       <Command shouldFilter={false}>
         <CommandInput
           value={search}
-          onValueChange={setSearch}
+          onValueChange={onSearchChange}
           placeholder="Search docs..."
         />
         <CommandList>
           <CommandEmpty>
-            {query.isLoading
-              ? "Searching..."
-              : query.data === "empty"
-                ? "Type to search."
-                : "No results."}
+            {isLoading ? "Searching..." : data ? "No results." : "Type to search."}
           </CommandEmpty>
-          {items.map((item) => (
-            <CommandItem
-              key={item.id}
-              value={item.id}
-              onSelect={() => {
-                // oxlint-disable-next-line no-void
-                void router.push(item.url);
-                onOpenChange(false);
-              }}
-            >
-              {item.content}
-            </CommandItem>
-          ))}
+          {data?.items.map((entry) =>
+            entry.type === "table" ? (
+              <CommandGroup
+                key={entry.id}
+                heading={
+                  entry.header && (
+                    <div className="grid grid-flow-col auto-cols-fr gap-3">
+                      {render(entry.header, cells)}
+                    </div>
+                  )
+                }
+              >
+                {entry.rows.map((row) =>
+                  item(row, entry.header ? { ...cells, thead: () => null } : cells),
+                )}
+              </CommandGroup>
+            ) : (
+              item(entry)
+            ),
+          )}
         </CommandList>
       </Command>
     </CommandDialog>

@@ -19,6 +19,7 @@
     "fumadocs-core": "catalog:fumadocs",
     "fumadocs-mdx": "catalog:fumadocs",
     "fumadocs-ui": "catalog:fumadocs",
+    "hast-util-to-jsx-runtime": "catalog:",
     "next-themes": "catalog:",
     "react": "catalog:react",
     "react-dom": "catalog:react",
