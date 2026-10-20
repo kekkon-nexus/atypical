@@ -10,7 +10,13 @@ export default function RootElement({ children }: { children: ReactNode }) {
       lang="en"
       suppressHydrationWarning
     >
-      <head></head>
+      <head>
+        <link
+          rel="icon"
+          href="/favicon.svg"
+          type="image/svg+xml"
+        />
+      </head>
       <body className="flex flex-col min-h-screen">
         <Provider>{children}</Provider>
       </body>
