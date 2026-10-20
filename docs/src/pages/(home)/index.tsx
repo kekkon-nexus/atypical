@@ -234,9 +234,9 @@ required = true`}
           icon={<RiGitCommitLine />}
           art={
             <Dither
-              type="random"
-              size={3}
-              pause
+              image="/zach-reiner-H7LxvEmVZnE-unsplash.jpg"
+              type="2x2"
+              size={4}
               pageLoadAnimation={false}
               className="text-fd-primary"
             />
