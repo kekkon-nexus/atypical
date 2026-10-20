@@ -13,21 +13,31 @@
         "@kekkon-nexus/config": "4.0.2",
         "@types/bun": "latest",
         "@types/node": "^26.6.5",
-        "lefthook": "2.2.2",
         "oxfmt": "0.73.0",
         "oxlint": "1.88.0",
         "oxlint-tsgolint": "^7.0.2004",
         "tombi": "1.8.8",
         "typescript": "^7.0.2",
-        "v8r": "6.1.0"
+        "v8r": "6.1.0",
+        "vite-plus": "^1.3.0"
       }
     }
   },
   "type": "module",
   "scripts": {
-    "check": "lefthook run check",
-    "fix": "lefthook run fix",
-    "test": "lefthook run test",
+    "prepare": "vp config --no-agent",
+    "check": "bun run --parallel --no-exit-on-error check:*",
+    "check:cargo": "cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings",
+    "check:tombi": "tombi format --check && tombi lint",
+    "check:v8r": "v8r '**/*.{json,yml,yaml}'",
+    "check:vp": "vp check",
+    "fix": "bun run --sequential --no-exit-on-error fix:*",
+    "fix:cargo": "cargo clippy --workspace --all-targets --all-features --fix --allow-staged --allow-dirty && cargo fmt --all",
+    "fix:tombi": "tombi format && tombi lint",
+    "fix:vp": "vp check --fix",
+    "test": "bun run --sequential --no-exit-on-error test:*",
+    "test:cargo": "cargo nextest run --workspace --all-targets --all-features --locked",
+    "test:cargo:doc": "cargo test --doc --workspace --all-features --locked",
     "build": "cargo build --release -p atypical-commit",
     "bench": "sh benches/latency.sh"
   },
@@ -35,12 +45,16 @@
     "@kekkon-nexus/config": "catalog:dev",
     "@types/bun": "catalog:dev",
     "@types/node": "catalog:dev",
-    "lefthook": "catalog:dev",
     "oxfmt": "catalog:dev",
     "oxlint": "catalog:dev",
     "oxlint-tsgolint": "catalog:dev",
     "tombi": "catalog:dev",
     "typescript": "catalog:dev",
-    "v8r": "catalog:dev"
+    "v8r": "catalog:dev",
+    "vite-plus": "catalog:dev"
+  },
+  "overrides": {
+    "oxfmt": "catalog:dev",
+    "oxlint": "catalog:dev"
   }
 }

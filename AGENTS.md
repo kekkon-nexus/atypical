@@ -27,10 +27,8 @@ The `commit-msg` hook lints them. Read
 
 - `.cargo/config.toml` passes `-Z` flags: stable fails, don't switch to
   it. x86_64 Linux and macOS link with `clang` and `lld`.
-- `bun install` brings tombi, oxfmt, oxlint, v8r and lefthook, and
-  installs the hooks. `cargo-nextest` and `hyperfine` come separately.
-- Hooks call JS tools through `bunx`: lefthook doesn't put
-  `node_modules/.bin` on `PATH`.
+- `bun install` brings tombi, vite-plus and v8r, and installs the
+  hooks from `.vite-hooks/`. `cargo-nextest` and `hyperfine` come separately.
 - v8r fetches schemas from schemastore.org by filename, so a cold cache
   needs network. `.v8rignore` drops `.vscode/`, which has no catalog
   entry.
@@ -92,11 +90,11 @@ Each is pinned by tests; change a test only on purpose.
 
 ## Gotchas
 
-- tombi owns TOML; oxfmt owns everything else it supports, Markdown
-  included, so its jobs exclude `*.toml`. Run `bun run fix` instead of
+- tombi owns TOML; `vp fmt` owns everything else it supports, Markdown
+  included, so `vite.config.ts` ignores `*.toml`. Run `bun run fix` instead of
   hand-styling.
-- lefthook reads `.config/lefthook.yaml` only; `.yml` is silently
-  ignored.
+- `vp staged` runs the `staged` block in `vite.config.ts`, which is
+  lint-staged 17: it needs Node 22.22.1+ or 24.11.0+.
 - The size-tuned release profile in `.cargo/config.toml` is deliberate.
 - `benches/` is a hyperfine script, not `cargo bench`. Its commitlint
   lane needs the `benches` workspace installed and is skipped without
