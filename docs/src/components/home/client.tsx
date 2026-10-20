@@ -1,11 +1,131 @@
 "use client";
 
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link } from "waku";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Bench } from "@/lib/bench";
 import { cn } from "@/lib/utils";
+
+/** Toggles between panels rendered on the server; hidden panels stay in the markup. */
+export function Switcher({
+  options,
+  className,
+}: {
+  options: { value: string; label: ReactNode; panel: ReactNode }[];
+  className?: string;
+}) {
+  const [active, setActive] = useState(options[0]?.value);
+
+  return (
+    <div className={className}>
+      <ToggleGroup
+        variant="outline"
+        size="sm"
+        value={active ? [active] : []}
+        onValueChange={(value: string[]) => {
+          if (value[0]) setActive(value[0]);
+        }}
+      >
+        {options.map(({ value, label }) => (
+          <ToggleGroupItem
+            key={value}
+            value={value}
+          >
+            {label}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      {options.map(({ value, panel }) => (
+        <div
+          key={value}
+          hidden={value !== active}
+        >
+          {panel}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export type TerminalLine = { input: true; text: string } | { input: false; text: ReactNode };
+
+const prompt = <span className="text-fd-primary">$ </span>;
+
+const typing = 35;
+const beforeTyping = 500;
+const beforeOutput = 300;
+
+/** Shows the finished session; on mouse enter, types each input line and prints each output line whole. */
+export function Terminal({ lines }: { lines: TerminalLine[] }) {
+  const steps = useMemo(
+    () => [
+      ...lines.flatMap((line, index) =>
+        line.input
+          ? Array.from({ length: line.text.length + 1 }, (_, chars) => ({
+              line: index,
+              chars,
+              delay: chars === 0 ? beforeTyping : typing,
+            }))
+          : [{ line: index, chars: 0, delay: beforeOutput }],
+      ),
+      { line: lines.length, chars: 0, delay: beforeOutput },
+    ],
+    [lines],
+  );
+  const last = steps.length - 1;
+  const [step, setStep] = useState(last);
+  const [playing, setPlaying] = useState(false);
+
+  useEffect(() => {
+    if (!playing) return;
+
+    if (step >= last) {
+      setPlaying(false);
+      return;
+    }
+
+    const timer = setTimeout(() => setStep(step + 1), steps[step + 1]?.delay ?? 0);
+
+    return () => clearTimeout(timer);
+  }, [playing, step, steps, last]);
+
+  const replay = () => {
+    if (playing || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    setStep(0);
+    setPlaying(true);
+  };
+
+  const current = steps[step] ?? { line: 0, chars: 0 };
+  const typingLine = lines[current.line];
+
+  return (
+    <pre
+      onMouseEnter={replay}
+      className="min-h-64 overflow-x-auto p-3 text-sm font-mono text-fd-secondary-foreground/80"
+    >
+      {lines.slice(0, current.line).map((line, index) => (
+        <div key={index}>
+          {line.input && prompt}
+          {line.text}
+        </div>
+      ))}
+      {typingLine && (
+        <div>
+          {typingLine.input && prompt}
+          {typingLine.input ? typingLine.text.slice(0, current.chars) : typingLine.text}
+          {typingLine.input && <span className="ms-px inline-block h-4 w-2 translate-y-0.5 bg-fd-primary" />}
+        </div>
+      )}
+      {!typingLine && (
+        <div>
+          {prompt}
+          <span className="inline-block h-4 w-2 translate-y-0.5 bg-fd-primary" />
+        </div>
+      )}
+    </pre>
+  );
+}
 
 type Metric = "latency" | "size" | "packages";
 
@@ -152,6 +272,9 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
   return (
     <div
       className="flex flex-col gap-6"
+      onMouseEnter={() => {
+        if (metric === "latency" && !racing) setRun((n) => n + 1);
+      }}
     >
       <ToggleGroup
         variant="outline"

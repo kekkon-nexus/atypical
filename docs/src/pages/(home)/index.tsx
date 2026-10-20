@@ -10,10 +10,8 @@ import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import type { ReactNode } from "react";
 import { Link } from "waku";
 
-import { BenchRace } from "@/components/bench-race";
 import Dither from "@/components/dither";
-import { Switcher } from "@/components/switcher";
-import { Terminal } from "@/components/terminal";
+import { BenchRace, Switcher, Terminal } from "@/components/home/client";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { floorLeading, latestBench } from "@/lib/bench";
