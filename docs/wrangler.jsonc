@@ -7,16 +7,25 @@
   "assets": {
     "binding": "ASSETS",
     "directory": "./dist/public",
-    "html_handling": "drop-trailing-slash"
+    "html_handling": "drop-trailing-slash",
+  },
+  "cache": {
+    "enabled": true,
+  },
+  "placement": {
+    "mode": "smart",
   },
   "observability": {
     "logs": {
       "enabled": true,
-      "invocation_logs": true
+      "invocation_logs": true,
     },
     "traces": {
-      "enabled": false
-    }
+      "enabled": true,
+    },
+    "issues": {
+      "enabled": true,
+    },
   },
-  "upload_source_maps": true
+  "upload_source_maps": true,
 }
