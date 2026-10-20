@@ -19,7 +19,7 @@ export function SearchDialog({ open, onOpenChange }: SharedProps) {
   const { search, setSearch, query } = useDocsSearch({
     client: fetchClient(),
   });
-  const items = query.data === "empty" ? [] : (query.data ?? []);
+  const items = query.data === "empty" ? [] : query.data;
 
   return (
     <CommandDialog

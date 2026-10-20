@@ -16,10 +16,6 @@ function SearchTrigger({ hideIfDisabled, variant, ...props }: SearchTriggerProps
   const { enabled, setOpenSearch } = useSearchContext();
   if (hideIfDisabled && !enabled) return;
 
-  if (variant === "primary") {
-    variant = "default";
-  }
-
   return (
     <Button
       variant="ghost"

@@ -47,6 +47,7 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions, jsx-a11y/click-events-have-key-events -- shadcn: clicking the addon focuses its input, which takes the keyboard
     <div
       role="group"
       data-slot="input-group-addon"

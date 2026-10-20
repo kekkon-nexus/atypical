@@ -240,16 +240,6 @@ function createRenderer(canvas: HTMLCanvasElement) {
   const running = () =>
     !!res && visible && inView && ((!settings?.pause && !settings?.image) || progress() < 1);
 
-  const frame = (now: number) => {
-    raf = 0;
-    if (last && time !== undefined && !settings?.pause) {
-      time += (now - last) * 0.001 * (settings?.timeScale ?? 0);
-    }
-    last = now;
-    draw();
-    schedule();
-  };
-
   const schedule = () => {
     if (running()) {
       raf ||= requestAnimationFrame(frame);
@@ -259,6 +249,16 @@ function createRenderer(canvas: HTMLCanvasElement) {
       last = 0;
     }
   };
+
+  function frame(now: number) {
+    raf = 0;
+    if (last && time !== undefined && !settings?.pause) {
+      time += (now - last) * 0.001 * (settings?.timeScale ?? 0);
+    }
+    last = now;
+    draw();
+    schedule();
+  }
 
   // The shader reads one texel per cell, so the image is shrunk before it becomes a texture.
   const loadPicture = (src: string) => {
@@ -315,9 +315,12 @@ function createRenderer(canvas: HTMLCanvasElement) {
   });
 
   const resizeObserver = new ResizeObserver(([entry]) => {
-    const css = entry?.contentBoxSize[0];
-    if (!entry || !css?.inlineSize) return;
-    const device = entry.devicePixelContentBoxSize?.[0];
+    if (!entry) return;
+    const css = entry.contentBoxSize[0];
+    if (!css?.inlineSize) return;
+    // Safari has no devicePixelContentBoxSize, despite the DOM types.
+    const device =
+      "devicePixelContentBoxSize" in entry ? entry.devicePixelContentBoxSize[0] : undefined;
     const width = device?.inlineSize ?? Math.round(css.inlineSize * devicePixelRatio);
     const height = device?.blockSize ?? Math.round(css.blockSize * devicePixelRatio);
     dpr = width / css.inlineSize;
