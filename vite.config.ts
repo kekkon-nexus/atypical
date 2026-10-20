@@ -13,6 +13,7 @@ export default defineConfig({
     extends: [oxlint, vp],
     env: {
       node: true,
+      browser: true,
     },
     options: {
       typeAware: true,
@@ -31,7 +32,14 @@ export default defineConfig({
       "cargo clippy --workspace --all-targets --all-features --allow-staged --allow-dirty --fix -- -D warnings",
     ],
     "*.toml": ["tombi format", "tombi lint"],
-    "*.{json,yml,yaml}": ["vp fmt", "v8r"],
-    "*.{js,ts}": "vp check --fix",
+    "*.{json,yml,yaml}": (files) => {
+      // v8r fails a batch whose every file .v8rignore drops
+      const validated = files.filter((file) => !/docs\/content\/.*meta\.json$/.test(file));
+      const v8r = validated.length > 0 ? [`v8r ${validated.join(" ")}`] : [];
+
+      return [`vp fmt ${files.join(" ")}`, ...v8r];
+    },
+    "*.jsonc": "vp fmt",
+    "*.{js,jsx,ts,tsx,mjs,cjs}": "vp check --fix",
   },
 });

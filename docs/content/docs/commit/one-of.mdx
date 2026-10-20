@@ -1,0 +1,56 @@
+---
+title: One of
+description: A slot that matches exactly one of several forms.
+---
+
+A `one-of` slot matches exactly one of its options. Each option has a
+`name`, one of `kind` or `delimiters`, and optional `values`.
+
+```toml
+[[commit.slots]]
+name = "intention"
+required = true
+gap = true
+
+[[commit.slots.one-of]]
+name = "emoji"
+kind = "symbols"
+values = ["✨", "🐛"]
+
+[[commit.slots.one-of]]
+name = "shortcode"
+delimiters = [":", ":"]
+values = ["sparkles", "bug"]
+```
+
+| Header                     | Result             |
+| -------------------------- | ------------------ |
+| `✨ add a feature`         | Valid              |
+| `:sparkles: add a feature` | Valid              |
+| `✨:bug: x`                | Invalid: two forms |
+
+## Key placement
+
+| Key                        | Belongs on  |
+| -------------------------- | ----------- |
+| `required`, `gap`, `tight` | Outer slot  |
+| `values`                   | Each option |
+
+| Misplaced key              | Error                                             |
+| -------------------------- | ------------------------------------------------- |
+| `values` on the outer slot | `` `values` does not apply to slot `intention` `` |
+| `required` on an option    | `` `required` does not apply to slot `emoji` ``   |
+| `gap` on an option         | `` `gap` does not apply to slot `emoji` ``        |
+| `tight` on an option       | `` `tight` does not apply to slot `emoji` ``      |
+| `one-of` inside an option  | `` `one-of` does not apply to slot `emoji` ``     |
+
+## Overlap
+
+Two options that can start on the same input are rejected. An
+unrestricted `symbols` option overlaps a `:`-delimited option:
+
+```txt
+`emoji` and `shortcode` can start on the same input
+```
+
+A closed `values` list on the `symbols` option removes the overlap.

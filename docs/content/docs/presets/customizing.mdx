@@ -1,0 +1,65 @@
+---
+title: Customizing
+description: Overrides for preset slots.
+---
+
+An override names a preset slot and writes only the fields that change.
+See [Merging](/docs/configuration/merging).
+
+| Change                  | Override                                         |
+| ----------------------- | ------------------------------------------------ |
+| Restrict keywords       | `name = "keywords"`, `values = [...]`            |
+| Require the scope       | `name = "scope"`, `required = true`              |
+| Restrict the scope      | `name = "scope"`, `values = [...]`               |
+| Add a slot              | A new `name`, its shape, and `before = "<slot>"` |
+| Remove a slot           | `name = "<slot>"`, `drop = true`                 |
+| Disable default ignores | `[commit]` with `default-ignores = false`        |
+
+## Restrict keywords
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "keywords"
+values = ["feat", "fix", "docs"]
+```
+
+| Header          | Result                                                               |
+| --------------- | -------------------------------------------------------------------- |
+| `docs: x`       | Valid                                                                |
+| `feat(api)!: x` | Valid                                                                |
+| `chore: x`      | `` `chore` is not in `keywords`, expected one of: docs, feat, fix `` |
+
+## Add a ticket
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "ticket"
+delimiters = ["[", "]"]
+before = "separator"
+```
+
+`feat(api)![ABC-12]: x` is valid. The ticket accepts any characters
+except its brackets.
+
+## Remove a slot
+
+```toml
+extends = "npm:@atypical/commit/standard"
+
+[[commit.slots]]
+name = "reason"
+drop = true
+```
+
+## Disable default ignores
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[commit]
+default-ignores = false
+```

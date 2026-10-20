@@ -1,0 +1,27 @@
+---
+title: Discovery
+description: Which atypical.toml a tool reads.
+---
+
+| Rule              | Behavior                                                                   |
+| ----------------- | -------------------------------------------------------------------------- |
+| File name         | `atypical.toml`                                                            |
+| Search            | The working directory, then each ancestor up to the root; first match wins |
+| Files further up  | Not merged; use [`extends`](/docs/configuration/extends)                   |
+| `--config <FILE>` | Skips the search; the file may have any name                               |
+| Section           | Each tool reads one top-level table; `commit-lint` reads `[commit]`        |
+
+## Missing file or section
+
+A missing file, or a file without the tool's section, is not an error.
+The tool has nothing to enforce, and every input passes.
+
+A present but empty `[commit]` section enforces the
+[default grammar](/docs/commit/default-grammar).
+
+## Unknown keys
+
+`[commit]` rejects keys it does not define, including the removed
+[fixed-layout keys](/docs/migration#from-the-fixed-layout-keys). The
+[reserved keys](/docs/configuration/reserved-keys) are consumed during
+merging and never reach the schema.

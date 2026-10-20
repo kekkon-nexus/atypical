@@ -1,0 +1,48 @@
+---
+title: Diagnostics
+description: Messages printed for a failed lint.
+---
+
+A header that fails to parse produces a report titled
+`Failed to parse commit message`. The report underlines the header and
+labels each error at its position.
+
+## Messages
+
+Slot names in messages are the slots' `name` values.
+
+| Message                                                 | Cause                                                                  |
+| ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `` `feat` is not in `keywords`, expected one of: ... `` | A value outside the slot's `values`                                    |
+| ``expected `keywords`, one of: ...``                    | A required closed slot is missing, or a closed delimited slot is empty |
+| `` expected `scope` ``                                  | An unrestricted slot is missing or empty                               |
+| `` expected an opening `(` ``                           | A required delimited slot is missing                                   |
+| `found '[' expected '!', or ':'`                        | A character no slot accepts at that position                           |
+| `found end of input expected ...`                       | The header ends before a required slot                                 |
+| `expected a description after the separator`            | Nothing, or only spaces, after the separator                           |
+| `expected a space before the description`               | No space between the prefix and the description                        |
+| `the description must not start with a space`           | More than one space before the description                             |
+
+A bare slot lists its spellings longest first. A delimited slot lists them in declaration order.
+
+## Examples
+
+With the [`standard`](/docs/presets/standard) preset:
+
+| Header                | Message                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| `feat: x`             | `` `feat` is not in `keywords`, expected one of: release, undo, add, fix, ref, rem ``      |
+| `add(unsupported): x` | `` `unsupported` is not in `scope`, expected one of: exe, lib, test, build, doc, ci, cd `` |
+| `add(exe)!: x`        | `found '!' expected ':'`                                                                   |
+| `add:no space`        | `expected a space before the description`                                                  |
+
+## Config errors
+
+A config that cannot form a grammar is rejected before any header is
+read, with exit `1` and one error line.
+
+| Source                    | Reference                                     |
+| ------------------------- | --------------------------------------------- |
+| Slot definitions          | [Ambiguity](/docs/commit/ambiguity)           |
+| `extends`                 | [Extends](/docs/configuration/extends#errors) |
+| `before`, duplicate names | [Merging](/docs/configuration/merging#errors) |

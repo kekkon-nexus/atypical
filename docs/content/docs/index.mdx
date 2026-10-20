@@ -1,0 +1,41 @@
+---
+title: Introduction
+description: A toolkit that enforces repository-defined conventions from one file.
+icon: RiBookOpenLine
+---
+
+Atypical is a set of tools that enforce conventions declared by the
+repository. All tools read one file, `atypical.toml`. Each tool reads
+only its own top-level section.
+
+The only tool so far is `commit-lint`, which lints commit message
+headers against the `[commit]` section.
+
+```toml title="atypical.toml"
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "keywords"
+values = ["feat", "fix", "docs"]
+```
+
+This file extends the Conventional Commits preset and restricts the
+`keywords` slot to three values. All other slots keep the preset's
+definition.
+
+## Crates
+
+| Crate                                                         | Contents                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------- |
+| [`atypical-config`](https://crates.io/crates/atypical-config) | Discovery and loading of `atypical.toml`, including `extends` |
+| [`atypical-commit`](https://crates.io/crates/atypical-commit) | The `commit-lint` binary and the commit header parser library |
+
+## Packages
+
+| Package                                                         | Contents                                        |
+| --------------------------------------------------------------- | ----------------------------------------------- |
+| [`@atypical/commit`](https://npmx.dev/package/@atypical/commit) | `commit-lint` prebuilt, and the presets by name |
+
+## License
+
+MIT or Apache-2.0, at your option.

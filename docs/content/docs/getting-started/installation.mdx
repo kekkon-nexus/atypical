@@ -1,0 +1,46 @@
+---
+title: Installation
+description: Distribution channels for the commit-lint binary.
+---
+
+| Channel   | Command                         | Presets included |
+| --------- | ------------------------------- | ---------------- |
+| npm       | `npm i -D @atypical/commit`     | Yes, by name     |
+| crates.io | `cargo install atypical-commit` | No               |
+
+## npm
+
+`@atypical/commit` is a Node wrapper. The binary is an optional
+dependency named `@atypical/commit-<platform>-<arch>`, with a `-musl`
+suffix on musl Linux. The packages have no install scripts. The wrapper
+requires Node 18 or later.
+
+| Platform | Architectures | libc        |
+| -------- | ------------- | ----------- |
+| Linux    | x64, arm64    | glibc, musl |
+| macOS    | x64, arm64    |             |
+| Windows  | x64, arm64    |             |
+
+| Variable             | Effect                                      |
+| -------------------- | ------------------------------------------- |
+| `COMMIT_LINT_BINARY` | Path of the binary the wrapper runs instead |
+
+The wrapper exits `127` when no binary is available: an unsupported
+platform, skipped optional dependencies, or a binary that fails to
+start.
+
+The package exports each preset by name, for use in
+[`extends`](/docs/configuration/extends) as
+`npm:@atypical/commit/<preset>`.
+
+## crates.io
+
+The crate does not include the presets. Copies are in
+[`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets).
+
+## Minimal setup
+
+| File                | Contents                                        |
+| ------------------- | ----------------------------------------------- |
+| `atypical.toml`     | `extends = "npm:@atypical/commit/conventional"` |
+| `.husky/commit-msg` | `commit-lint -- "$1"`                           |

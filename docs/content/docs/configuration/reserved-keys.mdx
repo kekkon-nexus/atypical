@@ -1,0 +1,18 @@
+---
+title: Reserved keys
+description: Keys that steer merging in every named array.
+---
+
+In an array whose every entry has a `name`, three keys are merge
+directives:
+
+| Key      | Type    | Meaning                                   | Reaches the schema |
+| -------- | ------- | ----------------------------------------- | ------------------ |
+| `name`   | string  | The key entries are matched on            | Yes                |
+| `drop`   | boolean | Remove the entry with this name           | No                 |
+| `before` | string  | Place this entry ahead of the named entry | No                 |
+
+- The reservation applies to every section and every tool.
+- A directive of the wrong type, such as `drop = "yes"`, is left on the
+  entry for the section schema to reject.
+- An array with an entry whose `name` is not a string is unnamed.

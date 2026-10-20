@@ -1,0 +1,17 @@
+---
+title: Overview
+description: Ready-made grammars for extends.
+---
+
+| Preset                                       | Convention                                                               | npm target                          |
+| -------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------- |
+| [`standard`](/docs/presets/standard)         | [Standard Commits](https://github.com/standard-commits/standard-commits) | `npm:@atypical/commit/standard`     |
+| [`conventional`](/docs/presets/conventional) | [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)   | `npm:@atypical/commit/conventional` |
+| [`gitmoji`](/docs/presets/gitmoji)           | [Gitmoji](https://gitmoji.dev/specification)                             | `npm:@atypical/commit/gitmoji`      |
+
+- The files in
+  [`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
+  are the only definitions.
+- A preset is an `atypical.toml` fragment; any of its slots can be
+  [overridden](/docs/presets/customizing).
+- Every preset sets `default-ignores = true`.

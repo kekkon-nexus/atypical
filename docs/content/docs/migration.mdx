@@ -1,0 +1,67 @@
+---
+title: Migration
+description: From commitlint, and from the fixed-layout keys.
+icon: RiArrowLeftRightLine
+---
+
+## From commitlint
+
+| commitlint                                     | atypical                                        |
+| ---------------------------------------------- | ----------------------------------------------- |
+| `@commitlint/config-conventional`              | `extends = "npm:@atypical/commit/conventional"` |
+| `commitlint.config.*`                          | `atypical.toml`                                 |
+| `commitlint --edit "$1"` (`.husky/commit-msg`) | `commit-lint -- "$1"`                           |
+| `commitlint --from <rev>`                      | `commit-lint --from <rev>`                      |
+
+### Rules
+
+`commit-lint` checks the header's shape against a grammar. It has no
+other rules.
+
+| commitlint                         | atypical                                          |
+| ---------------------------------- | ------------------------------------------------- |
+| `type-enum`                        | `values` on the `keywords` slot                   |
+| `type-empty`                       | `required = true` on the `keywords` slot          |
+| `scope-enum`                       | `values` on the `scope` slot                      |
+| `scope-empty`                      | `required` on the `scope` slot                    |
+| `subject-empty`                    | Always enforced                                   |
+| `defaultIgnores`                   | [`default-ignores`](/docs/commit/default-ignores) |
+| `ignores`                          | Not supported                                     |
+| Case, length, `body-*`, `footer-*` | Not supported                                     |
+
+### Latency
+
+See [Benchmarks](/docs/benchmarks).
+
+## From the fixed-layout keys
+
+The fixed-layout keys of `[commit]` are removed and rejected as unknown
+keys.
+
+| Removed             | Replacement                                            |
+| ------------------- | ------------------------------------------------------ |
+| `keywords`          | `values` of a `kind = "word"` slot                     |
+| `modifiers`         | `values` of a `kind = "symbols"` slot                  |
+| `modifier-sequence` | The modifier slot's position in the list               |
+| `separator`         | `values` of a `kind = "symbol"` slot                   |
+| `enclosures[]`      | One slot per enclosure, with `delimiters` and `values` |
+
+```toml title="Before"
+[commit]
+keywords = ["feat", "fix"]
+separator = ":"
+```
+
+```toml title="After"
+[[commit.slots]]
+name = "keywords"
+kind = "word"
+values = ["feat", "fix"]
+required = true
+
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+values = [":"]
+required = true
+```

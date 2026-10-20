@@ -4,22 +4,60 @@
   "workspaces": {
     "packages": [
       "benches",
+      "docs",
       "npm"
     ],
+    "catalog": {
+      "compressorjs": "^1.4.0",
+      "hast-util-to-jsx-runtime": "^2.3.6",
+      "hono": "^4.12.14",
+      "next-themes": "^0.4.6",
+      "takumi-js": "^2.13.7",
+      "twgl.js": "^7.0.0",
+      "waku": "1.0.0-rc.3"
+    },
     "catalogs": {
+      "fumadocs": {
+        "fumadocs-core": "16.17.7",
+        "fumadocs-mdx": "15.4.8",
+        "fumadocs-ui": "npm:@fumadocs/base-ui@16.17.7"
+      },
+      "shadcn": {
+        "@base-ui/react": "^1.8.0",
+        "@remixicon/react": "^4.9.0",
+        "class-variance-authority": "^0.7.1",
+        "cmdk": "^1.1.1",
+        "cn": "^0.5.0",
+        "shadcn": "^4.21.0",
+        "tw-animate-css": "^1.4.0"
+      },
+      "react": {
+        "@types/react": "^19.2.18",
+        "@types/react-dom": "^19.2.7",
+        "react": "^19.2.8",
+        "react-dom": "^19.2.8",
+        "react-server-dom-webpack": "^19.2.8"
+      },
       "dev": {
+        "@cloudflare/vite-plugin": "^1.64.0",
         "@commitlint/cli": "^21.2.4",
         "@commitlint/config-conventional": "^21",
         "@kekkon-nexus/config": "4.0.2",
+        "@tailwindcss/vite": "^4.3.3",
         "@types/bun": "latest",
+        "@types/mdx": "^2.0.14",
         "@types/node": "^26.6.5",
-        "oxfmt": "0.73.0",
-        "oxlint": "1.88.0",
+        "naga-wasm": "^30.1.0",
+        "oxfmt": "0.74.0",
+        "oxlint": "1.89.0",
         "oxlint-tsgolint": "^7.0.2004",
-        "tombi": "1.8.8",
+        "tailwindcss": "^4.3.3",
+        "tombi": "1.8.9",
         "typescript": "^7.0.2",
         "v8r": "6.1.0",
-        "vite-plus": "^1.3.0"
+        "vite": "npm:@voidzero-dev/vite-plus-core@^1.3.0",
+        "vite-plus": "^1.3.0",
+        "wrangler": "^4.151.3"
       }
     }
   },
@@ -38,6 +76,7 @@
     "test": "bun run --sequential --no-exit-on-error test:*",
     "test:cargo": "cargo nextest run --workspace --all-targets --all-features --locked",
     "test:cargo:doc": "cargo test --doc --workspace --all-features --locked",
+    "docs": "bun --cwd ./docs run dev",
     "build": "cargo build --release -p atypical-commit",
     "bench": "sh benches/latency.sh"
   },
@@ -55,6 +94,10 @@
   },
   "overrides": {
     "oxfmt": "catalog:dev",
-    "oxlint": "catalog:dev"
+    "oxlint": "catalog:dev",
+    "vite": "catalog:dev"
+  },
+  "patchedDependencies": {
+    "waku@1.0.0-rc.3": "patches/waku@1.0.0-rc.3.patch"
   }
 }

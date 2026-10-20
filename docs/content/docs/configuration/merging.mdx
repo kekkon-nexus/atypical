@@ -1,0 +1,110 @@
+---
+title: Merging
+description: How a file combines with the files it extends.
+---
+
+| Value                                    | Merge                             |
+| ---------------------------------------- | --------------------------------- |
+| Table                                    | Key by key                        |
+| Array whose every entry has a `name`     | Entry by entry, matched on `name` |
+| Any other value, unnamed arrays included | Replaces the value beneath        |
+
+## Named arrays
+
+The examples below extend this base:
+
+```toml title="base.toml"
+[[commit.slots]]
+name = "keywords"
+kind = "word"
+
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+```
+
+### Matched entries
+
+A matched entry merges field by field. Unwritten fields keep the
+base's values.
+
+```toml
+extends = "base.toml"
+
+[[commit.slots]]
+name = "keywords"
+required = true
+```
+
+Result: `keywords` has `kind = "word"` and `required = true`.
+
+### Unmatched entries
+
+An unmatched entry is placed by its neighbours in its own file:
+
+| Case                                      | Position               |
+| ----------------------------------------- | ---------------------- |
+| Follows an entry in its own file          | Right after that entry |
+| Follows no entry, file matches some entry | First                  |
+| File matches no entry beneath it          | Appended at the end    |
+
+```toml title="peer.toml"
+[[commit.slots]]
+name = "gitmoji"
+kind = "symbols"
+
+[[commit.slots]]
+name = "keywords"
+required = true
+
+[[commit.slots]]
+name = "scope"
+kind = "word"
+```
+
+Result of `extends = ["base.toml", "peer.toml"]`: `gitmoji`,
+`keywords`, `scope`, `separator`.
+
+### `before`
+
+`before = "<name>"` places the entry ahead of the named entry, moving
+it if already present.
+
+```toml
+extends = "base.toml"
+
+[[commit.slots]]
+name = "gitmoji"
+kind = "word"
+before = "keywords"
+```
+
+Result: `gitmoji`, `keywords`, `separator`.
+
+### `drop`
+
+`drop = true` removes the named entry.
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "scope"
+drop = true
+```
+
+## Order in `extends`
+
+Swapping two targets can produce a different grammar.
+
+| `extends`                 | Leading slots                |
+| ------------------------- | ---------------------------- |
+| `[conventional, gitmoji]` | `intention`, `keywords`, ... |
+| `[gitmoji, conventional]` | `keywords`, `intention`, ... |
+
+## Errors
+
+| Error                                               | Cause                                                 |
+| --------------------------------------------------- | ----------------------------------------------------- |
+| `` `before = "x"` in <path> names no other entry `` | `x` is absent, or is the entry itself                 |
+| `two entries named "x" in one array in <path>`      | One file gives two entries of one array the same name |

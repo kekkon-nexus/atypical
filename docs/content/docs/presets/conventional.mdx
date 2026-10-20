@@ -1,0 +1,44 @@
+---
+title: Conventional Commits
+description: Type, scope and breaking-change marker.
+---
+
+## Usage
+
+Implements [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+```
+
+## Slots
+
+| Slot        | Shape     | Values                                                                                       | Required |
+| ----------- | --------- | -------------------------------------------------------------------------------------------- | -------- |
+| `keywords`  | `word`    | `build`, `chore`, `ci`, `docs`, `feat`, `fix`, `perf`, `refactor`, `revert`, `style`, `test` | Yes      |
+| `scope`     | `( )`     | Any                                                                                          | No       |
+| `modifiers` | `symbols` | `!`                                                                                          | No       |
+| `separator` | `symbol`  | `:`                                                                                          | Yes      |
+
+The keywords match the types of
+[`@commitlint/config-conventional`](https://github.com/conventional-changelog/commitlint/tree/master/%40commitlint/config-conventional).
+
+## Examples
+
+| Header                            | Result                              |
+| --------------------------------- | ----------------------------------- |
+| `feat: an endpoint`               | Valid                               |
+| `fix(parser): handle empty input` | Valid                               |
+| `feat(api)!: drop the v1 routes`  | Valid                               |
+| `feat(a b): spaced scope`         | Valid                               |
+| `revert: feat: an endpoint`       | Valid                               |
+| `feat!(api): x`                   | Invalid: `!` follows the scope      |
+| `feat[api]: x`                    | Invalid: the scope uses parentheses |
+| `feat!!: x`                       | Invalid: one `!` only               |
+| `feat(): x`                       | Invalid: empty scope                |
+
+`BREAKING CHANGE:` footers are not checked.
+
+## Source
+
+[`presets/conventional.toml`](https://github.com/kekkon-nexus/atypical/blob/main/presets/conventional.toml)

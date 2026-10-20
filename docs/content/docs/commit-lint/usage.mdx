@@ -1,0 +1,60 @@
+---
+title: Usage
+description: Inputs, options and exit codes.
+---
+
+```sh
+commit-lint -- .git/COMMIT_EDITMSG
+echo 'add(lib)[int]: something' | commit-lint -
+commit-lint --from origin/main
+commit-lint --last
+```
+
+## Arguments
+
+| Argument                | Meaning                                                                    |
+| ----------------------- | -------------------------------------------------------------------------- |
+| `<file>`                | A commit message file                                                      |
+| `-`                     | Read the message from stdin                                                |
+| `--from <REV>`          | Lower end of a commit range, excluded; see [CI](/docs/commit-lint/ci)      |
+| `--to <REV>`            | Upper end of a commit range, included; defaults to `HEAD`                  |
+| `--last`                | Lint only the commit at `HEAD`; see [CI](/docs/commit-lint/ci#last-commit) |
+| `-c`, `--config <FILE>` | Read this file instead of the nearest `atypical.toml`                      |
+
+`<file>` and `-` conflict with `--from` and `--to`. `--last` conflicts
+with all four.
+
+As a `commit-msg` hook, for husky or plain git:
+
+```sh
+commit-lint -- "$1"
+```
+
+## Header
+
+Only the header is linted. In a message file, the header is the first
+line that is neither blank nor a `#` comment. A trailing `\r` is
+removed. The body and footer are
+not checked.
+
+Headers matching the [default ignores](/docs/commit/default-ignores)
+pass without parsing unless `default-ignores = false`.
+
+## Configuration
+
+The grammar is the `[commit]` section of the nearest `atypical.toml`,
+or of the file given to `--config`. Without a file, or without a
+`[commit]` section, every message passes. See
+[Discovery](/docs/configuration/discovery).
+
+## Exit codes
+
+| Exit | Meaning                                                |
+| ---- | ------------------------------------------------------ |
+| `0`  | Valid, or no `[commit]` section to lint against        |
+| `1`  | Failed linting, an empty recorded message, or an error |
+| `2`  | Usage error, or no commit message to lint              |
+
+Errors with exit `1` include an invalid config, an unreadable file, a
+failing `git`, and `--last` without a commit at `HEAD`. A message containing only blank lines and comments
+exits `2`.

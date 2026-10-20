@@ -1,0 +1,65 @@
+---
+title: CI
+description: Linting recorded commits.
+---
+
+```sh
+commit-lint --from origin/main
+commit-lint --last
+```
+
+## Range
+
+`--from` and `--to` select commits as `git log <from>..<to>` does.
+
+| Option   | Meaning                                                 |
+| -------- | ------------------------------------------------------- |
+| `--from` | Excluded. Without it, all history reachable from `--to` |
+| `--to`   | Included. Defaults to `HEAD`                            |
+
+## Last commit
+
+`--last` lints only the commit at `HEAD`. Without a commit at `HEAD`,
+the run exits `1`.
+
+## Recorded commits
+
+These apply to `--from`, `--to` and `--last`.
+
+- Every selected commit is linted, newest first, and every failure is
+  reported before exit.
+- Each report is labelled with the commit's short hash.
+- A commit with an empty message fails with
+  `<hash>: no commit message to lint.`
+- A recorded message's header is its first line, including a line
+  starting with `#`.
+- Without a `[commit]` section the run exits `0` without calling `git`,
+  including outside a repository.
+
+## Merge base
+
+With `--from`, the two ends need a merge base. Without one, as in a
+shallow clone, the run fails with:
+
+```txt
+Cannot find merge-base between 'origin/main' and 'HEAD'. This typically indicates incomplete git history (e.g. a shallow clone). Consider fetching more history.
+```
+
+## GitHub Actions
+
+```yaml title=".github/workflows/commits.yaml"
+name: Commits
+
+on:
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - run: npm ci
+      - run: npx commit-lint --from ${{ github.event.pull_request.base.sha }}
+```

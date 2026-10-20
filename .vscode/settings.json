@@ -4,7 +4,7 @@
   "[rust]": {
     "editor.defaultFormatter": "rust-lang.rust-analyzer"
   },
-  "[javascript][typescript][json][jsonc][yaml]": {
+  "[javascript][typescript][javascriptreact][typescriptreact][json][jsonc][yaml]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "[toml]": {

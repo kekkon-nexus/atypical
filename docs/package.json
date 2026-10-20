@@ -1,0 +1,49 @@
+{
+  "name": "docs",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "scripts": {
+    "dev": "waku dev",
+    "build": "waku build",
+    "start": "wrangler dev",
+    "deploy": "bun run build && wrangler deploy",
+    "preview": "NODE_ENV=production bun run build && wrangler dev",
+    "cf-typegen": "wrangler types"
+  },
+  "dependencies": {
+    "@base-ui/react": "catalog:shadcn",
+    "@remixicon/react": "catalog:shadcn",
+    "class-variance-authority": "catalog:shadcn",
+    "cmdk": "catalog:shadcn",
+    "cn": "catalog:shadcn",
+    "compressorjs": "catalog:",
+    "fumadocs-core": "catalog:fumadocs",
+    "fumadocs-mdx": "catalog:fumadocs",
+    "fumadocs-ui": "catalog:fumadocs",
+    "hast-util-to-jsx-runtime": "catalog:",
+    "hono": "catalog:",
+    "next-themes": "catalog:",
+    "react": "catalog:react",
+    "react-dom": "catalog:react",
+    "react-server-dom-webpack": "catalog:react",
+    "shadcn": "catalog:shadcn",
+    "takumi-js": "catalog:",
+    "tw-animate-css": "catalog:shadcn",
+    "twgl.js": "catalog:",
+    "waku": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "catalog:dev",
+    "@tailwindcss/vite": "catalog:dev",
+    "@types/mdx": "catalog:dev",
+    "@types/node": "catalog:dev",
+    "@types/react": "catalog:react",
+    "@types/react-dom": "catalog:react",
+    "naga-wasm": "catalog:dev",
+    "tailwindcss": "catalog:dev",
+    "typescript": "catalog:dev",
+    "vite": "catalog:dev",
+    "wrangler": "catalog:dev"
+  }
+}

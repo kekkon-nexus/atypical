@@ -16,7 +16,7 @@ function locate(from, name) {
     const hit = join(dir, "node_modules", name);
     if (existsSync(hit)) return realpathSync(hit);
   }
-  return undefined;
+  return;
 }
 
 /** @param {string} dir */
