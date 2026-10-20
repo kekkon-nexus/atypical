@@ -1,9 +1,0 @@
-@layer components {
-  .faulty-terminal-container {
-    @apply flex items-center justify-center size-full overflow-clip @container-size;
-
-    canvas {
-      @apply aspect-16/9 w-[max(100cqw,100cqh*16/9)];
-    }
-  }
-}
