@@ -123,15 +123,16 @@ export default function Home() {
             </Link>
           </div>
           {bench && (
-            <div className="flex flex-col gap-4">
-              <p className="text-2xl font-medium tracking-tight text-fd-primary lg:text-3xl">
-                +{floorLeading(bench.speedup)}× faster.{" "}
-                {floorLeading(bench.size.commitlint / bench.size.atypical)}× smaller.
+            <Card className="flex flex-col gap-6 p-6">
+              <p className="text-2xl font-medium tracking-tight lg:text-3xl">
+                <span className="text-fd-primary">+{floorLeading(bench.speedup)}×</span> faster.{" "}
+                <span className="text-fd-primary">
+                  {floorLeading(bench.size.commitlint / bench.size.atypical)}×
+                </span>{" "}
+                smaller.
               </p>
-              <Card className="p-6">
-                <BenchRace bench={bench} />
-              </Card>
-            </div>
+              <BenchRace bench={bench} />
+            </Card>
           )}
         </div>
       </div>
