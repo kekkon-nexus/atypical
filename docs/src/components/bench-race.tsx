@@ -193,19 +193,22 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
           <h3 className="font-medium">{chart.title}</h3>
           <p className="text-sm text-fd-muted-foreground">{chart.unit}</p>
         </div>
-        {racing && (
-          <span className="shrink-0 font-mono text-sm tabular-nums text-fd-muted-foreground">
-            <span className="me-1.5 inline-block size-2 bg-fd-primary" />
-            {elapsed.toFixed(1)}ms
-          </span>
-        )}
-        {metric === "latency" && !racing && (
+        {metric === "latency" && (
           <button
             type="button"
-            className="shrink-0 text-sm text-fd-muted-foreground hover:text-fd-foreground"
+            className="shrink-0 text-sm tabular-nums text-fd-muted-foreground hover:text-fd-foreground"
             onClick={() => setRun((n) => n + 1)}
           >
-            <span className="text-fd-primary">▶</span> replay at 1/{slowdown} speed
+            {racing ? (
+              <span className="font-mono">
+                <span className="me-1.5 inline-block size-2 bg-fd-primary" />
+                {elapsed.toFixed(1)}ms
+              </span>
+            ) : (
+              <>
+                <span className="text-fd-primary">▶</span> replay at 1/{slowdown} speed
+              </>
+            )}
           </button>
         )}
       </div>
