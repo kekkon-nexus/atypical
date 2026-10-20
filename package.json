@@ -23,6 +23,7 @@
       }
     }
   },
+  "type": "module",
   "scripts": {
     "check": "lefthook run check",
     "fix": "lefthook run fix",
