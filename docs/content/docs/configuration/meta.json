@@ -1,0 +1,5 @@
+{
+  "title": "Configuration",
+  "icon": "RiSettings3Line",
+  "pages": ["discovery", "extends", "merging", "reserved-keys"]
+}

@@ -1,0 +1,33 @@
+---
+title: Discovery
+description: Which atypical.toml a tool reads.
+---
+
+Every Atypical tool reads one file, `atypical.toml`, and only its own
+top-level section in it. `commit-lint` reads `[commit]`.
+
+## Finding the file
+
+Starting from the working directory, each directory up to the
+filesystem root is checked for `atypical.toml`. The first one found is
+used. Files further up are not merged in; use
+[`extends`](/docs/configuration/extends) for that.
+
+`commit-lint --config <FILE>` skips the search and reads that file,
+whatever its name.
+
+## Missing file or section
+
+No file, or a file without the tool's section, is not an error. The
+tool has no convention to enforce and passes everything, so a
+repository can carry the hook before it settles on a grammar.
+
+An empty section is different: `[commit]` with nothing in it enforces
+the [default grammar](/docs/commit/default-grammar).
+
+## Unknown keys
+
+Each tool rejects keys its section does not define, so a typo fails
+loudly instead of being ignored. The only exceptions are the
+[reserved keys](/docs/configuration/reserved-keys) consumed while
+merging.

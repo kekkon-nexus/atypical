@@ -1,0 +1,111 @@
+---
+title: Merging
+description: How a file overrides what it extends.
+---
+
+Each layer merges onto everything beneath it:
+
+- **Tables** merge key by key.
+- **Arrays whose every entry has a `name`** merge entry by entry, such
+  as `[[commit.slots]]`.
+- **Anything else** replaces the value beneath it, arrays without names
+  included.
+
+## Named arrays
+
+Given a base:
+
+```toml title="base.toml"
+[[commit.slots]]
+name = "keywords"
+kind = "word"
+
+[[commit.slots]]
+name = "separator"
+kind = "symbol"
+```
+
+### Matched names merge field by field
+
+```toml title="atypical.toml"
+extends = "base.toml"
+
+[[commit.slots]]
+name = "keywords"
+required = true
+```
+
+`keywords` keeps `kind = "word"` and gains `required = true`. You only
+restate what changes.
+
+### Unmatched names keep their place
+
+An entry whose name is new is placed by its neighbours in its own file:
+right after the entry it follows there, or first when it follows none.
+
+```toml title="peer.toml"
+[[commit.slots]]
+name = "gitmoji"
+kind = "symbols"
+
+[[commit.slots]]
+name = "keywords"
+required = true
+
+[[commit.slots]]
+name = "scope"
+kind = "word"
+```
+
+Extending `["base.toml", "peer.toml"]` gives `gitmoji`, `keywords`,
+`scope`, `separator`: `gitmoji` follows nothing so it goes first, and
+`scope` follows `keywords`.
+
+A file that matches nothing beneath it appends its entries at the end.
+
+### `before`
+
+`before = "<name>"` places an entry ahead of the one named, moving it
+if it was already there:
+
+```toml
+extends = "base.toml"
+
+[[commit.slots]]
+name = "gitmoji"
+kind = "word"
+before = "keywords"
+```
+
+### `drop`
+
+`drop = true` removes the entry it names:
+
+```toml
+extends = "npm:@atypical/commit/conventional"
+
+[[commit.slots]]
+name = "scope"
+drop = true
+```
+
+## Order in `extends` matters
+
+Placement is relative to what is already there, so the same two files
+in the opposite order can build a different grammar. Put the base
+first and the files that layer onto it after.
+
+`["conventional", "gitmoji"]` puts gitmoji's `intention` in front of
+`keywords`, giving `✨ feat(api): x`. The reverse puts conventional's
+`keywords` in front of `intention` instead.
+
+## Errors
+
+| Error                                                   | Cause                                              |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| `` `before = "x"` in <path> names no other entry ``     | `x` is not present, or is the entry itself         |
+| `two entries named "x" in one array in <path>`          | One file gives two entries of one array the same name |
+
+Both are errors rather than guesses: the position asked for is part of
+the grammar, and a second entry with the same name would silently merge
+into the first.
