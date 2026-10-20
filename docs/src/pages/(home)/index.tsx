@@ -334,7 +334,7 @@ function Feature({
   return (
     <Card className={cn(art && "relative isolate overflow-hidden", className)}>
       {art && (
-        <div className="absolute inset-0 -z-1 mask-[linear-gradient(to_top,white_30%,transparent_calc(100%-120px))]">
+        <div className="absolute inset-0 -z-1 mask-[linear-gradient(to_top,white_60%,transparent_calc(100%-40px))]">
           {art}
         </div>
       )}
