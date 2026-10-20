@@ -1,37 +1,37 @@
 ---
-title: Hello World
-description: Your favourite docs framework.
-icon: RiRocketLine
+title: Introduction
+description: A toolkit for enforcing your own conventions, configured from one file.
+icon: RiBookOpenLine
 ---
 
-Hey there! Fumadocs is a docs framework that works on Waku!
+Atypical enforces conventions you declare, not ones it ships. Every tool
+reads its own section of a single `atypical.toml`, found by walking up
+from the working directory.
 
-## Heading
+```toml title="atypical.toml"
+extends = "npm:@atypical/commit/conventional"
 
-Hello World!
-
-<Cards>
-  <Card
-    title="Learn more about Waku"
-    href="https://waku.gg"
-  />
-  <Card
-    title="Learn more about Fumadocs"
-    href="https://fumadocs.dev"
-  />
-</Cards>
-
-### CodeBlock
-
-```ts
-console.log("Hello World");
+[[commit.slots]]
+name = "keywords"
+values = ["feat", "fix", "docs"]
 ```
 
-#### Table
+That file pulls in the Conventional Commits preset, then narrows its
+keywords to three. Every other slot the preset declares stays as it was.
 
-| Head                            | Description                         |
-| ------------------------------- | ----------------------------------- |
-| `hello`                         | Hello World                         |
-| very **important**              | Hey                                 |
-| _Surprisingly_                  | Fumadocs                            |
-| very long text that looks weird | hello world hello world hello world |
+## Packages
+
+| Package                                                                  | What it is                                                     |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| [`atypical-commit`](https://crates.io/crates/atypical-commit)            | The `commit-lint` binary and the commit header parser library  |
+| [`@atypical/commit`](https://www.npmjs.com/package/@atypical/commit)     | `commit-lint` prebuilt for npm, plus the presets by name       |
+| [`atypical-config`](https://crates.io/crates/atypical-config)            | Finds and loads `atypical.toml`, resolving `extends`           |
+
+## Where to go next
+
+<Cards>
+  <Card title="Installation" href="/docs/getting-started/installation" />
+  <Card title="Quick start" href="/docs/getting-started/quick-start" />
+  <Card title="Slots" href="/docs/commit/slots" />
+  <Card title="Presets" href="/docs/presets" />
+</Cards>
