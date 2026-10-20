@@ -7,7 +7,7 @@ import { defineConfig } from "vite-plus";
 export default defineConfig({
   fmt: {
     ...oxfmt,
-    ignorePatterns: ["*.toml"],
+    ignorePatterns: ["*.toml", "benches/*.md"],
   },
   lint: {
     extends: [oxlint, vp],
