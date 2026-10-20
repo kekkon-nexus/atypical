@@ -6,6 +6,7 @@ import { Link } from "waku";
 import Dither from "@/components/dither";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { appName } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
 const repository = "https://github.com/kekkon-nexus/atypical";
@@ -13,6 +14,7 @@ const repository = "https://github.com/kekkon-nexus/atypical";
 export default function Home() {
   return (
     <div className="pt-4 pb-6 md:pb-12">
+      <title>{appName}</title>
       <div className="relative flex min-h-150 h-[70vh] max-h-225 border rounded-2xl overflow-hidden mx-auto w-full max-w-350 bg-origin-border">
         <div className="absolute inset-0">
           <Dither size={32} shapeScale={1.2} timeScale={0.5} className="opacity-33" />

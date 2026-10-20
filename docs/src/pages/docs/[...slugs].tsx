@@ -11,7 +11,7 @@ import { type PageProps } from "waku/router";
 import { unstable_notFound } from "waku/router/server";
 
 import { getMDXComponents } from "@/components/mdx";
-import { getPageImageUrl, getPageMarkdownUrl, gitConfig } from "@/lib/shared";
+import { appName, getPageImageUrl, getPageMarkdownUrl, gitConfig } from "@/lib/shared";
 import { source } from "@/lib/source";
 
 export default function Page({ slugs }: PageProps<"/docs/[...slugs]">) {
@@ -22,6 +22,7 @@ export default function Page({ slugs }: PageProps<"/docs/[...slugs]">) {
   const markdownUrl = getPageMarkdownUrl(page).url;
   return (
     <DocsPage toc={page.data.toc}>
+      <title>{`${page.data.title} | ${appName}`}</title>
       <meta
         property="og:image"
         content={getPageImageUrl(page).url}
