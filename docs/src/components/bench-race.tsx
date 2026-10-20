@@ -33,6 +33,13 @@ const theirs = "bg-fd-muted-foreground/60";
 
 const mb = (bytes: number) => bytes / 1e6;
 
+/** Rounds down to the leading digit: 512 becomes 500, 8.3 becomes 8. */
+const floorLeading = (n: number) => {
+  const magnitude = 10 ** Math.floor(Math.log10(n));
+
+  return Math.floor(n / magnitude) * magnitude;
+};
+
 const slowdown = 10;
 
 function charts({ latency, size, packages }: Omit<Bench, "lanes" | "file">): Record<Metric, Chart> {
@@ -167,6 +174,10 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
       ref={ref}
       className="flex flex-col gap-6"
     >
+      <p className="text-2xl font-medium tracking-tight lg:text-3xl">
+        <span className="text-fd-primary">+{floorLeading(bench.speedup)}×</span> faster.{" "}
+        <span className="text-fd-primary">{floorLeading(bench.size.commitlint / bench.size.atypical)}×</span> smaller.
+      </p>
       <ToggleGroup
         variant="outline"
         value={[metric]}

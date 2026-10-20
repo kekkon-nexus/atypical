@@ -14,6 +14,8 @@ export interface Bench {
   cpu: string;
   lanes: Lane[];
   latency: { atypical: number; commitlint: number };
+  /** hyperfine's own ratio of the valid lanes, from unrounded means. */
+  speedup: number;
   size: { atypical: number; commitlint: number; node: number };
   packages: { atypical: number; commitlint: number };
 }
@@ -57,6 +59,7 @@ export function latestBench(): Bench | undefined {
     cpu: field(text, "cpu"),
     lanes,
     latency: { atypical: mean("atypical (valid)"), commitlint: mean("commitlint (valid)") },
+    speedup: Number(/`commitlint \(valid\)`.*\(([\d.]+)x slower\)/.exec(text)?.[1] ?? Number.NaN),
     size: {
       atypical: count(field(text, "binary"), "bytes"),
       commitlint: count(field(text, "deps"), "bytes"),
@@ -68,6 +71,7 @@ export function latestBench(): Bench | undefined {
 
   const numbers = [
     ...Object.values(bench.latency),
+    bench.speedup,
     ...Object.values(bench.size),
     ...Object.values(bench.packages),
   ];
