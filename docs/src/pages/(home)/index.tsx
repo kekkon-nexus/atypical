@@ -3,15 +3,19 @@ import { ServerCodeBlock } from "fumadocs-ui/components/codeblock.rsc";
 import type { ReactNode } from "react";
 import { Link } from "waku";
 
+import { BenchRace } from "@/components/bench-race";
 import Dither from "@/components/dither";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { latestBench } from "@/lib/bench";
 import { appName } from "@/lib/shared";
 import { cn } from "@/lib/utils";
 
 const repository = "https://github.com/kekkon-nexus/atypical";
 
 export default function Home() {
+  const bench = latestBench();
+
   return (
     <div className="pt-4 pb-6 md:pb-12">
       <title>{appName}</title>
@@ -72,6 +76,14 @@ required = true`}
             lang="toml"
           />
         </Feature>
+        {bench && (
+          <>
+            <SectionHeading>Faster. Smaller.</SectionHeading>
+            <Card className="col-span-full p-6">
+              <BenchRace bench={bench} />
+            </Card>
+          </>
+        )}
         <SectionHeading>Hooks and CI.</SectionHeading>
         <Feature
           title="Catch it at commit."
