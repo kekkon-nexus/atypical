@@ -91,9 +91,9 @@ or above.
 ## Releasing
 
 ```sh
-scripts/release.sh <major|minor|patch|X.Y.Z>
+bun run bump <major|minor|patch|alpha|beta|rc|release|X.Y.Z>
 ```
 
-It needs `cargo set-version` (cargo-edit) and `jq`. Commit as
-`release: v<version>` and push a `v<version>` tag; `publish.yaml` does
-the rest.
+It needs `cargo set-version` (cargo-edit) and a clean working tree. It
+commits `release: v<version>` and tags `v<version>`; push both and
+`publish.yaml` does the rest.

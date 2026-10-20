@@ -64,6 +64,7 @@
   "type": "module",
   "scripts": {
     "prepare": "vp config --no-agent",
+    "bump": "bun scripts/bump.ts",
     "check": "bun run --parallel --no-exit-on-error check:*",
     "check:cargo": "cargo fmt --all --check && cargo clippy --workspace --all-targets --all-features -- -D warnings",
     "check:tombi": "tombi format --check && tombi lint",
