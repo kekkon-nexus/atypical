@@ -8,6 +8,9 @@ Atypical is a set of tools that enforce conventions declared by the
 repository. All tools read one file, `atypical.toml`. Each tool reads
 only its own top-level section.
 
+The only tool so far is `commit-lint`, which lints commit message
+headers against the `[commit]` section.
+
 ```toml title="atypical.toml"
 extends = "npm:@atypical/commit/conventional"
 
