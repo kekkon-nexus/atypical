@@ -147,8 +147,9 @@ export default function Home() {
           <div className="absolute inset-0">
             <Dither
               image="/su-san-lee-g3PyXO4A0yc-unsplash.jpg"
-              type="4x4"
+              type="2x2"
               size={4}
+              pageLoadAnimation={false}
               className="text-fd-primary"
             />
           </div>
