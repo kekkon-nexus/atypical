@@ -29,8 +29,8 @@ extends = ["npm:@atypical/commit/conventional", "npm:@atypical/commit/gitmoji"]
 - `npm:` resolves through `node_modules` with Node's algorithm,
   including the package's `exports`. npm, pnpm, yarn and bun layouts
   are supported.
-- `@atypical/commit` exports each preset by bare name, so
-  `npm:@atypical/commit/conventional` has no `.toml`.
+- `@atypical/commit` exports each preset by bare name:
+  `npm:@atypical/commit/conventional`.
 - A prefix of two or more lowercase ASCII letters before `:` is a
   scheme. Any other prefix, such as the drive letter in `C:\x.toml`,
   is part of a path.

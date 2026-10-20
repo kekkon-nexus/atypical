@@ -5,8 +5,7 @@ description: Messages printed for a failed lint.
 
 A header that fails to parse produces a report titled
 `Failed to parse commit message`. The report underlines the header and
-labels each error at its position. Output is colored when the terminal
-supports it.
+labels each error at its position.
 
 ## Messages
 
@@ -24,8 +23,7 @@ Slot names in messages are the slots' `name` values.
 | `expected a space before the description`              | No space between the prefix and the description                |
 | `the description must not start with a space`          | More than one space before the description                     |
 
-A bare slot lists its spellings longest first, the order in which they
-are tried. A delimited slot lists them in declaration order.
+A bare slot lists its spellings longest first. A delimited slot lists them in declaration order.
 
 ## Examples
 

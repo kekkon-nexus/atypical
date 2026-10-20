@@ -21,8 +21,8 @@ commit-lint --from origin/main
 - Each report is labelled with the commit's short hash.
 - A commit with an empty message fails with
   `<hash>: no commit message to lint.`
-- A recorded message is already cleaned by git, so its header is its
-  first line, including a line starting with `#`.
+- A recorded message's header is its first line, including a line
+  starting with `#`.
 - Without a `[commit]` section the run exits `0` without calling `git`,
   including outside a repository.
 
@@ -53,5 +53,3 @@ jobs:
       - run: npm ci
       - run: npx commit-lint --from ${{ github.event.pull_request.base.sha }}
 ```
-
-`fetch-depth: 0` fetches full history, which contains the merge base.

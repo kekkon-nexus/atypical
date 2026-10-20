@@ -15,5 +15,4 @@ directives:
 - The reservation applies to every section and every tool.
 - A directive of the wrong type, such as `drop = "yes"`, is left on the
   entry for the section schema to reject.
-- An entry whose `name` is not a string makes the array unnamed, so it
-  replaces the array beneath instead of merging.
+- An array with an entry whose `name` is not a string is unnamed.

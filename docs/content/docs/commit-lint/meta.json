@@ -1,5 +1,5 @@
 {
   "title": "commit-lint",
   "icon": "RiTerminalLine",
-  "pages": ["usage", "hooks", "ci", "diagnostics"]
+  "pages": ["usage", "ci", "diagnostics"]
 }

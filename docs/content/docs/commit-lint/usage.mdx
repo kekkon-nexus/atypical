@@ -19,14 +19,19 @@ commit-lint --from origin/main
 | `--to <REV>`     | Upper end of a commit range, included; defaults to `HEAD`            |
 | `-c`, `--config <FILE>` | Read this file instead of the nearest `atypical.toml`         |
 
-`<file>` and `-` conflict with `--from` and `--to`. `--` ends option
-parsing, so a path starting with `-` is read as a file.
+`<file>` and `-` conflict with `--from` and `--to`.
+
+As a `commit-msg` hook, for husky or plain git:
+
+```sh
+commit-lint -- "$1"
+```
 
 ## Header
 
 Only the header is linted. In a message file, the header is the first
 line that is neither blank nor a `#` comment. A trailing `\r` is
-removed, so CRLF line endings are accepted. The body and footer are
+removed. The body and footer are
 not checked.
 
 Headers matching the [default ignores](/docs/commit/default-ignores)
