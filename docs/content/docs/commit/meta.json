@@ -1,0 +1,5 @@
+{
+  "title": "Commit grammar",
+  "icon": "RiGitCommitLine",
+  "pages": ["slots", "one-of", "spacing", "default-grammar", "ambiguity", "default-ignores"]
+}

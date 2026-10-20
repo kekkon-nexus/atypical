@@ -1,0 +1,51 @@
+---
+title: Default ignores
+description: Headers that git and forges write, passed without linting.
+---
+
+Unless `default-ignores = false`, headers that tools generate pass
+unlinted, as in
+[commitlint](https://commitlint.js.org/reference/configuration.html#defaultignores):
+
+```toml
+[commit]
+default-ignores = false
+```
+
+All the presets turn it on, and so does the default.
+
+## What is ignored
+
+| Kind                | Headers                                                                      |
+| ------------------- | ---------------------------------------------------------------------------- |
+| Merges              | `Merge pull request ...`, `Merge branch ...`, `Merge tag ...`, `Merge x into y`, `Merge remote-tracking branch ...` |
+| Forge merges        | `Merged x in y`, `Merged x into y`, `Merged PR 1: ...`, `Automatic merge ...`, `Auto-merged x into y` |
+| Reverts             | `Revert ...`, `revert ...`, `Reapply ...`, `reapply ...`                     |
+| Autosquash          | `fixup! ...`, `squash! ...`, `amend! ...`                                    |
+| Release bumps       | A semver version, optionally with a `v`, behind `chore:` or `chore(<scope>):`, and with a `[skip ci]`-style marker |
+
+The skip marker is `skip ci` or `ci skip` joined by a space or `-`, in
+any case, inside `[...]` or `(...)`.
+
+## Examples
+
+| Header                               | Ignored |
+| ------------------------------------ | ------- |
+| `Merge pull request #369 from x/y`   | yes     |
+| `Merge conflicts resolved`           | no      |
+| `merge branch 'main'`                | no      |
+| `Merged PR 123: fix stuff`           | yes     |
+| `Merged PR 123`                      | no      |
+| `Revert "add(lib): something"`       | yes     |
+| `Reverted the change`                | no      |
+| `fixup! add(lib): something`         | yes     |
+| `fixup add(lib): something`          | no      |
+| `chore(release): v1.2.3`             | yes     |
+| `1.2.3 (CI-Skip)`                    | yes     |
+| `release: v1.2.3`                    | no      |
+| `1.2.3 [skip ci] and more`           | no      |
+| `1.2`                                | no      |
+
+Autosquash prefixes never reach the history: `git rebase --autosquash`
+drops them. They are ignored so the hook does not refuse the commits
+that carry them.
