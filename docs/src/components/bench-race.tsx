@@ -1,6 +1,6 @@
 "use client";
 
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Link } from "waku";
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -102,16 +102,16 @@ function axis(max: number) {
 
 /**
  * The race clock in measured milliseconds, running `slowdown` times slower than real time from each change of `run` until
- * `finish`. A `run` of 0 stops it at zero. Reduced motion jumps straight to `finish`.
+ * `finish`. A `run` of 0 rests at `finish`, showing the result. Reduced motion jumps straight to `finish`.
  *
  * @returns The milliseconds elapsed on the clock.
  */
 function useRaceClock(run: number, finish: number) {
-  const [elapsed, setElapsed] = useState(0);
+  const [elapsed, setElapsed] = useState(finish);
 
   useEffect(() => {
     if (run === 0) {
-      setElapsed(0);
+      setElapsed(finish);
       return;
     }
 
@@ -141,19 +141,6 @@ function useRaceClock(run: number, finish: number) {
 export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
   const [metric, setMetric] = useState<Metric>("latency");
   const [run, setRun] = useState(0);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const node = ref.current;
-    if (!node) return;
-
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry?.isIntersecting) setRun((n) => n + 1);
-    });
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
 
   const finish = Math.max(bench.latency.atypical, bench.latency.commitlint);
   const elapsed = useRaceClock(run, finish);
@@ -164,7 +151,6 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
 
   return (
     <div
-      ref={ref}
       className="flex flex-col gap-6"
     >
       <ToggleGroup
@@ -174,7 +160,7 @@ export function BenchRace({ bench }: { bench: Omit<Bench, "lanes" | "file"> }) {
           const next = value[0] as Metric | undefined;
           if (!next) return;
           setMetric(next);
-          setRun((n) => n + 1);
+          setRun(0);
         }}
       >
         {metrics.map(({ value, label }) => (
