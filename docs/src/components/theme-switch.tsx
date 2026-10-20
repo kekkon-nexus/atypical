@@ -21,7 +21,11 @@ export function ThemeSwitch({ className, mode = "light-dark" }: ThemeSwitchProps
   const current = mode === "light-dark" ? resolvedTheme : theme;
 
   const changeTheme = (value: string) => {
-    document.startViewTransition(() => flushSync(() => setTheme(value)));
+    if (typeof document.startViewTransition === "function") {
+      document.startViewTransition(() => flushSync(() => setTheme(value)));
+    } else {
+      setTheme(value);
+    }
   };
 
   return (
