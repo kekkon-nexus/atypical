@@ -13,6 +13,11 @@ export default function RootElement({ children }: { children: ReactNode }) {
       <head>
         <link
           rel="icon"
+          href="/favicon.ico"
+          sizes="32x32"
+        />
+        <link
+          rel="icon"
           href="/favicon.svg"
           type="image/svg+xml"
         />
