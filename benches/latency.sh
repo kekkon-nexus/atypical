@@ -70,7 +70,7 @@ else
   echo ">> skipping commitlint  ->  bun install"
 fi
 
-hyperfine -N -i --time-unit millisecond --warmup "$WARMUP" --runs "$RUNS" \
+hyperfine -N -i --metrics time_wall_clock:ms --warmup "$WARMUP" --runs "$RUNS" \
   --export-markdown "$TMP" "$@"
 cat "$TMP" >>"$OUT"
 
