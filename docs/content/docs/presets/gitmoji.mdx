@@ -3,17 +3,23 @@ title: Gitmoji
 description: "An emoji or :shortcode: intention, alone or in front of another preset."
 ---
 
+## Usage
+
 Implements [Gitmoji](https://gitmoji.dev/specification).
 
 ```toml
 extends = "npm:@atypical/commit/gitmoji"
 ```
 
+## Slots
+
 | Slot        | Shape                                                                                          | Required |
 | ----------- | ---------------------------------------------------------------------------------------------- | -------- |
 | `intention` | One of `emoji` (`symbols`) or `shortcode` (`: :`), with a [gap](/docs/commit/spacing)          | Yes      |
 | `scope`     | `( )`, any                                                                                     | No       |
 | `separator` | `symbol` `:`, [tight](/docs/commit/spacing)                                                    | No       |
+
+## Examples
 
 | Header                     | Result                              |
 | -------------------------- | ----------------------------------- |

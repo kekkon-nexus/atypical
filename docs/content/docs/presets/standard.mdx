@@ -3,11 +3,15 @@ title: Standard Commits
 description: Verb, importance, scope and reason.
 ---
 
+## Usage
+
 Implements [Standard Commits](https://github.com/standard-commits/standard-commits).
 
 ```toml
 extends = "npm:@atypical/commit/standard"
 ```
+
+## Slots
 
 | Slot        | Shape     | Values                                                                                   | Required |
 | ----------- | --------- | ---------------------------------------------------------------------------------------- | -------- |
@@ -16,6 +20,8 @@ extends = "npm:@atypical/commit/standard"
 | `scope`     | `( )`     | `exe`, `lib`, `test`, `build`, `doc`, `ci`, `cd`                                         | No       |
 | `reason`    | `[ ]`     | `int`, `pre`, `eff`, `rel`, `cmp`, `mnt`, `tmp`, `exp`, `sec`, `upg`, `ux`, `pol`, `sty` | No       |
 | `separator` | `symbol`  | `:`                                                                                      | Yes      |
+
+## Examples
 
 | Header                   | Result                                     |
 | ------------------------ | ------------------------------------------ |
