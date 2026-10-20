@@ -1,76 +1,66 @@
 ---
 title: Migration
-description: Coming from commitlint, or from older atypical configs.
+description: From commitlint, and from the fixed-layout keys.
 icon: RiArrowLeftRightLine
 ---
 
 ## From commitlint
 
-`@commitlint/config-conventional` maps to the
-[conventional preset](/docs/presets/conventional):
-
-```toml title="atypical.toml"
-extends = "npm:@atypical/commit/conventional"
-```
-
-Remove `commitlint.config.*` and replace the hook:
-
-```sh title=".husky/commit-msg"
-commit-lint -- "$1"
-```
-
-In CI, `commitlint --from <rev>` becomes `commit-lint --from <rev>`.
+| commitlint                                     | atypical                                         |
+| ---------------------------------------------- | ------------------------------------------------ |
+| `@commitlint/config-conventional`              | `extends = "npm:@atypical/commit/conventional"`  |
+| `commitlint.config.*`                          | `atypical.toml`                                  |
+| `commitlint --edit "$1"` in `.husky/commit-msg` | `commit-lint -- "$1"`                           |
+| `commitlint --from <rev>`                      | `commit-lint --from <rev>`                       |
 
 ### Rules
 
-commitlint rules check many properties of a message. `commit-lint`
-checks the header's shape against a grammar, and nothing else.
+`commit-lint` checks the header's shape against a grammar. It has no
+other rules.
 
-| commitlint                      | atypical                                                  |
-| ------------------------------- | --------------------------------------------------------- |
-| `type-enum`                     | `values` on the `keywords` slot                           |
-| `type-empty`                    | `required = true` on the `keywords` slot                  |
-| `scope-enum`                    | `values` on the `scope` slot                              |
-| `scope-empty`                   | `required` on the `scope` slot                            |
-| `subject-empty`                 | Always enforced: the description cannot be empty          |
-| `defaultIgnores`, `ignores`     | [`default-ignores`](/docs/commit/default-ignores); custom ignores are not supported |
-| Case, length, `body-*`, `footer-*` | Not checked                                            |
+| commitlint                          | atypical                                                                 |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| `type-enum`                         | `values` on the `keywords` slot                                          |
+| `type-empty`                        | `required = true` on the `keywords` slot                                 |
+| `scope-enum`                        | `values` on the `scope` slot                                             |
+| `scope-empty`                       | `required` on the `scope` slot                                           |
+| `subject-empty`                     | Always enforced                                                          |
+| `defaultIgnores`                    | [`default-ignores`](/docs/commit/default-ignores)                        |
+| `ignores`                           | Not supported                                                            |
+| Case, length, `body-*`, `footer-*`  | Not supported                                                            |
 
-See [Customizing](/docs/presets/customizing) for these overrides.
+### Latency
 
-### Speed
+`bun run bench` runs [hyperfine](https://github.com/sharkdp/hyperfine)
+on one valid and one invalid header per tool.
 
-Measured with `bun run bench`, which runs
-[hyperfine](https://github.com/sharkdp/hyperfine) on one valid and one
-invalid header per tool:
+| Command               | Mean wall time  |
+| --------------------- | --------------- |
+| `commit-lint` valid   | 1.3 ± 0.2 ms    |
+| `commit-lint` invalid | 1.3 ± 0.3 ms    |
+| `commitlint` valid    | 643.3 ± 60.1 ms |
+| `commitlint` invalid  | 650.5 ± 46.9 ms |
 
-| Command                | Mean wall time   |
-| ---------------------- | ---------------- |
-| `commit-lint` valid    | 1.3 ± 0.2 ms     |
-| `commit-lint` invalid  | 1.3 ± 0.3 ms     |
-| `commitlint` valid     | 643.3 ± 60.1 ms  |
-| `commitlint` invalid   | 650.5 ± 46.9 ms  |
+| Footprint                                      | Size                          |
+| ---------------------------------------------- | ----------------------------- |
+| `commit-lint` release binary                   | 1.2 MB                        |
+| `@commitlint/cli` with `config-conventional`   | 10 MB in 70 packages, plus Node |
 
-The `commit-lint` release binary was 1.2 MB. `@commitlint/cli` with
-`config-conventional` was 10 MB across 70 packages, plus Node.
-
-Measured on 2026-10-20 on an Intel Core i5-1135G7 running Linux, with
-rustc 1.101.0-nightly. Numbers on other machines will differ.
+Measured 2026-10-20 on an Intel Core i5-1135G7, Linux, rustc
+1.101.0-nightly.
 
 ## From the fixed-layout keys
 
-Before slots, `[commit]` had fixed keys. They are now rejected as
-unknown keys.
+The fixed-layout keys of `[commit]` are removed and rejected as unknown
+keys.
 
-| Was                 | Now                                                |
+| Removed             | Replacement                                        |
 | ------------------- | -------------------------------------------------- |
-| `keywords`          | A `kind = "word"` slot's `values`                  |
-| `modifiers`         | A `kind = "symbols"` slot's `values`               |
-| `modifier-sequence` | Where the modifier slot sits in the list           |
-| `separator`         | A `kind = "symbol"` slot's `values`                |
-| `enclosures[]`      | One slot per enclosure, `delimiters` plus `values` |
-
-For example:
+| `keywords`          | `values` of a `kind = "word"` slot                 |
+| `modifiers`         | `values` of a `kind = "symbols"` slot              |
+| `modifier-sequence` | The modifier slot's position in the list           |
+| `separator`         | `values` of a `kind = "symbol"` slot               |
+| `enclosures[]`      | One slot per enclosure, with `delimiters` and `values` |
 
 ```toml title="Before"
 [commit]

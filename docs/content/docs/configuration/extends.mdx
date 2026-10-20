@@ -1,9 +1,7 @@
 ---
 title: Extends
-description: Layer other files beneath your own.
+description: Layering other files beneath a file.
 ---
-
-A top-level `extends` names one file or an array of files to build on:
 
 ```toml
 extends = "npm:@atypical/commit/conventional"
@@ -13,40 +11,42 @@ extends = "npm:@atypical/commit/conventional"
 extends = ["npm:@atypical/commit/conventional", "npm:@atypical/commit/gitmoji"]
 ```
 
-The targets are applied in order, then the extending file on top.
-Extended files may `extends` in turn. `extends` is consumed during
-loading, so no tool ever sees it.
+| Rule        | Behavior                                                       |
+| ----------- | -------------------------------------------------------------- |
+| Position    | Top level of the file                                          |
+| Type        | A string, or an array of strings                               |
+| Order       | Targets in array order, then the extending file last           |
+| Nesting     | Targets may have their own `extends`                           |
+| Visibility  | Removed during loading; no tool sees it                        |
 
 ## Targets
 
-| Form                                         | Resolves to                                       |
-| -------------------------------------------- | ------------------------------------------------- |
-| `x.toml`, `./x.toml`, `../x.toml`, `/abs/x.toml` | A file relative to the extending file         |
-| `npm:pkg/x`, `npm:pkg/x.toml`                | A file inside an installed npm package            |
+| Form                                             | Resolves to                                |
+| ------------------------------------------------ | ------------------------------------------ |
+| `x.toml`, `./x.toml`, `../x.toml`, `/abs/x.toml` | A file relative to the extending file      |
+| `npm:pkg/x`, `npm:pkg/x.toml`                    | A file inside an installed npm package     |
 
-`npm:` resolves through `node_modules` as Node does, following the
-package's `exports`, so it works with npm, pnpm, yarn and bun.
-`@atypical/commit` exports its presets by bare name, which is why
-`npm:@atypical/commit/conventional` needs no `.toml`.
+- `npm:` resolves through `node_modules` with Node's algorithm,
+  including the package's `exports`. npm, pnpm, yarn and bun layouts
+  are supported.
+- `@atypical/commit` exports each preset by bare name, so
+  `npm:@atypical/commit/conventional` has no `.toml`.
+- A prefix of two or more lowercase ASCII letters before `:` is a
+  scheme. Any other prefix, such as the drive letter in `C:\x.toml`,
+  is part of a path.
 
-A prefix of two or more lowercase letters before a `:` is read as a
-scheme. Anything else, including a Windows drive letter like `C:`, is
-a path.
+## Shared bases
+
+A base shared by two targets is applied once per target. The later
+target's copy restates the base's values, replacing changes the
+earlier target made to the same keys.
 
 ## Errors
 
-| Error                                                        | Cause                                                       |
-| ------------------------------------------------------------ | ----------------------------------------------------------- |
-| `` cyclic `extends` involving <path> ``                      | A file extends itself, directly or through others           |
-| `` `extends` in <path> must be a string or an array of strings `` | `extends` is a number, a table, or holds one          |
-| `` cannot resolve `extends = "npm:..."`: ... ``              | The package or file is not installed, or not exported       |
-| `` `extends` scheme `cargo:` is not supported yet ``         | A scheme other than `npm:`                                  |
-
-A relative path that does not exist fails with the operating system's
-"not found" error.
-
-## Sharing a base
-
-Two targets may share a base of their own. Each is resolved on its
-own, so the shared base is applied once per target, which merges
-harmlessly since the second application restates the same values.
+| Error                                                             | Cause                                                  |
+| ----------------------------------------------------------------- | ------------------------------------------------------ |
+| `` cyclic `extends` involving <path> ``                           | A file extends itself, directly or indirectly          |
+| `` `extends` in <path> must be a string or an array of strings `` | Any other type                                         |
+| `` cannot resolve `extends = "npm:..."`: ... ``                   | Package not installed, or file not exported            |
+| `` `extends` scheme `cargo:` is not supported yet ``              | A scheme other than `npm:`                             |
+| The operating system's "not found" error                          | A relative or absolute path that does not exist        |

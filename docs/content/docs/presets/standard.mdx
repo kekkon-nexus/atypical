@@ -1,36 +1,31 @@
 ---
 title: Standard Commits
-description: verb, importance, scope and reason.
+description: Verb, importance, scope and reason.
 ---
 
 ```toml
 extends = "npm:@atypical/commit/standard"
 ```
 
-| Slot        | Shape     | Values                                                            | Required |
-| ----------- | --------- | ----------------------------------------------------------------- | -------- |
-| `keywords`  | `word`    | `add`, `rem`, `ref`, `fix`, `undo`, `release`                     | yes      |
-| `modifiers` | `symbols` | `?`, `!`, `!!`                                                    | no       |
-| `scope`     | `( )`     | `exe`, `lib`, `test`, `build`, `doc`, `ci`, `cd`                  | no       |
-| `reason`    | `[ ]`     | `int`, `pre`, `eff`, `rel`, `cmp`, `mnt`, `tmp`, `exp`, `sec`, `upg`, `ux`, `pol`, `sty` | no |
-| `separator` | `symbol`  | `:`                                                               | yes      |
+| Slot        | Shape     | Values                                                                                   | Required |
+| ----------- | --------- | ---------------------------------------------------------------------------------------- | -------- |
+| `keywords`  | `word`    | `add`, `rem`, `ref`, `fix`, `undo`, `release`                                            | Yes      |
+| `modifiers` | `symbols` | `?`, `!`, `!!`                                                                           | No       |
+| `scope`     | `( )`     | `exe`, `lib`, `test`, `build`, `doc`, `ci`, `cd`                                         | No       |
+| `reason`    | `[ ]`     | `int`, `pre`, `eff`, `rel`, `cmp`, `mnt`, `tmp`, `exp`, `sec`, `upg`, `ux`, `pol`, `sty` | No       |
+| `separator` | `symbol`  | `:`                                                                                      | Yes      |
 
-The modifier comes straight after the verb, then the scope, then the
-reason.
+| Header                   | Result                                     |
+| ------------------------ | ------------------------------------------ |
+| `add(exe)[int]: initial` | Valid                                      |
+| `rem?(lib): x`           | Valid                                      |
+| `ref!![eff]: x`          | Valid                                      |
+| `fix!(ci)[sec]: x`       | Valid                                      |
+| `release: v1.2.3`        | Valid                                      |
+| `feat: x`                | Invalid: `feat` is not a keyword           |
+| `add(exe)!: x`           | Invalid: the modifier precedes the scope   |
+| `add[pre](lib): x`       | Invalid: the scope precedes the reason     |
+| `add(): x`               | Invalid: empty scope                       |
 
-## Examples
-
-| Header                   | Result                                                  |
-| ------------------------ | ------------------------------------------------------- |
-| `add(exe)[int]: initial` | Valid                                                   |
-| `rem?(lib): x`           | Valid                                                   |
-| `ref!![eff]: x`          | Valid                                                   |
-| `fix!(ci)[sec]: x`       | Valid                                                   |
-| `release: v1.2.3`        | Valid                                                   |
-| `feat: x`                | Invalid: `feat` is not a verb                           |
-| `add(exe)!: x`           | Invalid: the modifier goes before the scope             |
-| `add[pre](lib): x`       | Invalid: the scope goes before the reason               |
-| `add(): x`               | Invalid: an empty scope                                 |
-
-Standard Commits also defines rules for the summary, body and footer.
-Only the header shape is checked.
+The Standard Commits rules for the summary, body and footer are not
+checked.

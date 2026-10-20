@@ -9,35 +9,35 @@ echo 'add(lib)[int]: something' | commit-lint -
 commit-lint --from origin/main
 ```
 
-## Input
+## Arguments
 
-| Argument            | Meaning                                                          |
-| ------------------- | ---------------------------------------------------------------- |
-| `<file>`            | A commit message file, as git hands to a `commit-msg` hook       |
-| `-`                 | Read the message from stdin                                      |
-| `--from`, `--to`    | Lint every commit in a range instead; see [CI](/docs/commit-lint/ci) |
-| `-c`, `--config`    | Use this file instead of the nearest `atypical.toml`             |
+| Argument         | Meaning                                                              |
+| ---------------- | -------------------------------------------------------------------- |
+| `<file>`         | A commit message file                                                |
+| `-`              | Read the message from stdin                                          |
+| `--from <REV>`   | Lower end of a commit range, excluded; see [CI](/docs/commit-lint/ci) |
+| `--to <REV>`     | Upper end of a commit range, included; defaults to `HEAD`            |
+| `-c`, `--config <FILE>` | Read this file instead of the nearest `atypical.toml`         |
 
-A file or `-` cannot be combined with `--from` or `--to`.
+`<file>` and `-` conflict with `--from` and `--to`. `--` ends option
+parsing, so a path starting with `-` is read as a file.
 
-## What gets linted
+## Header
 
-Only the header. For a message file, that is the first line that is
-neither blank nor a `#` comment, the same line git keeps when it cleans
-the message up. A trailing `\r` is ignored, so CRLF files work. The body
-and footer are not checked.
+Only the header is linted. In a message file, the header is the first
+line that is neither blank nor a `#` comment. A trailing `\r` is
+removed, so CRLF line endings are accepted. The body and footer are
+not checked.
 
-Before parsing, the header is checked against the
-[default ignores](/docs/commit/default-ignores), so merges, reverts and
-release bumps pass unless `default-ignores = false`.
+Headers matching the [default ignores](/docs/commit/default-ignores)
+pass without parsing unless `default-ignores = false`.
 
 ## Configuration
 
-`commit-lint` reads the `[commit]` section of the nearest
-`atypical.toml`, walking up from the working directory, or of the file
-given to `--config`. With no file, or a file without a `[commit]`
-section, there is no convention to enforce and every message passes.
-See [Discovery](/docs/configuration/discovery).
+The grammar is the `[commit]` section of the nearest `atypical.toml`,
+or of the file given to `--config`. Without a file, or without a
+`[commit]` section, every message passes. See
+[Discovery](/docs/configuration/discovery).
 
 ## Exit codes
 
@@ -47,6 +47,6 @@ See [Discovery](/docs/configuration/discovery).
 | `1`  | Failed linting, an empty message in a range, or an error |
 | `2`  | Usage error, or no commit message to lint                |
 
-An invalid config, an unreadable file or a failing `git` exits `1` with
-the error on stderr. A message made only of blank lines and comments
+Errors with exit `1` include an invalid config, an unreadable file, and
+a failing `git`. A message containing only blank lines and comments
 exits `2`.

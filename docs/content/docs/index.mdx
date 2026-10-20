@@ -1,12 +1,12 @@
 ---
 title: Introduction
-description: A toolkit for enforcing your own conventions, configured from one file.
+description: A toolkit that enforces repository-defined conventions from one file.
 icon: RiBookOpenLine
 ---
 
-Atypical enforces conventions you declare, not ones it ships. Every tool
-reads its own section of a single `atypical.toml`, found by walking up
-from the working directory.
+Atypical is a set of tools that enforce conventions declared by the
+repository. All tools read one file, `atypical.toml`. Each tool reads
+only its own top-level section.
 
 ```toml title="atypical.toml"
 extends = "npm:@atypical/commit/conventional"
@@ -16,22 +16,18 @@ name = "keywords"
 values = ["feat", "fix", "docs"]
 ```
 
-That file pulls in the Conventional Commits preset, then narrows its
-keywords to three. Every other slot the preset declares stays as it was.
+This file extends the Conventional Commits preset and restricts the
+`keywords` slot to three values. All other slots keep the preset's
+definition.
 
 ## Packages
 
-| Package                                                                  | What it is                                                     |
-| ------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| [`atypical-commit`](https://crates.io/crates/atypical-commit)            | The `commit-lint` binary and the commit header parser library  |
-| [`@atypical/commit`](https://www.npmjs.com/package/@atypical/commit)     | `commit-lint` prebuilt for npm, plus the presets by name       |
-| [`atypical-config`](https://crates.io/crates/atypical-config)            | Finds and loads `atypical.toml`, resolving `extends`           |
+| Package                                                              | Contents                                                       |
+| -------------------------------------------------------------------- | -------------------------------------------------------------- |
+| [`atypical-commit`](https://crates.io/crates/atypical-commit)        | The `commit-lint` binary and the commit header parser library  |
+| [`@atypical/commit`](https://www.npmjs.com/package/@atypical/commit) | `commit-lint` prebuilt, and the presets by name                |
+| [`atypical-config`](https://crates.io/crates/atypical-config)        | Discovery and loading of `atypical.toml`, including `extends`  |
 
-## Where to go next
+## License
 
-<Cards>
-  <Card title="Installation" href="/docs/getting-started/installation" />
-  <Card title="Quick start" href="/docs/getting-started/quick-start" />
-  <Card title="Slots" href="/docs/commit/slots" />
-  <Card title="Presets" href="/docs/presets" />
-</Cards>
+MIT or Apache-2.0, at the user's option.

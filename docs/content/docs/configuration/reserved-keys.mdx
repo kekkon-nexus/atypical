@@ -3,23 +3,17 @@ title: Reserved keys
 description: Keys that steer merging in every named array.
 ---
 
-Inside an array whose every entry has a `name`, three keys are merge
-directives rather than data:
+In an array whose every entry has a `name`, three keys are merge
+directives:
 
-| Key      | Type    | Meaning                                         |
-| -------- | ------- | ----------------------------------------------- |
-| `name`   | string  | What other layers match the entry on            |
-| `drop`   | boolean | Remove the entry with this name                 |
-| `before` | string  | Place this entry ahead of the one named         |
+| Key      | Type    | Meaning                                   | Reaches the schema |
+| -------- | ------- | ----------------------------------------- | ------------------ |
+| `name`   | string  | The key entries are matched on            | Yes                |
+| `drop`   | boolean | Remove the entry with this name           | No                 |
+| `before` | string  | Place this entry ahead of the named entry | No                 |
 
-`drop` and `before` are consumed while loading, so a tool's schema
-never sees them. `name` stays on the entry, and `commit-lint` uses it
-in its messages.
-
-This holds for every section and every tool, not only `[commit]`.
-A tool adding its own named array cannot give these keys another
-meaning.
-
-A directive of the wrong type, such as `drop = "yes"`, is left in
-place, so the tool's schema rejects it as an unknown key instead of it
-quietly meaning `false`.
+- The reservation applies to every section and every tool.
+- A directive of the wrong type, such as `drop = "yes"`, is left on the
+  entry for the section schema to reject.
+- An entry whose `name` is not a string makes the array unnamed, so it
+  replaces the array beneath instead of merging.

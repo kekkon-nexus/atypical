@@ -1,19 +1,17 @@
 ---
 title: Merging
-description: How a file overrides what it extends.
+description: How a file combines with the files it extends.
 ---
 
-Each layer merges onto everything beneath it:
-
-- **Tables** merge key by key.
-- **Arrays whose every entry has a `name`** merge entry by entry, such
-  as `[[commit.slots]]`.
-- **Anything else** replaces the value beneath it, arrays without names
-  included.
+| Value                                  | Merge                                    |
+| -------------------------------------- | ---------------------------------------- |
+| Table                                  | Key by key                               |
+| Array whose every entry has a `name`   | Entry by entry, matched on `name`        |
+| Any other value, unnamed arrays included | Replaces the value beneath             |
 
 ## Named arrays
 
-Given a base:
+The examples below extend this base:
 
 ```toml title="base.toml"
 [[commit.slots]]
@@ -25,9 +23,12 @@ name = "separator"
 kind = "symbol"
 ```
 
-### Matched names merge field by field
+### Matched entries
 
-```toml title="atypical.toml"
+A matched entry merges field by field. Unwritten fields keep the
+base's values.
+
+```toml
 extends = "base.toml"
 
 [[commit.slots]]
@@ -35,13 +36,17 @@ name = "keywords"
 required = true
 ```
 
-`keywords` keeps `kind = "word"` and gains `required = true`. You only
-restate what changes.
+Result: `keywords` has `kind = "word"` and `required = true`.
 
-### Unmatched names keep their place
+### Unmatched entries
 
-An entry whose name is new is placed by its neighbours in its own file:
-right after the entry it follows there, or first when it follows none.
+An unmatched entry is placed by its neighbours in its own file:
+
+| Case                                      | Position                              |
+| ----------------------------------------- | ------------------------------------- |
+| Follows an entry in its own file          | Right after that entry                |
+| Follows no entry, file matches some entry | First                                 |
+| File matches no entry beneath it          | Appended at the end                   |
 
 ```toml title="peer.toml"
 [[commit.slots]]
@@ -57,16 +62,13 @@ name = "scope"
 kind = "word"
 ```
 
-Extending `["base.toml", "peer.toml"]` gives `gitmoji`, `keywords`,
-`scope`, `separator`: `gitmoji` follows nothing so it goes first, and
-`scope` follows `keywords`.
-
-A file that matches nothing beneath it appends its entries at the end.
+Result of `extends = ["base.toml", "peer.toml"]`: `gitmoji`,
+`keywords`, `scope`, `separator`.
 
 ### `before`
 
-`before = "<name>"` places an entry ahead of the one named, moving it
-if it was already there:
+`before = "<name>"` places the entry ahead of the named entry, moving
+it if already present.
 
 ```toml
 extends = "base.toml"
@@ -77,9 +79,11 @@ kind = "word"
 before = "keywords"
 ```
 
+Result: `gitmoji`, `keywords`, `separator`.
+
 ### `drop`
 
-`drop = true` removes the entry it names:
+`drop = true` removes the named entry.
 
 ```toml
 extends = "npm:@atypical/commit/conventional"
@@ -89,23 +93,19 @@ name = "scope"
 drop = true
 ```
 
-## Order in `extends` matters
+## Order in `extends`
 
-Placement is relative to what is already there, so the same two files
-in the opposite order can build a different grammar. Put the base
-first and the files that layer onto it after.
+Placement is relative to entries already present, so swapping two
+targets can produce a different grammar.
 
-`["conventional", "gitmoji"]` puts gitmoji's `intention` in front of
-`keywords`, giving `✨ feat(api): x`. The reverse puts conventional's
-`keywords` in front of `intention` instead.
+| `extends`                    | Leading slots                |
+| ---------------------------- | ---------------------------- |
+| `[conventional, gitmoji]`    | `intention`, `keywords`, ... |
+| `[gitmoji, conventional]`    | `keywords`, `intention`, ... |
 
 ## Errors
 
-| Error                                                   | Cause                                              |
-| ------------------------------------------------------- | -------------------------------------------------- |
-| `` `before = "x"` in <path> names no other entry ``     | `x` is not present, or is the entry itself         |
-| `two entries named "x" in one array in <path>`          | One file gives two entries of one array the same name |
-
-Both are errors rather than guesses: the position asked for is part of
-the grammar, and a second entry with the same name would silently merge
-into the first.
+| Error                                               | Cause                                                  |
+| --------------------------------------------------- | ------------------------------------------------------ |
+| `` `before = "x"` in <path> names no other entry `` | `x` is absent, or is the entry itself                  |
+| `two entries named "x" in one array in <path>`      | One file gives two entries of one array the same name  |

@@ -1,16 +1,16 @@
 ---
 title: atypical-config
-description: Find and load atypical.toml from your own tool.
+description: Discovery and loading of atypical.toml for Rust tools.
 ---
 
 ```sh
 cargo add atypical-config
 ```
 
-The crate knows no section schema. Each tool deserializes its own
-section with serde, and gets [discovery](/docs/configuration/discovery),
+The crate has no section schema. A tool deserializes its own section
+with serde, and inherits [discovery](/docs/configuration/discovery),
 [`extends`](/docs/configuration/extends) and
-[merging](/docs/configuration/merging) for free.
+[merging](/docs/configuration/merging).
 
 ```rust
 #[derive(serde::Deserialize)]
@@ -23,19 +23,16 @@ if let Some(path) = atypical_config::find(std::env::current_dir()?) {
 }
 ```
 
-## Functions
+| Item        | Behavior                                                                |
+| ----------- | ----------------------------------------------------------------------- |
+| `find`      | The nearest `atypical.toml` in a directory or its ancestors             |
+| `load`      | Resolves `extends`, then deserializes one section; `None` when absent   |
+| `resolve`   | Resolves `extends`; returns the merged `toml::Table`                    |
+| `section`   | Deserializes one section of a document as written, without `extends`    |
+| `FILE_NAME` | `"atypical.toml"`                                                       |
+| `Error`     | Enum implementing `Display` and `std::error::Error`                     |
 
-| Function  | Does                                                                      |
-| --------- | ------------------------------------------------------------------------- |
-| `find`    | The nearest `atypical.toml` in a directory or its ancestors               |
-| `load`    | Resolves `extends`, then deserializes one section, `None` when absent     |
-| `resolve` | Resolves `extends` and returns the merged `toml::Table`                   |
-| `section` | Deserializes one section of a document as written, without `extends`     |
+The [reserved keys](/docs/configuration/reserved-keys) apply to every
+section.
 
-Errors are an `atypical_config::Error` enum implementing `Display` and
-`std::error::Error`.
-
-Inside a named array, `name`, `drop` and `before` are
-[reserved](/docs/configuration/reserved-keys) for every tool.
-
-Full API on [docs.rs](https://docs.rs/atypical-config).
+API reference: [docs.rs](https://docs.rs/atypical-config).

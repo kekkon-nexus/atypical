@@ -1,38 +1,31 @@
 ---
 title: Spacing
-description: gap and tight, for headers with spaces inside the prefix.
+description: gap and tight, for spaces inside the prefix.
 ---
 
-By default the prefix has no spaces: slots sit against each other and
-the only space is the one before the description. `gap` and `tight`
-allow headers like gitmoji's, where a space follows the emoji.
+Without `gap`, slots are adjacent and the only space is the one before
+the description.
 
-## `gap`
+| Field   | Behavior                                                                  |
+| ------- | ------------------------------------------------------------------------- |
+| `gap`   | Owes one space after the slot. The next present slot takes it, or the description if none is present. An absent slot passes it on |
+| `tight` | Attaches to the preceding text without a space, and passes any owed space to the following slot |
 
-`gap = true` owes one space after the slot. The next slot that is
-present takes it, or the description does if none is. An absent slot
-passes the debt on.
+## Example
 
-## `tight`
+The [gitmoji preset](/docs/presets/gitmoji): `intention` with `gap`,
+an optional `scope`, and an optional `tight` separator.
 
-`tight = true` attaches the slot to what precedes it with no space,
-and leaves any owed space to the slot after it.
+| Header                     | Result                                            |
+| -------------------------- | ------------------------------------------------- |
+| `✨ Add a feature`         | Valid: the description takes the gap              |
+| `✨ (auth): Add a feature` | Valid: `scope` takes the gap                      |
+| `✨: Add a feature`        | Valid: the separator attaches; the description takes the gap |
+| `✨(auth): Add a feature`  | Invalid: `scope` is not tight and needs the space |
+| `✨  Add a feature`        | Invalid: two spaces                               |
 
-## Worked example
+## Openers after a gap
 
-The [gitmoji preset](/docs/presets/gitmoji) is an `intention` with
-`gap`, an optional `scope`, and an optional `tight` separator:
-
-| Header                   | Reading                                                |
-| ------------------------ | ------------------------------------------------------ |
-| `✨ Add a feature`       | No scope or separator, so the description takes the gap |
-| `✨ (auth): Add a feature` | `scope` takes the gap; the separator attaches after it |
-| `✨: Add a feature`      | The tight separator attaches; the description takes the gap |
-| `✨(auth): Add a feature` | Invalid: `scope` is not tight, so it needs the space  |
-| `✨  Add a feature`      | Invalid: only one space is allowed there               |
-
-## Caveat: openers after a gap
-
-Once its opener follows the space, an optional delimited slot behind a
-gap is committed to. So with an optional `(...)` there, a description
-that starts with `(` is read as that slot.
+An optional delimited slot behind a gap is committed to once its opener
+follows the space. With an optional `(...)` there, a description
+starting with `(` is parsed as that slot.

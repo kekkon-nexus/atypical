@@ -1,43 +1,39 @@
 ---
 title: CI
-description: Lint every commit in a range.
+description: Linting every commit in a range.
 ---
-
-Hooks are local and skippable with `--no-verify`, so check the commits
-a pull request brings in on CI too:
 
 ```sh
 commit-lint --from origin/main
 ```
 
-## Ranges
+## Range
 
-`--from` and `--to` select commits the way `git log <from>..<to>` does:
+`--from` and `--to` select commits as `git log <from>..<to>` does.
 
-- `--from` is excluded.
-- `--to` is included and defaults to `HEAD`.
-- Without `--from`, the whole history reachable from `--to` is linted.
+| Option   | Meaning                                                    |
+| -------- | ---------------------------------------------------------- |
+| `--from` | Excluded. Without it, all history reachable from `--to`    |
+| `--to`   | Included. Defaults to `HEAD`                               |
 
-Every commit in the range is linted and every failure is reported,
-each labelled with its short hash, before the run exits. A commit with
-an empty message fails with `<hash>: no commit message to lint.`
+- Every commit in the range is linted, newest first, and every failure
+  is reported before exit.
+- Each report is labelled with the commit's short hash.
+- A commit with an empty message fails with
+  `<hash>: no commit message to lint.`
+- A recorded message is already cleaned by git, so its header is its
+  first line, including a line starting with `#`.
+- Without a `[commit]` section the run exits `0` without calling `git`,
+  including outside a repository.
 
-A recorded message has already been cleaned up by git, so its header
-is its first line, even if that line starts with `#`.
+## Merge base
 
-With no `[commit]` section to lint against, the run exits `0` before
-it asks `git` anything, so it also works outside a repository.
-
-## Shallow clones
-
-With `--from`, the two ends need a merge base. Most CI checkouts are
-shallow and lack it, which fails with:
+With `--from`, the two ends need a merge base. Without one, as in a
+shallow clone, the run fails with:
 
 ```txt
 Cannot find merge-base between 'origin/main' and 'HEAD'. This typically indicates incomplete git history (e.g. a shallow clone). Consider fetching more history.
 ```
-
-Fetch the history the range covers.
 
 ## GitHub Actions
 
@@ -58,5 +54,4 @@ jobs:
       - run: npx commit-lint --from ${{ github.event.pull_request.base.sha }}
 ```
 
-`fetch-depth: 0` fetches the full history, so the base commit and the
-merge base are both present.
+`fetch-depth: 0` fetches full history, which contains the merge base.

@@ -1,45 +1,50 @@
 ---
 title: Diagnostics
-description: Reading a failed lint.
+description: Messages printed for a failed lint.
 ---
 
-A header that does not parse gets a report titled
-`Failed to parse commit message`, with the header underlined and one
-label per problem, pointing at the characters it is about. Colors are
-on when the terminal supports them.
+A header that fails to parse produces a report titled
+`Failed to parse commit message`. The report underlines the header and
+labels each error at its position. Output is colored when the terminal
+supports it.
 
 ## Messages
 
-Slot names in messages are the `name` each slot has in your config.
+Slot names in messages are the slots' `name` values.
 
-| Message                                                    | Cause                                                         |
-| ---------------------------------------------------------- | ------------------------------------------------------------- |
-| `` `feat` is not in `keywords`, expected one of: ... ``    | A word or delimited value outside the slot's `values`         |
-| `` expected `keywords`, one of: ... ``                     | A required slot with closed `values` is missing               |
-| `` expected `scope` ``                                     | A slot that takes anything is empty or missing                |
-| `` expected an opening `(` ``                              | A required delimited slot is missing                          |
-| `` found '[' expected '!', or ':' ``                       | A character no slot can take at that position                 |
-| `` found end of input expected ... ``                      | The header ends before a required slot                        |
-| `expected a description after the separator`              | Nothing, or only spaces, after the separator                  |
-| `expected a space before the description`                 | The description does not start with exactly one space         |
-| `the description must not start with a space`             | More than one space before the description                    |
+| Message                                                 | Cause                                                          |
+| ------------------------------------------------------- | -------------------------------------------------------------- |
+| `` `feat` is not in `keywords`, expected one of: ... `` | A value outside the slot's `values`                            |
+| `` expected `keywords`, one of: ... ``                  | A required closed slot is missing, or a closed delimited slot is empty |
+| `` expected `scope` ``                                  | An unrestricted slot is missing or empty                       |
+| `` expected an opening `(` ``                           | A required delimited slot is missing                           |
+| `` found '[' expected '!', or ':' ``                    | A character no slot accepts at that position                   |
+| `` found end of input expected ... ``                   | The header ends before a required slot                         |
+| `expected a description after the separator`           | Nothing, or only spaces, after the separator                   |
+| `expected a space before the description`              | No space between the prefix and the description                |
+| `the description must not start with a space`          | More than one space before the description                     |
 
-For example, with the [Standard Commits](/docs/presets/standard) preset:
+A bare slot lists its spellings longest first, the order in which they
+are tried. A delimited slot lists them in declaration order.
 
-| Header                | Message                                                                                |
-| --------------------- | -------------------------------------------------------------------------------------- |
-| `feat: x`             | `` `feat` is not in `keywords`, expected one of: release, undo, add, fix, ref, rem `` |
+## Examples
+
+With the [Standard Commits](/docs/presets/standard) preset:
+
+| Header                | Message                                                                                    |
+| --------------------- | ------------------------------------------------------------------------------------------ |
+| `feat: x`             | `` `feat` is not in `keywords`, expected one of: release, undo, add, fix, ref, rem ``     |
 | `add(unsupported): x` | `` `unsupported` is not in `scope`, expected one of: exe, lib, test, build, doc, ci, cd `` |
-| `add(exe)!: x`        | `found '!' expected ':'`                                                               |
-| `add:no space`        | `expected a space before the description`                                              |
-
-A bare slot lists its spellings longest first, the order it tries
-them in. A delimited slot lists them as declared.
+| `add(exe)!: x`        | `found '!' expected ':'`                                                                   |
+| `add:no space`        | `expected a space before the description`                                                  |
 
 ## Config errors
 
-A config that cannot become a grammar is rejected before any header is
-read, exiting `1` with a single error line. See
-[Ambiguity](/docs/commit/ambiguity) for the slot errors, and
-[Extends](/docs/configuration/extends) and
-[Merging](/docs/configuration/merging) for errors in loading the file.
+A config that cannot form a grammar is rejected before any header is
+read, with exit `1` and one error line.
+
+| Source                         | Reference                                                   |
+| ------------------------------ | ----------------------------------------------------------- |
+| Slot definitions               | [Ambiguity](/docs/commit/ambiguity)                         |
+| `extends`                      | [Extends](/docs/configuration/extends#errors)               |
+| `before`, duplicate names      | [Merging](/docs/configuration/merging#errors)               |

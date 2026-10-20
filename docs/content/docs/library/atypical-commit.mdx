@@ -4,12 +4,12 @@ description: The commit header parser behind commit-lint.
 ---
 
 ```sh
-cargo add atypical-commit --no-default-features --features std
+cargo add atypical-commit
 ```
 
-The parser is a [chumsky](https://docs.rs/chumsky) parser whose
-grammar is data: `Tokens` lists the slots in header order and is
-passed in as the parser's context.
+The parser is built on [chumsky](https://docs.rs/chumsky). The grammar
+is data: `Tokens` lists the slots in header order and is passed as the
+parser's context.
 
 ```rust
 use atypical_commit::{Extra, ExtraContext, Header, Tokens, header};
@@ -24,39 +24,32 @@ let prefix = parsed.into_result().unwrap().prefix;
 assert_eq!((prefix[0].name.as_str(), prefix[0].value), ("keywords", "add"));
 ```
 
-## From a config
+## Pipeline
 
-`config::CommitConfig` is the `[commit]` schema. It lowers into
-`Tokens` with `try_from`, failing with `config::Invalid`.
-`ExtraContext::new` then rejects
-[ambiguous](/docs/commit/ambiguity) grammars with `Ambiguous`.
-
-```rust
-use atypical_commit::{ExtraContext, Tokens, config::{self, CommitConfig}};
-
-let config: Option<CommitConfig> = atypical_config::load(path, config::SECTION)?;
-let tokens = Tokens::try_from(&config.unwrap())?;
-let context = ExtraContext::new(&tokens)?;
-```
+| Step                     | Function                         | Error              |
+| ------------------------ | -------------------------------- | ------------------ |
+| Load `[commit]`          | `atypical_config::load(path, config::SECTION)` | `atypical_config::Error` |
+| Lower to a grammar       | `Tokens::try_from(&CommitConfig)` | `config::Invalid` |
+| Validate the grammar     | `ExtraContext::new(&Tokens)`     | `Ambiguous`        |
+| Parse a header           | `header().with_ctx(context)`     | chumsky `Rich` errors |
+| Check the default ignores | `ignore::is_ignored(header)`    | none               |
 
 ## Output
 
-A `Header` is a `prefix` of `Part`s, one per slot present, and the
-`description`. Each `Part` carries the slot's `name`, its `value` and
-its `span` in the input. A delimited slot's value and span leave out
-the delimiters.
-
-`ignore::is_ignored` checks a header against the
-[default ignores](/docs/commit/default-ignores).
+| Type     | Fields                                                              |
+| -------- | ------------------------------------------------------------------- |
+| `Header` | `prefix`: the `Part`s present, in order; `description`              |
+| `Part`   | `name`, `value`, `span`; delimited values and spans exclude the delimiters |
 
 ## Features
 
-| Feature | Default | Forwards                                          |
-| ------- | ------- | ------------------------------------------------- |
-| `std`   | yes     | `std` to the dependencies                         |
-| `cli`   | yes     | clap's derive, help, usage and suggestions        |
-| `color` | yes     | colored diagnostics and help                      |
+| Feature | Default | Forwards                                   |
+| ------- | ------- | ------------------------------------------ |
+| `std`   | Yes     | `std` to the dependencies                  |
+| `cli`   | Yes     | clap's derive, help, usage and suggestions |
+| `color` | Yes     | Colored diagnostics and help               |
 
-They only forward dependency features; no code is gated behind them.
+The features only forward dependency features; no code is gated behind
+them.
 
-Full API on [docs.rs](https://docs.rs/atypical-commit).
+API reference: [docs.rs](https://docs.rs/atypical-commit).

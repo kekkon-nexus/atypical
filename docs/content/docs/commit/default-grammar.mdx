@@ -3,33 +3,26 @@ title: Default grammar
 description: What a commit section enforces when it declares no slots.
 ---
 
-A `[commit]` section with no `slots` still enforces the shape of a
-header, without restricting any spelling. It behaves like:
+A `[commit]` section without `slots` enforces the header shape with no
+restricted spellings:
 
-| Slot        | Shape          | Required |
-| ----------- | -------------- | -------- |
-| `keywords`  | `word`         | yes      |
-| `(...)`     | `( )`          | no       |
-| `[...]`     | `[ ]`          | no       |
-| `modifiers` | `symbols`      | no       |
-| `separator` | `symbol`       | yes      |
+| Slot        | Shape     | Required |
+| ----------- | --------- | -------- |
+| `keywords`  | `word`    | Yes      |
+| `(...)`     | `( )`     | No       |
+| `[...]`     | `[ ]`     | No       |
+| `modifiers` | `symbols` | No       |
+| `separator` | `symbol`  | Yes      |
 
-followed by a space and a description. Messages use the names in the
-first column.
+The slot names in this table appear in messages.
 
-| Header                          | Result                                         |
-| ------------------------------- | ---------------------------------------------- |
-| `add(lib)[int]: standard style` | Valid                                          |
-| `feat(api)!: conventional style` | Valid                                         |
-| `yolo(whatever)> ship it`       | Valid                                          |
-| `wip!!~ kitchen sink`           | Valid                                          |
-| `feat!(api): x`                 | Invalid: `!` is read as the separator          |
-| `no separator here`             | Invalid: ``expected `modifiers` ``             |
+| Header                           | Result                                 |
+| -------------------------------- | -------------------------------------- |
+| `add(lib)[int]: standard style`  | Valid                                  |
+| `feat(api)!: conventional style` | Valid                                  |
+| `yolo(whatever)> ship it`        | Valid                                  |
+| `wip!!~ kitchen sink`            | Valid                                  |
+| `feat!(api): x`                  | Invalid: `!` is parsed as the separator |
+| `no separator here`              | Invalid: ``expected `modifiers` ``     |
 
-This is useful for keeping headers parseable while a team settles on
-its spellings. `default-ignores` still applies:
-
-```toml
-[commit]
-default-ignores = false
-```
+`default-ignores` applies as usual.

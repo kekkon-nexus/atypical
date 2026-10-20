@@ -1,48 +1,49 @@
 ---
 title: Installation
-description: Get the commit-lint binary from npm or crates.io.
+description: Distribution channels for the commit-lint binary.
 ---
 
-## From npm
+| Channel   | Command                       | Presets included |
+| --------- | ----------------------------- | ---------------- |
+| npm       | `npm i -D @atypical/commit`   | Yes, by name     |
+| crates.io | `cargo install atypical-commit` | No             |
 
-```sh
-npm i -D @atypical/commit
-```
+## npm
 
-pnpm, yarn and bun work the same way. The package is a small Node
-wrapper. The binary itself arrives as an optional dependency named
-`@atypical/commit-<platform>-<arch>`, with a `-musl` suffix on musl
-Linux. Nothing runs at install time.
+`@atypical/commit` is a Node wrapper. The binary is an optional
+dependency named `@atypical/commit-<platform>-<arch>`, with a `-musl`
+suffix on musl Linux. The packages have no install scripts. The wrapper
+requires Node 18 or later.
 
-The wrapper needs Node 18 or later. It exits with `127` when no binary
-can be found, either because the platform has no prebuilt package or
-because optional dependencies were skipped (`--no-optional`,
-`--omit=optional`).
+| Platform | Architectures  | libc           |
+| -------- | -------------- | -------------- |
+| Linux    | x64, arm64     | glibc, musl    |
+| macOS    | x64, arm64     |                |
+| Windows  | x64, arm64     |                |
 
-To run a binary you built or installed yourself, point the wrapper at
-it:
+| Variable             | Effect                                         |
+| -------------------- | ---------------------------------------------- |
+| `COMMIT_LINT_BINARY` | Path of the binary the wrapper runs instead    |
 
-```sh
-COMMIT_LINT_BINARY=/path/to/commit-lint npx commit-lint -- .git/COMMIT_EDITMSG
-```
+The wrapper exits `127` when no binary is available: an unsupported
+platform, skipped optional dependencies, or a binary that fails to
+start.
 
-The npm package also ships the [presets](/docs/presets) by name, so a
-config can `extends = "npm:@atypical/commit/conventional"` without
-copying anything.
+The package exports each preset by name, for use in
+[`extends`](/docs/configuration/extends) as
+`npm:@atypical/commit/<preset>`.
 
-## From crates.io
+## crates.io
 
-```sh
-cargo install atypical-commit
-```
+`cargo install atypical-commit` builds `commit-lint` into
+`~/.cargo/bin`. The presets are not included; copies are in
+[`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets).
 
-This installs `commit-lint` into `~/.cargo/bin`. Without npm, copy a
-preset from
-[`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
-into your repository and extend it by path.
+## Minimal setup
 
-## Check it
+| File                 | Contents                                       |
+| -------------------- | ---------------------------------------------- |
+| `atypical.toml`      | `extends = "npm:@atypical/commit/conventional"` |
+| `.husky/commit-msg`  | `commit-lint -- "$1"`                          |
 
-```sh
-commit-lint --version
-```
+See [Hooks](/docs/commit-lint/hooks) for setups without husky.

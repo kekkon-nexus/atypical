@@ -1,38 +1,24 @@
 ---
 title: Hooks
-description: Lint each commit as it is made.
+description: Running commit-lint as a commit-msg hook.
 ---
 
-`commit-lint` takes the message file git passes to a `commit-msg` hook
-as its first argument. A non-zero exit aborts the commit and keeps the
-report on screen.
+git passes the message file path to a `commit-msg` hook as its first
+argument. A non-zero exit aborts the commit.
 
-## husky
-
-```sh title=".husky/commit-msg"
-commit-lint -- "$1"
-```
-
-husky puts `node_modules/.bin` on the hook's `PATH`, so the npm package
-works without `npx`.
-
-## Plain git
-
-Create `.git/hooks/commit-msg` and make it executable
-(`chmod +x .git/hooks/commit-msg`):
+| Setup     | File                     | Contents              |
+| --------- | ------------------------ | --------------------- |
+| husky     | `.husky/commit-msg`      | `commit-lint -- "$1"` |
+| Plain git | `.git/hooks/commit-msg`  | See below             |
 
 ```sh title=".git/hooks/commit-msg"
 #!/bin/sh
 commit-lint -- "$1"
 ```
 
-Here `commit-lint` must be on `PATH`, as it is after `cargo install`.
-With only the npm package installed, call `npx commit-lint` instead.
+A plain git hook must be executable and needs `commit-lint` on `PATH`.
+With only the npm package installed, the command is
+`npx commit-lint`. `.git/hooks` is not versioned, so each clone needs
+the hook installed separately.
 
-`.git/hooks` is not versioned, so every clone needs the hook installed
-again. A hook manager such as husky keeps it in the repository.
-
-## The `--` separator
-
-`--` ends option parsing, so a message file whose path starts with `-`
-is still read as a file.
+husky adds `node_modules/.bin` to the hook's `PATH`.

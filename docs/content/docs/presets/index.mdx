@@ -1,32 +1,19 @@
 ---
 title: Overview
-description: Ready-made grammars to extend.
+description: Ready-made grammars for extends.
 ---
 
-| Preset                                    | Convention                                                            |
-| ----------------------------------------- | --------------------------------------------------------------------- |
-| [`standard`](/docs/presets/standard)      | [Standard Commits](https://github.com/standard-commits/standard-commits) |
-| [`conventional`](/docs/presets/conventional) | [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) |
-| [`gitmoji`](/docs/presets/gitmoji)        | [Gitmoji](https://gitmoji.dev/specification)                          |
+| Preset                                       | Convention                                                               | npm target                          |
+| -------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------- |
+| [`standard`](/docs/presets/standard)         | [Standard Commits](https://github.com/standard-commits/standard-commits) | `npm:@atypical/commit/standard`     |
+| [`conventional`](/docs/presets/conventional) | [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)   | `npm:@atypical/commit/conventional` |
+| [`gitmoji`](/docs/presets/gitmoji)           | [Gitmoji](https://gitmoji.dev/specification)                             | `npm:@atypical/commit/gitmoji`      |
 
-The files in
-[`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
-are the only definitions. A preset is an ordinary `atypical.toml`
-fragment, so anything it declares can be
-[overridden](/docs/presets/customizing).
-
-## Using one
-
-With the npm package installed, extend a preset by name:
-
-```toml title="atypical.toml"
-extends = "npm:@atypical/commit/conventional"
-```
-
-Without npm, copy the file into your repository and extend it by path:
-
-```toml title="atypical.toml"
-extends = "conventional.toml"
-```
-
-Every preset turns on the [default ignores](/docs/commit/default-ignores).
+- The files in
+  [`presets/`](https://github.com/kekkon-nexus/atypical/tree/main/presets)
+  are the only definitions.
+- A preset is an `atypical.toml` fragment; any of its slots can be
+  [overridden](/docs/presets/customizing).
+- Without npm, a copied preset is extended by path:
+  `extends = "conventional.toml"`.
+- Every preset sets `default-ignores = true`.

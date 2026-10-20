@@ -3,28 +3,36 @@ title: Ambiguity
 description: Grammars rejected before any header is read.
 ---
 
-A grammar is checked when it is loaded. If it cannot be lowered, or if
-two of its slots could not be told apart on some header, `commit-lint`
-exits `1` with the error and lints nothing.
+A grammar is validated on load. An invalid grammar exits `1` with one
+error and lints nothing.
 
-An optional slot does not separate its neighbours: since it may be
-absent, the slots on either side are checked against each other too.
+An optional slot does not separate its neighbours: the slots on either
+side are checked against each other too.
 
 ## Malformed slots
 
-| Error                                                      | Cause                                                    |
-| ---------------------------------------------------------- | -------------------------------------------------------- |
-| ``slot `x` needs exactly one of `kind`, `delimiters` or `one-of` `` | None of them, or more than one                  |
-| ``slot `separator` is a `symbol`, so it cannot match `::` `` | A listed spelling the kind can never match             |
-| ``` `gap` does not apply to slot `emoji` ```               | A key in the wrong place on a [`one-of`](/docs/commit/one-of) |
+| Error                                                                | Cause                                                        |
+| -------------------------------------------------------------------- | ------------------------------------------------------------ |
+| ``slot `x` needs exactly one of `kind`, `delimiters` or `one-of` ``  | None of them, or more than one                               |
+| ``slot `separator` is a `symbol`, so it cannot match `::` ``         | A spelling the kind cannot match                             |
+| ``` `gap` does not apply to slot `emoji` ```                         | A misplaced key on a [`one-of`](/docs/commit/one-of#key-placement) |
 
 ## Indistinguishable slots
 
-Each row is a minimal grammar that fails, and a way out.
+| Error                                                                   | Cause                                                        | Resolution                                  |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------ | ------------------------------------------- |
+| `` `a` takes the whole run, leaving nothing for `b` ``                  | A `word`, or unrestricted `symbols`, followed by the same kind | A symbol or delimited slot between them    |
+| `` `a` and `b` both start with `x` ``                                   | Neighbouring spellings share a prefix                        | Distinct first characters                   |
+| `` `b` takes anything, `a`'s spellings included ``                      | A closed set before an unrestricted slot of the same alphabet | Close the second slot's `values`           |
+| `` `a` and `b` carry the same delimiters ``                             | Two delimited slots with the same pair, at any distance      | A different pair; a shared opener alone is allowed |
+| `` `a` and `b` can start on the same input ``                           | Overlapping [`one-of`](/docs/commit/one-of#overlap) options  | Close or separate the options               |
+| `` `a` is optional after a gap, so it can take the start of the description `` | An optional `word` or unrestricted `symbols` slot after a `gap` | `required = true`, or a delimited slot |
 
-### A run followed by the same kind
+`word` is one alphabet; `symbols` and `symbol` share the other.
 
-```toml
+## Examples
+
+```toml title="Run"
 [[commit.slots]]
 name = "type"
 kind = "word"
@@ -34,16 +42,7 @@ name = "subtype"
 kind = "word"
 ```
 
-```txt
-`type` takes the whole run, leaving nothing for `subtype`
-```
-
-A word reads every word character there is, and so does unrestricted
-`symbols`. Put a delimited slot or a symbol between them.
-
-### Spellings sharing a prefix
-
-```toml
+```toml title="Shared prefix"
 [[commit.slots]]
 name = "modifiers"
 kind = "symbols"
@@ -55,16 +54,7 @@ kind = "symbol"
 values = [":"]
 ```
 
-```txt
-`modifiers` and `separator` both start with `:`
-```
-
-Bare slots match by prefix, so neighbours need spellings that do not
-start alike.
-
-### A closed set before an open one
-
-```toml
+```toml title="Shadowed"
 [[commit.slots]]
 name = "modifiers"
 kind = "symbols"
@@ -75,15 +65,7 @@ name = "separator"
 kind = "symbol"
 ```
 
-```txt
-`separator` takes anything, `modifiers`'s spellings included
-```
-
-Restrict the second slot's `values` too.
-
-### The same delimiters twice
-
-```toml
+```toml title="Same delimiters"
 [[commit.slots]]
 name = "scope"
 delimiters = ["(", ")"]
@@ -93,24 +75,7 @@ name = "ticket"
 delimiters = ["(", ")"]
 ```
 
-```txt
-`scope` and `ticket` carry the same delimiters
-```
-
-Delimiters are matched wherever they sit, so give each slot its own
-pair. Sharing only the opener is fine.
-
-### Overlapping options
-
-```txt
-`emoji` and `shortcode` can start on the same input
-```
-
-See [One of](/docs/commit/one-of#options-must-not-overlap).
-
-### An optional bare slot behind a gap
-
-```toml
+```toml title="Optional after a gap"
 [[commit.slots]]
 name = "emoji"
 kind = "symbols"
@@ -122,11 +87,3 @@ gap = true
 name = "keywords"
 kind = "word"
 ```
-
-```txt
-`keywords` is optional after a gap, so it can take the start of the description
-```
-
-The space after the gap is also the description's, so an optional word
-there would swallow the first word of the description. Make it
-`required`, or make it delimited.

@@ -1,12 +1,21 @@
 ---
 title: Customizing
-description: Recipes for changing a preset without copying it.
+description: Overrides for preset slots.
 ---
 
-Override a preset by naming its slots in your own file. Only the
-fields you write change; see [Merging](/docs/configuration/merging).
+An override names a preset slot and writes only the fields that change.
+See [Merging](/docs/configuration/merging).
 
-## Narrow the keywords
+| Change                  | Override                                                                 |
+| ----------------------- | ------------------------------------------------------------------------ |
+| Restrict keywords       | `name = "keywords"`, `values = [...]`                                    |
+| Require the scope       | `name = "scope"`, `required = true`                                      |
+| Restrict the scope      | `name = "scope"`, `values = [...]`                                       |
+| Add a slot              | A new `name`, its shape, and `before = "<slot>"`                         |
+| Remove a slot           | `name = "<slot>"`, `drop = true`                                         |
+| Disable default ignores | `[commit]` with `default-ignores = false`                                |
+
+## Restrict keywords
 
 ```toml
 extends = "npm:@atypical/commit/conventional"
@@ -16,28 +25,11 @@ name = "keywords"
 values = ["feat", "fix", "docs"]
 ```
 
-`docs: x` and `feat(api)!: x` pass. `chore: x` fails with
-``` `chore` is not in `keywords`, expected one of: docs, feat, fix ```.
-
-## Require a scope
-
-```toml
-extends = "npm:@atypical/commit/conventional"
-
-[[commit.slots]]
-name = "scope"
-required = true
-```
-
-## Restrict the scope
-
-```toml
-extends = "npm:@atypical/commit/conventional"
-
-[[commit.slots]]
-name = "scope"
-values = ["api", "cli", "docs"]
-```
+| Header          | Result                                                                 |
+| --------------- | ---------------------------------------------------------------------- |
+| `docs: x`       | Valid                                                                  |
+| `feat(api)!: x` | Valid                                                                  |
+| `chore: x`      | ``` `chore` is not in `keywords`, expected one of: docs, feat, fix ``` |
 
 ## Add a ticket
 
@@ -50,9 +42,10 @@ delimiters = ["[", "]"]
 before = "separator"
 ```
 
-`feat(api)![ABC-12]: x` now passes. The ticket takes anything but its own brackets.
+`feat(api)![ABC-12]: x` is valid. The ticket accepts any characters
+except its brackets.
 
-## Drop a slot
+## Remove a slot
 
 ```toml
 extends = "npm:@atypical/commit/standard"
@@ -62,7 +55,7 @@ name = "reason"
 drop = true
 ```
 
-## Turn off the default ignores
+## Disable default ignores
 
 ```toml
 extends = "npm:@atypical/commit/conventional"
