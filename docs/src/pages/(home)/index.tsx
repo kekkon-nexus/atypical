@@ -70,7 +70,7 @@ export default function Home() {
         <div className="absolute inset-0">
           <Dither size={32} shapeScale={1.2} timeScale={0.5} className="opacity-[0.125]" />
         </div>
-        <div className="relative z-2 grid grid-cols-1 gap-10 p-4 md:px-12 md:py-16 lg:min-h-192 lg:grid-cols-2 lg:items-center">
+        <div className="relative z-2 grid grid-cols-1 gap-10 p-4 md:px-12 md:py-16 lg:min-h-176 lg:grid-cols-2 lg:items-center">
           <div className="flex flex-col">
             <a
               href={url}
